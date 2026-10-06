@@ -1,0 +1,23 @@
+# MOD_DRAGON: optional runtime wrappers, transparent unless WWHD_MOD_DRAGON=1.
+# 0240CDD0 (Link execute) is already in the port's hooks_climb.txt; the patch chains it.
+023E92A0 # existing Wind Waker action
+0212A830 # Valoo create
+0212A00C # Valoo execute
+0212A6E4 # Valoo delete
+023FDA70 # Link movement while carried
+02520460 # resource load, scoped to summoned Valoo
+025204C8 # resource delete, same scope
+026066C4 # resource lookup, same scope
+025E1F34 # Call of the Sky six-beat recognition
+025D63E8 # tagged carrier solid heap allowance
+0212A728 # hook model in carrier solid heap
+02129D28 # carried hook and rope drawing
+025BA7B0 # Valoo gratitude card_load
+025BAC50 # Valoo gratitude card_new
+0234C0B0 # Valoo gratitude gong_create
+0234C23C # Valoo gratitude gong_execute
+0234C1C4 # Valoo gratitude gong_delete
+02286084 # Valoo gratitude medli_create
+02288B08 # Valoo gratitude medli_execute
+0228A254 # Valoo gratitude medli_delete
+025B7A2C # Valoo gratitude collect

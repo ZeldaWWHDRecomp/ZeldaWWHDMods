@@ -1,0 +1,54 @@
+diff --git a/runtime/src/audio_out.cpp b/runtime/src/audio_out.cpp
+index 0cc31e27..aa13b70b 100644
+--- a/runtime/src/audio_out.cpp
++++ b/runtime/src/audio_out.cpp
+@@ -4,2 +4,3 @@
+ #include "audio_out.h"
++#include "mods/dragon_song.h"  // dragon mod: Call of the Sky melody
+ 
+@@ -150,2 +151,3 @@ void init() {
+ void push(const int16_t* stereo, int frames) {
++    stereo = dragon::song::mix(stereo, frames);  // MOD_DRAGON: the original buffer when off or idle
+     if (g_dump) {
+diff --git a/runtime/src/gfx/metal_main.mm b/runtime/src/gfx/metal_main.mm
+index d0d77043..5dfe67d1 100644
+--- a/runtime/src/gfx/metal_main.mm
++++ b/runtime/src/gfx/metal_main.mm
+@@ -13,2 +13,4 @@
+ #include "input.h"
++// dragon mod (runtime/src/mods/dragon_hud.mm): flight / song / quest panel in the TV image
++namespace dragon { void draw_hud(id<MTLCommandBuffer> cmd, id<MTLTexture> tex); }
+ 
+@@ -204,2 +206,3 @@ void copy_to_scan(uint32_t cb, uint32_t target) {
+     [b endEncoding];
++    if (target & 1) ::dragon::draw_hud(command_buffer(), scr.tex);  // MOD_DRAGON: inert when off
+     if (target & 1) ::mods::draw_overlay(command_buffer(), scr.tex);  // HUD of gameplay mods (stamina wheel)
+diff --git a/runtime/src/mods/climb.cpp b/runtime/src/mods/climb.cpp
+index 7223c392..af5bd4f6 100644
+--- a/runtime/src/mods/climb.cpp
++++ b/runtime/src/mods/climb.cpp
+@@ -246,2 +246,5 @@ extern "C" void hook_02429408(Cpu* c) {
+ 
++// dragon mod (runtime/src/mods/dragon.cpp): Valoo call, carry and flight around Link's execute
++namespace dragon { void execute(Cpu*, PpcFunc original); }
++
+ // ---- daPy_lk_c::execute (0240CDD0): stamina, re-grab block, HUD state ----
+@@ -249,3 +252,3 @@ extern "C" void hook_0240CDD0(Cpu* c) {
+     uint32_t self = c->r[3];
+-    f_0240CDD0_orig(c);
++    dragon::execute(c, f_0240CDD0_orig);  // MOD_DRAGON: calls the original unchanged when off
+     if (!g_on) {
+diff --git a/runtime/src/true60.cpp b/runtime/src/true60.cpp
+index d45765b8..ebed2049 100644
+--- a/runtime/src/true60.cpp
++++ b/runtime/src/true60.cpp
+@@ -1250,2 +1250,4 @@ extern "C" void hook_025DF904(Cpu* c) {
+ 
++// dragon mod (runtime/src/mods/dragon.cpp): optional dragon view while Valoo carries Link
++namespace dragon { void camera(Cpu*, PpcFunc original); }
+ // dCamera_c::followCamera: marks the camera's execute as using the follow camera (true60 camera)
+@@ -1253,3 +1255,3 @@ extern "C" void hook_025028B8(Cpu* c) {
+     g_follow_called = true;
+-    f_025028B8_orig(c);
++    dragon::camera(c, f_025028B8_orig);  // MOD_DRAGON: calls the original unchanged when off
+ }

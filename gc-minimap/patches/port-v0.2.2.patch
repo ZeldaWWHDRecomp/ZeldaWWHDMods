@@ -1,0 +1,30 @@
+diff --git a/runtime/src/gfx/metal_main.mm b/runtime/src/gfx/metal_main.mm
+index d0d77043..d68a894a 100644
+--- a/runtime/src/gfx/metal_main.mm
++++ b/runtime/src/gfx/metal_main.mm
+@@ -16,2 +16,3 @@
+ namespace mods { void draw_overlay(id<MTLCommandBuffer> cmd, id<MTLTexture> tex); }
++namespace gc_minimap { void draw_hud(id<MTLCommandBuffer> cmd, id<MTLTexture> tex); }  // GC minimap mod
+ 
+@@ -205,2 +206,3 @@ void copy_to_scan(uint32_t cb, uint32_t target) {
+     if (target & 1) ::mods::draw_overlay(command_buffer(), scr.tex);  // HUD of gameplay mods (stamina wheel)
++    if (target & 1) ::gc_minimap::draw_hud(command_buffer(), scr.tex);  // MOD_GC_MINIMAP: inert when off
+ }
+diff --git a/runtime/src/true60.cpp b/runtime/src/true60.cpp
+index d45765b8..2d59c386 100644
+--- a/runtime/src/true60.cpp
++++ b/runtime/src/true60.cpp
+@@ -669,2 +669,5 @@ static void rx_log(uint32_t proc, uint32_t s0) {
+ }
++// GC minimap mod (runtime/src/mods/gc_minimap.cpp): read-only snapshot of Link after his execute
++namespace gc_minimap { bool enabled(); void capture(uint32_t player); }
++static constexpr uint32_t kGcMinimapLink = 0x10474BDC;  // Link's actor pointer (GC minimap mod)
+ extern "C" void hook_025DF940(Cpu* c) {
+@@ -681,2 +684,3 @@ extern "C" void hook_025DF940(Cpu* c) {
+         f_025DF940_orig(c);
++        if (gc_minimap::enabled() && proc == ld32(kGcMinimapLink)) gc_minimap::capture(proc);  // MOD_GC_MINIMAP
+         if (fn) true60_test::after_execute(proc, fn, fn == kDaPyExecute, 1.0f);
+@@ -755,2 +759,3 @@ extern "C" void hook_025DF940(Cpu* c) {
+     f_025DF940_orig(c);
++    if (gc_minimap::enabled() && proc == ld32(kGcMinimapLink)) gc_minimap::capture(proc);  // MOD_GC_MINIMAP
+     if (link_preview) link_preview_end();
