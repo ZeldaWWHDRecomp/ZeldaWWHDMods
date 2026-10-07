@@ -23,7 +23,7 @@ game unchanged: every hook calls the original game code and nothing is drawn.
 
 ## Target port version
 
-The patches are made for the port's **v0.2.2** release (tag `v0.2.2`, commit `488b1fd4`).
+The patches are made for the port's **v0.2.2** release (tag `v0.2.2`, commit `4bb65149`).
 Other versions may need the patches to be adapted.
 
 ## Built-in modules, not mod-manager packages (yet)
