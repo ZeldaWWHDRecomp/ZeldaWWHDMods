@@ -7,14 +7,15 @@ static char height_text[80],note_text[80],chime_text[64];
 static unsigned text_length(const char* text) { unsigned i=0;while(text[i])++i;return i; }
 static char* number(char* out,int n) {
     char reversed[12]; unsigned size=0;
-    if(n<0){*out++='-'; n=-(n+1); ++n;}
-    do {reversed[size++]=(char)('0'+n%10);n/=10;} while(n);
+    unsigned magnitude=n<0?0u-(unsigned)n:(unsigned)n;
+    if(n<0)*out++='-';
+    do {reversed[size++]=(char)('0'+magnitude%10);magnitude/=10;} while(magnitude);
     while(size)*out++=reversed[--size];return out;
 }
 static char* append(char* out,const char* text) { while(*text)*out++=*text++;return out; }
 static void text(u32 list,const char* value,float y,float size,u32 rgba) {
     if(!value || !*value)return;
-    element=(wwhd_hud_element){0};element.kind=WWHD_HUD_TEXT;element.anchor=WWHD_HUD_TOP_LEFT;
+    element=(wwhd_hud_element){0};element.thickness=1;element.u1=element.v1=1;element.kind=WWHD_HUD_TEXT;element.anchor=WWHD_HUD_TOP_LEFT;
     element.x=42;element.y=y;element.size=size;element.rgba=rgba;
     element.text=value;element.text_bytes=text_length(value);wwhd_hud_emit(list,&element);
 }
@@ -26,7 +27,7 @@ static void draw(u32 list) {
     if(phase<DRAGON_IDLE || phase>DRAGON_SONG)return;
     int quest=dragon_hud.quest_visible && phase==DRAGON_IDLE;
     float h=quest?220:160, y=720-h-24;
-    element=(wwhd_hud_element){0};element.kind=WWHD_HUD_RECT;element.anchor=WWHD_HUD_TOP_LEFT;
+    element=(wwhd_hud_element){0};element.thickness=1;element.u1=element.v1=1;element.kind=WWHD_HUD_RECT;element.anchor=WWHD_HUD_TOP_LEFT;
     element.x=24;element.y=y;element.w=560;element.h=h;element.rgba=0x060e14e0;
     wwhd_hud_emit(list,&element);
     const char *title=titles[phase],*line1="Automatic Grappling Hook pickup, then lift",*line2="",*line3="",*action="Flight controls unlock after the lift";
