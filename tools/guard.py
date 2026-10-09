@@ -64,7 +64,7 @@ def setup_policy(name, data, helper=False):
             if isinstance(node,ast.ImportFrom) and node.level: problems.append(name+': relative setup imports refused')
             for module in names:
                 if module.split('.')[0] not in modules: problems.append(name+': setup import refused: '+module)
-        if isinstance(node,ast.Name) and (node.id in (DANGEROUS - ({'open'} if helper else set())) or node.id.startswith('__')):
+        if isinstance(node,ast.Name) and (node.id in (DANGEROUS - ({'open'} if helper else set())) or (node.id.startswith('__') and node.id!='__name__')):
             problems.append(name+': dynamic or unsafe setup name: '+node.id)
         if isinstance(node,ast.Attribute):
             if node.attr.startswith('__'): problems.append(name+': dunder setup access refused')
