@@ -1,23 +1,57 @@
 name: Guest mod packages
 on:
-  workflow_dispatch:
-  push:
   pull_request:
+    branches: [devel]
+  push:
+    branches: [devel, main]
+  workflow_dispatch:
+    inputs:
+      hosting_base:
+        description: Absolute HTTPS release download root (no trailing channel/tag)
+        required: true
+        default: https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download
 permissions:
   contents: read
 jobs:
   packages:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Check trusted PR source policy
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/mod-policy"
+          git show "$BASE_SHA:tools/guard.py" > "$RUNNER_TEMP/mod-policy/guard.py"
+          git show "$BASE_SHA:sdk.json" > "$RUNNER_TEMP/mod-policy/sdk.json"
       - name: Read pinned SDK
         id: sdk
-        run: echo "commit=$(python3 -c 'import json; print(json.load(open("sdk.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, pathlib, re
+          path = pathlib.Path(os.environ['RUNNER_TEMP'])/'mod-policy/sdk.json' if os.environ['IS_PR']=='true' else pathlib.Path('sdk.json')
+          commit=json.loads(path.read_text())['commit']
+          if not re.fullmatch('[0-9a-f]{40}',commit): raise SystemExit('SDK pin must be a full commit')
+          print('commit='+commit)
+          PY
       - uses: actions/checkout@v4
         with:
           repository: ZeldaWWHDRecomp/ZeldaWWHDRecomp
           ref: ${{ steps.sdk.outputs.commit }}
           path: build/sdk
+          persist-credentials: false
+      - name: Enforce trusted guard on PR
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 "$RUNNER_TEMP/mod-policy/guard.py" . --sdk build/sdk --pr-base "$BASE_SHA"
       - name: Install PowerPC compiler
         run: sudo apt-get update && sudo apt-get install -y clang lld
       - name: Test source and package guard
@@ -25,12 +59,15 @@ jobs:
           python3 tools/test_guard.py build/sdk
           python3 tools/test_package.py
       - name: Build and verify packages
-        run: python3 tools/package.py --sdk build/sdk --out build/packages
+        env:
+          CHANNEL: ${{ github.ref_name == 'main' && 'main' || 'devel' }}
+          HOSTING_BASE: ${{ inputs.hosting_base || vars.MOD_PACKAGE_BASE || 'https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download' }}
+        run: python3 tools/package.py --sdk build/sdk --out build/packages --channel "$CHANNEL" --base-url "$HOSTING_BASE"
       - name: Test catalogue artifact validation
         run: python3 tools/test_validate.py build/packages
       - uses: actions/upload-artifact@v4
         with:
-          name: guest-mod-catalogue
+          name: guest-mod-catalogue-${{ github.ref_name == 'main' && 'main' || 'devel' }}-${{ github.sha }}
           path: |
             build/packages/*.zip
             build/packages/index.json

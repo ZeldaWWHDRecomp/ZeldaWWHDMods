@@ -33,9 +33,7 @@ def metadata(index):
         require(entry['port_versions'].get('minimum'), 'Missing minimum port version')
         require(set(entry['downloads']) == {'all'}, 'Guest package must be platform independent')
         download = entry['downloads']['all']
-        path = PurePosixPath(download['url'])
-        require(https(download['url']) or (not path.is_absolute() and '..' not in path.parts
-                and ':' not in download['url'] and '\\' not in download['url']), 'Unsafe download URL')
+        require(https(download['url']), 'Absolute HTTPS download URL required')
         require(re.fullmatch('[0-9a-f]{64}', download['sha256']), 'Invalid package SHA-256')
         require(type(download['size']) is int and 0 < download['size'] <= 256 * 1024 * 1024, 'Invalid package size')
         require(any(step.get('type') == 'build_guest_mod' for step in entry['setup']), 'Missing guest build setup')
@@ -71,7 +69,9 @@ def validate(directory, root_index=None):
     require({path.name for path in directory.glob('*.zip')} == expected, 'Unexpected ZIP in artifact folder')
     if root_index:
         # Binary hashes depend on compiler version; source metadata must match the committed index.
-        require(metadata(json.loads(root_index.read_text())) == described, 'Root index metadata is stale; regenerate it')
+        source=json.loads(root_index.read_text())
+        require(not any('downloads' in entry for entry in source['mods']), 'Source metadata cannot provide download URLs/hashes')
+        require({entry['id']:entry for entry in source['mods']} == described, 'Source metadata is stale; regenerate it')
 
 
 if __name__ == '__main__':

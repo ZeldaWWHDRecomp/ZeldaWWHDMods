@@ -3,11 +3,12 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import zipfile
-from guard import scan
-from validate import validate
+from guard import scan, setup_files
+from validate import validate, https
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -44,7 +45,20 @@ def owned_payload(folder, manifest):
     return payload
 
 
-def build(sdk, out, clang, lld, base_url=None):
+def package_root(base_url, channel, revision):
+    if channel not in {'main','devel'}: raise ValueError('Unknown package channel')
+    if not base_url or not https(base_url): raise ValueError('Absolute HTTPS hosting base required')
+    if not re.fullmatch('[0-9a-f]{40}',revision): raise ValueError('Full source commit required')
+    return base_url.rstrip('/')+'/'+channel+'-'+revision
+
+
+def build(sdk, out, clang, lld, base_url, channel='devel', revision=None):
+    revision = revision or subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
+    base_url = package_root(base_url,channel,revision)
+    source = json.loads((ROOT/'catalogue.json').read_text())
+    if any('downloads' in entry for entry in source['mods']): raise ValueError('Source metadata must not supply downloads/hashes')
+    declared={entry['id']:entry for entry in source['mods']}
+    if len(declared)!=len(source['mods']) or any(not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,63}',name) for name in declared): raise ValueError('Invalid or duplicate source mod ID')
     pin = json.loads((ROOT / 'sdk.json').read_text())
     actual = subprocess.check_output(['git', '-C', str(sdk), 'rev-parse', 'HEAD'], text=True).strip()
     if actual != pin['commit']:
@@ -56,17 +70,23 @@ def build(sdk, out, clang, lld, base_url=None):
     if problems: raise ValueError('\n'.join(problems))
     out.mkdir(parents=True, exist_ok=True)
     entries = []
-    for name in ['heart-ticker']:
+    for name in sorted(declared):
         folder = ROOT / name
         manifest = json.loads((folder / 'manifest.json').read_text())
+        if manifest.get('kind')!='guest' or manifest.get('id')!=name: raise ValueError('Invalid declared guest folder')
+        source_file=folder/'src/mod.c' if (folder/'src/mod.c').exists() else folder/'mod.c'
         obj, elf = out / (name + '.o'), out / (name + '.elf')
         subprocess.run([clang, '--target=powerpc-unknown-eabi', '-mcpu=750', '-O2', '-ffreestanding',
                         '-fno-builtin', '-nostdlib', '-fno-jump-tables', '-ffunction-sections', '-fdata-sections',
-                        '-I' + str(sdk / 'runtime/guest/include'), '-c', str(folder / 'mod.c'), '-o', str(obj)], check=True)
+                        '-I' + str(sdk / 'runtime/guest/include'), '-I'+str(source_file.parent), '-c', str(source_file), '-o', str(obj)], check=True)
         subprocess.run([lld, '-m', 'elf32ppc', '-r', str(obj), '-o', str(elf)], check=True)
         archive = out / (name + '.zip')
         payload = {file.name: file.read_bytes() for file in [folder / 'manifest.json', folder / 'README.md', folder / 'LICENSE']}
-        payload['src/mod.c'] = (folder / 'mod.c').read_bytes()
+        payload['src/mod.c'] = source_file.read_bytes()
+        for header in sorted(source_file.parent.glob('*.h')):
+            if header.is_symlink(): raise ValueError('Source header symlink refused')
+            payload['src/'+header.name]=header.read_bytes()
+        for tool in setup_files(folder,manifest): payload[tool]=(folder/tool).read_bytes()
         payload['mod.elf'] = elf.read_bytes()
         payload.update(owned_payload(folder, manifest))
         with zipfile.ZipFile(archive, 'w') as bundle:
@@ -77,15 +97,13 @@ def build(sdk, out, clang, lld, base_url=None):
                 bundle.writestr(info, data)
         obj.unlink();elf.unlink()
         data = archive.read_bytes()
-        url = base_url.rstrip('/') + '/' + archive.name if base_url else archive.name
-        if base_url and not base_url.startswith('https://'): raise ValueError('Package base URL must use HTTPS')
-        entries.append(dict(id=name, name=manifest['name'], description=manifest['description'],
-                            authors=[manifest['author']], version=manifest['version'], kind='guest',
-                            licences=['MPL-2.0'], builds=['USA', 'EU'], requires=[], setup=manifest['setup'],
-                            port_versions={'minimum': pin['minimum_port']},
-                            downloads={'all': dict(url=url, size=len(data), sha256=hashlib.sha256(data).hexdigest())}))
+        entry=dict(declared[name])
+        for key in ('id','kind','version','setup'):
+            if entry.get(key)!=manifest.get(key): raise ValueError('Source metadata/manifest mismatch: '+key)
+        entry['downloads']={'all':dict(url=base_url+'/'+archive.name,size=len(data),sha256=hashlib.sha256(data).hexdigest())}
+        entries.append(entry)
     (out / 'index.json').write_text(json.dumps(dict(format_version=1, mods=entries), indent=2) + '\n')
-    validate(out, ROOT / 'index.json')
+    validate(out, ROOT / 'catalogue.json')
     problems = scan(out, sdk, packages=True)
     if problems: raise ValueError('\n'.join(problems))
 
@@ -96,6 +114,8 @@ if __name__ == '__main__':
     parser.add_argument('--out', type=Path, default=ROOT / 'build/packages')
     parser.add_argument('--clang', default='clang')
     parser.add_argument('--lld', default='ld.lld')
-    parser.add_argument('--base-url')
+    parser.add_argument('--base-url', required=True, help='HTTPS release/download root; channel-commit path appended')
+    parser.add_argument('--channel',choices=['main','devel'],default='devel')
+    parser.add_argument('--revision')
     args = parser.parse_args()
-    build(args.sdk.resolve(), args.out.resolve(), args.clang, args.lld, args.base_url)
+    build(args.sdk.resolve(), args.out.resolve(), args.clang, args.lld, args.base_url,args.channel,args.revision)

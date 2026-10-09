@@ -1,0 +1,8 @@
+# Branch protection must require CODEOWNER approval; this file alone does not enforce it.
+* @lschaupp
+/.github/ @lschaupp
+/tools/ @lschaupp
+/sdk.json @lschaupp
+/catalogue.json @lschaupp
+/index.json @lschaupp
+/gc-minimap/tools/ @lschaupp

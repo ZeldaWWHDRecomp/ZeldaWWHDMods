@@ -35,3 +35,12 @@ with tempfile.TemporaryDirectory() as temporary:
         (root / 'alias').symlink_to(root / 'content', target_is_directory=True)
         rejects(lambda: owned_payload(root, {'content_dir': 'alias/Common'}))
 print('Combined package path preservation/missing-directory/escape/symlink checks passed')
+
+from package import package_root
+revision='1'*40
+main=package_root('https://example.invalid/releases/download','main',revision)
+devel=package_root('https://example.invalid/releases/download','devel',revision)
+assert main != devel and '/main-'+revision in main and '/devel-'+revision in devel
+for base,channel,commit in [('relative','main',revision),('http://example.invalid','main',revision),('https://user:pass@example.invalid','main',revision),('https://example.invalid/#fragment','main',revision),('https://example.invalid','../main',revision),('https://example.invalid','main','short')]:
+    rejects(lambda: package_root(base,channel,commit))
+print('Immutable absolute package channel URL checks passed')
