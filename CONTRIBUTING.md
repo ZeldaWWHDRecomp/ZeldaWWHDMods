@@ -9,3 +9,5 @@ Setup tools receive the strictest review. Use Python's permitted standard-librar
 PR CI uses `pull_request`, read-only repository permission, no secrets and no publishing. It compiles guest code directly with clang/lld; submitted Makefiles and setup tools are never executed. Keep original-art generator changes visible for review before trusted builds execute them.
 
 The maintainer reviews the source and test evidence, including both regions/renderers, 30/60 fps, state/save behaviour and disabled-mod identity. See [the maintainer checklist](docs/review-checklist.md).
+
+Promotion is prepared before main moves: build main-channel packages from clean tested source S, verify hosted artifacts, then create metadata-only publish commit P descended from S. Fast-forward main directly to P, so it never exposes a devel index; then fast-forward devel to P. Immutable package tags identify S, while P records generated hashes/URLs. See the maintainer checklist for the complete sequence.

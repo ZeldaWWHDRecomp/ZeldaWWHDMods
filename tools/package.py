@@ -53,6 +53,8 @@ def package_root(base_url, channel, revision):
 
 
 def build(sdk, out, clang, lld, base_url, channel='devel', revision=None):
+    if subprocess.check_output(['git','-C',str(ROOT),'status','--porcelain']):
+        raise ValueError('Source checkout must be clean: immutable package tags identify committed source')
     actual_revision=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
     if revision is not None and revision!=actual_revision: raise ValueError('Source revision must match checkout')
     revision=actual_revision
