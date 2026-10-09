@@ -21,7 +21,9 @@ jobs:
       - name: Install PowerPC compiler
         run: sudo apt-get update && sudo apt-get install -y clang lld
       - name: Test source and package guard
-        run: python3 tools/test_guard.py build/sdk
+        run: |
+          python3 tools/test_guard.py build/sdk
+          python3 tools/test_package.py
       - name: Build and verify packages
         run: python3 tools/package.py --sdk build/sdk --out build/packages
       - name: Test catalogue artifact validation

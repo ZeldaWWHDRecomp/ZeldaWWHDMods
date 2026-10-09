@@ -99,6 +99,21 @@ The artifact can be extracted and used offline. HTTPS URLs are required for a
 remote catalogue. Guest translation uses the installed game's USA/EU address
 mapping and native trust; Android guest mods remain unsupported.
 
+The package writer preserves original artwork in `assets/` and `textures/`, and
+authored content in `content/` (or the manifest's relative `content_dir`). These
+use the existing `kind: guest` manifest and catalogue schema version 1; no new
+catalogue delivery kind is needed. The SDK phase 2 runtime validates PNGs and
+uses one trust fingerprint for the whole combined package, including its ELF,
+manifest, artwork and content. Code mods off means neither part applies, and
+content activates only after the guest module loads on restart. The current
+pinned SDK and heart-ticker pilot do not require phase 2; a future combined
+catalogue entry must declare a minimum port version that includes those services.
+
+Artwork must be the modder's own work. The guards scan artwork and content too;
+an `assets/` path or a `.png` suffix never exempts game-resource magic or forbidden
+payloads. Game-derived maps belong only in the player's per-mod Data folder,
+generated locally by `run_tool`, and never in a catalogue package or artifact.
+
 Future minimap setup will select a shared GameCube source (`game_path`), run a
 package-local map preparation tool (`run_tool`) into the mod's data directory,
 and translate its guest ELF (`build_guest_mod`). Dragon needs guest translation
