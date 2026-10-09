@@ -1,5 +1,7 @@
 # Wind Waker HD guest mods
 
+Read [Creating a mod](docs/creating-a-mod.md) for the SDK v2 source layout, build and submission workflow.
+
 SDK v2 guest mods for [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp). Install through **Mods → Browse**, complete the package's setup steps, enable code mods when offered, then enable and restart. Guest panels use the port's HUD API on Metal and Vulkan. The repository is currently private; the default raw catalogue URL returns 404 to players until the lead makes it public or chooses another host.
 
 | Mod | Current status | Behaviour |
