@@ -68,3 +68,39 @@ Then start the game with the mod's switch, for example
 
 Both mods can be applied to the same checkout, in either order: their patches do not
 overlap.
+
+## Guest catalogue packages
+
+`heart-ticker/` is a guest SDK package. `sdk.json` pins the public port commit
+used for its declarations and builder compatibility. The existing dragon and
+minimap folders above remain legacy integration sources; they are not packaged
+by this workflow.
+
+Build with PowerPC-capable clang and lld against a clean checkout of the pinned
+SDK (the checkout must match `sdk.json` exactly):
+
+```sh
+python3 tools/test_guard.py path/to/pinned-port
+python3 tools/package.py --sdk path/to/pinned-port --out build/packages
+```
+
+The output contains a ZIP and a local `index.json`, with exact size and SHA-256.
+Set `WWHD_MOD_CATALOGUE` to that generated index's absolute path to test it in
+the port. The root `index.json` is a snapshot for local development; regenerate
+its checksums after changing the package or compiler. Its package URL points
+into `build/packages`, and no binary payload is committed. For hosted downloads,
+pass `--base-url https://your-host/path`; hosting and publication are separate
+maintainer steps. There is no public release or automatic deployment.
+
+CI builds one PowerPC ELF, packages its manifest/source/licence, checks the source
+and ZIP payloads with the pinned port release guard plus mod-specific checks,
+and uploads only packages and a generated local index as a workflow artifact.
+The artifact can be extracted and used offline. HTTPS URLs are required for a
+remote catalogue. Guest translation uses the installed game's USA/EU address
+mapping and native trust; Android guest mods remain unsupported.
+
+Future minimap setup will select a shared GameCube source (`game_path`), run a
+package-local map preparation tool (`run_tool`) into the mod's data directory,
+and translate its guest ELF (`build_guest_mod`). Dragon needs guest translation
+and options; both need the phase 2 HUD service before catalogue delivery. Game
+assets and generated map caches stay on the player's computer.

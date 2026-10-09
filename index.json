@@ -1,0 +1,40 @@
+{
+  "format_version": 1,
+  "mods": [
+    {
+      "id": "heart-ticker",
+      "name": "Heart ticker (guest mod example)",
+      "description": "Guest SDK example: hearts tick down to half a heart and refill; never lethal.",
+      "authors": [
+        "ZeldaWWHDRecomp contributors"
+      ],
+      "version": "0.1.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build heart ticker for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.2.10"
+      },
+      "downloads": {
+        "all": {
+          "url": "build/packages/heart-ticker.zip",
+          "size": 8507,
+          "sha256": "883ba90448a91a33fcd9b159191de2163cdb8d5dd9c2b15d3c7ceb7880544b2a"
+        }
+      }
+    }
+  ]
+}

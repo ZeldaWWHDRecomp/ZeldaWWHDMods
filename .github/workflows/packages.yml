@@ -1,0 +1,33 @@
+name: Guest mod packages
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned SDK
+        id: sdk
+        run: echo "commit=$(python3 -c 'import json; print(json.load(open("sdk.json"))["commit"])')" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: ZeldaWWHDRecomp/ZeldaWWHDRecomp
+          ref: ${{ steps.sdk.outputs.commit }}
+          path: build/sdk
+      - name: Install PowerPC compiler
+        run: sudo apt-get update && sudo apt-get install -y clang lld
+      - name: Test source and package guard
+        run: python3 tools/test_guard.py build/sdk
+      - name: Build and verify packages
+        run: python3 tools/package.py --sdk build/sdk --out build/packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: guest-mod-catalogue
+          path: |
+            build/packages/*.zip
+            build/packages/index.json
+          if-no-files-found: error
