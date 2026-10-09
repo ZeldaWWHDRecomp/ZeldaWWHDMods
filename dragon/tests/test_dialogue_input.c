@@ -17,5 +17,14 @@ int main(void) {
     assert(dragon_dialogue_quiet(&input,0,0x4000));
     assert(dragon_dialogue_quiet(&input,0,0));
     assert(!dragon_dialogue_quiet(&input,0,0));
+    /* Cancel a recognized song with no quest dialogue open. The native game
+       must see neither a held B nor its release, but a fresh later B works. */
+    assert(dragon_modal_quiet(&input,0,1,0x4000));
+    for(unsigned i=0;i<30;++i)assert(dragon_modal_quiet(&input,0,0,0x4000));
+    assert(dragon_modal_quiet(&input,0,0,0));
+    assert(!dragon_modal_quiet(&input,0,0,0x4000));
+    assert(dragon_modal_quiet(&input,1,0,0x8000));
+    assert(dragon_modal_quiet(&input,0,0,0));
+    assert(!dragon_modal_quiet(&input,0,0,0));
     return 0;
 }

@@ -183,8 +183,10 @@ WWHD_GAME_ORIGINAL(WWHD_ADDR_daPy_lk_c__execute,s32,original_link_execute,(void*
 WWHD_REPLACE(WWHD_ADDR_daPy_lk_c__execute,s32,dragon_execute,(void* self)) {
     daPy_lk_c* p=self;dragon_ride_state* r=&dragon_ride;float delta=dragon_tick_delta();wwhd_input_state pad;wwhd_input_read(&pad);
     u32 pressed=pad.buttons&~r->buttons;r->buttons=pad.buttons;
+    int cancelled_song_input=0;
     dragon_hud_register();
     if(r->phase==DRAGON_SONG && ((pressed&BUTTON_B)||!dragon_sea()||p!=r->player||!owns_proc(p))) {
+        cancelled_song_input=(pressed&BUTTON_B)!=0;
         if(p==r->player)end_song(p);else {r->phase=DRAGON_IDLE;song.matched=0;r->song_wind=0;}
         song_pending=summon_pending=0;
     }
@@ -201,7 +203,7 @@ WWHD_REPLACE(WWHD_ADDR_daPy_lk_c__execute,s32,dragon_execute,(void* self)) {
         if(pressed&BUTTON_A)dragon_release(p);else {dragon_place_link(p);*play_word(WWHD_PLAY_PLAYER_STATUS1_OFFSET)|=0x20;}
     }
     if(dialogue_player!=p){dialogue_input.blocked=0;dialogue_player=p;}
-    int quiet=dragon_dialogue_quiet(&dialogue_input,dragon_quest_tick(p,pressed,r->phase==DRAGON_IDLE),pad.buttons);
+    int quiet=dragon_modal_quiet(&dialogue_input,dragon_quest_tick(p,pressed,r->phase==DRAGON_IDLE),cancelled_song_input,pad.buttons);
     /* Suppress only fields proven by public Link/controller uses. Unknown
      * prototype trailing words are deliberately not treated as input fields. */
     u32 controller=WWHD_GAME_DATA(WWHD_ADDR_pad_pointer,u32),saved[6];

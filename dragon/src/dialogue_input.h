@@ -9,3 +9,9 @@ static inline int dragon_dialogue_quiet(dragon_dialogue_input* state,int consume
     state->blocked&=buttons;
     return previous!=0;
 }
+
+/* The song cancel path closes before the native player executes, just like a panel. */
+static inline int dragon_modal_quiet(dragon_dialogue_input* state,int dialog_consumed,
+                                    int song_cancelled,unsigned buttons) {
+    return dragon_dialogue_quiet(state,dialog_consumed || song_cancelled,buttons);
+}
