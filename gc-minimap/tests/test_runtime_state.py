@@ -36,6 +36,8 @@ class StateEvidenceTest(unittest.TestCase):
             self.assertTrue(real['real_map_visual_review_required'])
             self.assertIsNone(real['synthetic_hud_recovery_pass'])
             self.assertNotIn('green_pixels', real['post_restore_present_hud'][0])
+            (out / 'runtime.log').write_text(log.replace('[gfx] wrote frame_', '[display] present dump frame_'))
+            self.assertTrue(harness.state_cycle_result(out, True, 3000)['passed'])
             # Captures made before restoration cannot prove recovery.
             # Explicitly move the only frame-3000 write before restore.
             reordered = '[gfx] wrote frame_3000_present.png\n' + log.replace('[gfx] wrote frame_3000_present.png\n', '')

@@ -75,7 +75,8 @@ def state_cycle_result(out, synthetic, first_frame):
         row = hud_observation(path) if path.is_file() and synthetic else {}
         row['capture_exists'] = path.is_file()
         row.update(frame=frame, after_restore_dump=restore_at >= 0 and dump_at > restore_at and
-                   log.find('[gfx] wrote ' + path.name) > dump_at)
+                   any(log.find(prefix + path.name) > dump_at for prefix in
+                       ('[gfx] wrote ', '[display] present dump ')))
         captures.append(row)
     ordered = all(row['capture_exists'] and row['after_restore_dump'] for row in captures)
     visible = all(row.get('marker_color_pixels', 0) >= 10 and
