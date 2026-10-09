@@ -3,13 +3,17 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
-from PIL import Image, ImageDraw
+try:  # Pillow: only for this local game-run harness test; the setup tools use the standard library only
+    from PIL import Image, ImageDraw
+except ImportError:
+    Image = ImageDraw = None
 
 spec = importlib.util.spec_from_file_location('runtime_e2e', Path(__file__).with_name('run_runtime_e2e.py'))
 harness = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(harness)
 
 
+@unittest.skipIf(Image is None, 'Pillow not installed (local runtime harness test)')
 class StateEvidenceTest(unittest.TestCase):
     def fixture(self, out):
         (out / 'states').mkdir()
