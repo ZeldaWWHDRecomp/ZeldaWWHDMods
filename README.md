@@ -6,7 +6,7 @@ SDK v2 guest mods for [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/Zelda
 | --- | --- | --- |
 | [Heart ticker](heart-ticker/) | Existing guest example | Hearts tick down to half a heart and refill. |
 | [GameCube sea minimap](gc-minimap/) | Guest port in progress; verification pending | Position and heading on locally prepared Great Sea island maps. |
-| [Call of the Sky](legacy/dragon/) | Legacy prototype; guest port pending | Optional Dragon Roost song quest and Valoo ride. |
+| [Call of the Sky](dragon/) | Guest implementation; gameplay verification pending | Optional Dragon Roost song quest and Valoo ride. |
 
 The v0.2.2 built-in sources are preserved under `legacy/`. Their environment switches and patches apply only to those prototypes. Current guest packages use the mod manager and take effect at restart. Android guest mods remain unsupported.
 

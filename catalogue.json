@@ -80,6 +80,34 @@
         "minimum": "0.2.11"
       },
       "art_generator": "generate_art.py"
+    },
+    {
+      "id": "dragon",
+      "name": "Call of the Sky",
+      "description": "An optional Dragon Roost song quest and Valoo ride across the Great Sea.",
+      "authors": [
+        "ZeldaWWHDRecomp contributors"
+      ],
+      "version": "0.2.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Call of the Sky for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.2.11"
+      }
     }
   ]
 }
