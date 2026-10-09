@@ -28,8 +28,8 @@ def name_at(table,offset):
 
 def iso_files(context):
     header=context.read_game(0,0x440)
-    if header[:6] not in (b'GZLE01',b'GZLP01') or u32(header,0x1c)!=0xc2339f3d:
-        raise ValueError('Select an uncompressed USA/EU Wind Waker GameCube ISO')
+    if header[:6] not in (b'GZLE01',b'GZLP01',b'GZLJ01') or u32(header,0x1c)!=0xc2339f3d:
+        raise ValueError('Select an uncompressed USA/EU/Japanese Wind Waker GameCube ISO')
     offset,size=u32(header,0x424),u32(header,0x428)
     if offset<0x440 or not 12<=size<=LIMIT or offset+size>DISC_LIMIT: raise ValueError('Invalid disc FST range')
     fst=context.read_game(offset,size)
