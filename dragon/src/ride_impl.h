@@ -2,6 +2,7 @@
 #include "quest_game.h"
 #include "flight_math.h"
 #include "quest_state.h"
+#include "dialogue_input.h"
 #include "wwhd/camera.h"
 #include "recovery.h"
 #define BUTTON_A 0x8000u
@@ -12,6 +13,8 @@ dragon_ride_state dragon_ride={.id=~0u,.hand_offset={0,140,0},.lift_target=4000}
 int dragon_valoo_resources;
 static dragon_song_state song;
 static int song_pending,summon_pending,boat_pending;
+static dragon_dialogue_input dialogue_input;
+static daPy_lk_c* dialogue_player;
 static u32 request_parameter,request_generation;
 static void reset_ride(void) {
     dragon_ride_state* r=&dragon_ride;
@@ -197,7 +200,8 @@ WWHD_REPLACE(WWHD_ADDR_daPy_lk_c__execute,s32,dragon_execute,(void* self)) {
     if(r->phase==DRAGON_TAKEOFF || r->phase==DRAGON_LAUNCH) {
         if(pressed&BUTTON_A)dragon_release(p);else {dragon_place_link(p);*play_word(WWHD_PLAY_PLAYER_STATUS1_OFFSET)|=0x20;}
     }
-    int quiet=dragon_quest_tick(p,pressed,r->phase==DRAGON_IDLE);
+    if(dialogue_player!=p){dialogue_input.blocked=0;dialogue_player=p;}
+    int quiet=dragon_dialogue_quiet(&dialogue_input,dragon_quest_tick(p,pressed,r->phase==DRAGON_IDLE),pad.buttons);
     /* Suppress only fields proven by public Link/controller uses. Unknown
      * prototype trailing words are deliberately not treated as input fields. */
     u32 controller=WWHD_GAME_DATA(WWHD_ADDR_pad_pointer,u32),saved[6];
