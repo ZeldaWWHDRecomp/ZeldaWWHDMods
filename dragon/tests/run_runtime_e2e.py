@@ -339,7 +339,7 @@ def main():
         WWHD_RENDERER_RUNTIME=args.renderer, WWHD_MOD_MANAGER_DIR=str(manager), WWHD_TEST_TRUST_NATIVE_MODS='dragon', WWHD_GUEST_BUILD_CONFIG=str(config),
         WWHD_SETTINGS=str(args.out / 'settings.ini'), WWHD_DISPLAY_SETTINGS=str(args.out / 'display.plist'), WWHD_CONTROLS=str(args.out / 'controls.json'),
         WWHD_SHADER_CACHE=str(args.out / 'shaders.bin'), WWHD_VK_SHADER_CACHE=str(args.out / 'vkshaders'), WWHD_VK_PIPELINE_CACHE=str(args.out / 'vkpipelines.bin'),
-        WWHD_STATE_DIR=str(args.out / 'states'), WWHD_TEST_ORIGIN=str(route['origin_frame']), WWHD_TEST_END=str(route['duration']),
+        WWHD_STATE_DIR=str(args.out / 'states'), WWHD_TEST_ORIGIN=str(capture_frames({'origin_frame': route['origin_frame'], 'capture_frames': [route['origin_frame']]}, args.mode)[0]), WWHD_TEST_END=str(route['duration']),
         WWHD_PRESS=timed_input(route.get('boot_press', []), 'press'), WWHD_TEST_PRESS=timed_input(route.get('press', []), 'press'),
         WWHD_TEST_STICK=timed_input(route.get('stick', []), 'stick'), WWHD_TEST_RSTICK=timed_input(route.get('rstick', []), 'stick'),
         WWHD_DUMP_FRAMES=','.join(map(str, capture_frames(route, args.mode))), WWHD_DUMP_PRESENT='1', WWHD_SIM_SCREEN='1280x720',

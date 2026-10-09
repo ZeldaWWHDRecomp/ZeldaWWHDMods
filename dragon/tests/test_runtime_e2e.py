@@ -92,6 +92,11 @@ class RuntimeHarness(unittest.TestCase):
         route['origin_frame'] = 3300
         route['capture_frames'] = [3100, 3110, 3300, 5700, 6120]
         self.assertEqual(capture_frames(route, 'interp60'), [3100, 3110, 3490, 8290, 9130])
+        self.assertEqual(capture_frames({'origin_frame': 3300, 'capture_frames': [3300]}, 'interp60'), [3490])
+        # The final capture occurs before the 100-second route end on this same clock.
+        route['capture_frames'] = [6240, 3300 + 100 * 30]
+        last, end = capture_frames(route, 'interp60')
+        self.assertLess(last, end)
         self.assertEqual(capture_frames(route, '30'), route['capture_frames'])
         self.assertEqual(capture_frames(route, 'true60'), route['capture_frames'])
 
