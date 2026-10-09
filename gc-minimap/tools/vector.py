@@ -91,22 +91,50 @@ def lanczos_half(rgba,size):
             d=(i+.5-center)/2;weight=sinc(d)*sinc(d/3) if abs(d)<3 else 0
             weights.append((i,weight))
         total=sum(w for _,w in weights);table.append([(i,w/total) for i,w in weights])
+    weight_keys=[tuple(weight for _,weight in weights) for weights in table]
+    horizontal_cache={};vertical_cache={}
     horizontal=bytearray(out_size*size*4)
     for y in range(size):
         for x,weights in enumerate(table):
+            start=(y*size+weights[0][0])*4;end=(y*size+weights[-1][0]+1)*4
+            pixel=bytes(rgba[start:start+4])
+            if rgba[start:end]==pixel*len(weights):
+                key=(weight_keys[x],pixel)
+                if key not in horizontal_cache:
+                    sums=[0.,0.,0.,0.]
+                    for _,weight in weights:
+                        for channel in range(3): sums[channel]+=pixel[channel]*pixel[3]/255*weight
+                        sums[3]+=pixel[3]*weight
+                    horizontal_cache[key]=bytes(max(0,min(255,round(value))) for value in sums)
+                offset=(x*size+y)*4
+                horizontal[offset:offset+4]=horizontal_cache[key]
+                continue
             sums=[0.,0.,0.,0.]
             for i,weight in weights:
                 offset=(y*size+i)*4;a=rgba[offset+3]
                 for channel in range(3): sums[channel]+=rgba[offset+channel]*a/255*weight
                 sums[3]+=a*weight
-            offset=(y*out_size+x)*4
+            offset=(x*size+y)*4
             for channel in range(4): horizontal[offset+channel]=max(0,min(255,round(sums[channel])))
     out=bytearray(out_size*out_size*4)
     for y,weights in enumerate(table):
         for x in range(out_size):
+            start=(x*size+weights[0][0])*4;end=(x*size+weights[-1][0]+1)*4
+            pixel=bytes(horizontal[start:start+4])
+            if horizontal[start:end]==pixel*len(weights):
+                key=(weight_keys[y],pixel)
+                if key not in vertical_cache:
+                    sums=[0.,0.,0.,0.]
+                    for _,weight in weights:
+                        for channel in range(4): sums[channel]+=pixel[channel]*weight
+                    a=max(0,min(255,round(sums[3])))
+                    vertical_cache[key]=bytes([max(0,min(255,round(sums[channel]*255/a))) if a else 0 for channel in range(3)]+[a])
+                offset=(y*out_size+x)*4
+                out[offset:offset+4]=vertical_cache[key]
+                continue
             sums=[0.,0.,0.,0.]
             for i,weight in weights:
-                offset=(i*out_size+x)*4
+                offset=(x*size+i)*4
                 for channel in range(4): sums[channel]+=horizontal[offset+channel]*weight
             offset=(y*out_size+x)*4;a=max(0,min(255,round(sums[3])));out[offset+3]=a
             for channel in range(3): out[offset+channel]=max(0,min(255,round(sums[channel]*255/a))) if a else 0
