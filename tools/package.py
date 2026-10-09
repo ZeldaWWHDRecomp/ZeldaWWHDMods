@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import zipfile
 from guard import scan
+from validate import validate
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,6 +52,7 @@ def build(sdk, out, clang, lld, base_url=None):
                             port_versions={'minimum': pin['minimum_port']},
                             downloads={'all': dict(url=url, size=len(data), sha256=hashlib.sha256(data).hexdigest())}))
     (out / 'index.json').write_text(json.dumps(dict(format_version=1, mods=entries), indent=2) + '\n')
+    validate(out, ROOT / 'index.json')
     problems = scan(out, sdk, packages=True)
     if problems: raise ValueError('\n'.join(problems))
 
