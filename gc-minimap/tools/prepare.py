@@ -3,6 +3,7 @@ import json
 import struct
 import formats
 import vector
+import rvz
 import safe_io
 
 
@@ -24,10 +25,11 @@ def prepare(context):
     # Existing textures cannot revive a sector whose bounds were not reverified.
     context.write_data('maps-ready.json',b'{"ready":false}\n')
     for room in range(1,50): context.write_data(f'room-{room:02}.bounds',bytes(16))
-    files=formats.iso_files(context) if context.is_disc() else None
+    disc=rvz.disc_reader(context) if context.is_disc() else context
+    files=formats.iso_files(disc) if context.is_disc() else None
     prepared=[];hidden=[]
     for room in range(1,50):
-        archive=formats.rarc_files(room_archive(context,files,room))
+        archive=formats.rarc_files(room_archive(disc,files,room))
         candidates=[name for name in archive if name=='dat/room.dzr' or name=='dzr/room.dzr' or name=='room.dzr']
         if len(candidates)!=1 or 'dat/s128.bti' not in archive:
             hidden.append(room);continue

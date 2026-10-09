@@ -50,7 +50,7 @@ def iso_files(context):
             if start!=stack[-1][2] or not index<length<=stack[-1][1] or len(stack)>32: raise ValueError('Invalid FST directory parent/end')
             stack.append((path+'/',length,index))
         elif kind==0:
-            if length>LIMIT or start<0x440 or start+length>DISC_LIMIT: raise ValueError('Invalid disc file range')
+            if (length and start<0x440) or start+length>DISC_LIMIT: raise ValueError('Invalid disc file range')
             files[path]=(start,length)
         else: raise ValueError('Unknown FST entry type')
     return files

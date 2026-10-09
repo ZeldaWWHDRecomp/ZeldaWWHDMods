@@ -12,14 +12,14 @@ import zipfile
 EXTENSIONS = {'.rpx','.rpl','.wud','.wux','.wua','.szs','.pack','.bfres','.sarc','.arc','.bfsar','.bfstm','.msbt','.bmg','.bti','.bdl','.bmd','.gcm','.iso','.sav'}
 BINARIES = {'.elf','.o','.a','.so','.dll','.dylib','.exe','.zip','.gz','.xz','.7z','.rar','.png','.jpg','.jpeg','.gif','.webp','.bin','.wasm','.pyc'}
 TEXT = {'.c','.h','.cpp','.hpp','.mm','.m','.py','.md','.txt','.json','.yml','.yaml','.patch','.gitignore'}
-MAGIC = (b'Yaz0',b'SARC',b'RARC',b'FRES',b'FSAR',b'FSTM')
+MAGIC = (b'Yaz0',b'SARC',b'RARC',b'FRES',b'FSAR',b'FSTM',b'RVZ\x01',b'WIA\x01')
 BINARY_MAGIC = (b'\x7fELF',b'MZ',b'PK\x03\x04',b'\x1f\x8b',b'7z\xbc\xaf\x27\x1c',b'\xfe\xed\xfa\xce',b'\xce\xfa\xed\xfe',b'\xfe\xed\xfa\xcf',b'\xcf\xfa\xed\xfe',b'\xca\xfe\xba\xbe')
 FORBIDDEN = (b'NOT FOR '+b'PUBLICATION', b'gabi::'+b'call<')
 PATTERNS = [re.compile(rb'WWHD_'+rb'FUNC\s*\(\s*0x'),re.compile(rb'VER'+rb'IFY\s*\(\s*0x')]
 MAX_FILE = 2 * 1024 * 1024
 MAX_TOTAL = 32 * 1024 * 1024
-SETUP_MODULES = {'argparse','struct','zlib','math','json','hashlib','binascii','collections','itertools','functools','re','safe_io'}
-DANGEROUS = {'exec','eval','compile','__import__','getattr','setattr','delattr','globals','locals','vars','open','breakpoint','input','help','memoryview'}
+SETUP_MODULES = {'argparse','struct','zlib','math','json','hashlib','binascii','collections','itertools','functools','re','safe_io','bz2','lzma','compression'}
+DANGEROUS = {'exec','eval','compile','__import__','getattr','setattr','delattr','globals','locals','vars','open','breakpoint','input','help','memoryview','FileIO','BufferedWriter','TextIOWrapper','BZ2File','LZMAFile','ZstdFile','GzipFile','FileType'}
 
 
 def load_release_guard(sdk):
@@ -64,7 +64,7 @@ def setup_policy(name, data, helper=False, local_modules=(), pure=False):
     for node in ast.walk(tree):
         if isinstance(node,(ast.Import,ast.ImportFrom)):
             names=[alias.name for alias in node.names] if isinstance(node,ast.Import) else [node.module or '']
-            if not helper and any(alias.name.startswith('_') or alias.name in DANGEROUS or alias.name in {'os','sys','pathlib','tempfile','safe_io','Path','Context','arguments'} for alias in node.names) and isinstance(node,ast.ImportFrom):
+            if not helper and any(alias.name.startswith('_') or alias.name in DANGEROUS or alias.name in {'os','sys','pathlib','tempfile','safe_io','Path','Context','arguments','io','builtins','importlib','subprocess','socket','ctypes','pickle'} for alias in node.names) and isinstance(node,ast.ImportFrom):
                 problems.append(name+': private or capability symbol import refused')
             if isinstance(node,ast.ImportFrom) and node.level: problems.append(name+': relative setup imports refused')
             if not helper and isinstance(node,ast.ImportFrom) and (node.module or '').split('.')[0]=='safe_io':
@@ -81,8 +81,9 @@ def setup_policy(name, data, helper=False, local_modules=(), pure=False):
             problems.append(name+': dynamic or unsafe setup name: '+node.id)
         if isinstance(node,ast.Attribute):
             if node.attr.startswith('__') or (not helper and node.attr.startswith('_')): problems.append(name+': private setup access refused')
-            if not helper and node.attr in {'os','sys','pathlib','tempfile','safe_io','Path','Context'}:
+            if not helper and node.attr in {'os','sys','pathlib','tempfile','safe_io','Path','Context','io','builtins','importlib','subprocess','socket','ctypes','pickle'}:
                 problems.append(name+': raw capability/module export refused: '+node.attr)
+            if not helper and node.attr in DANGEROUS: problems.append(name+': unsafe setup effect constructor: '+node.attr)
             if node.attr in {'system','popen','spawn','execv','execve','fork','connect','urlopen'}: problems.append(name+': process/network effect refused: '+node.attr)
             if not helper and node.attr in {'open','write','write_bytes','write_text','mkdir','unlink','rename','replace','rmdir','remove','system','popen','load','loads','decompressobj','read_bytes','read_text','FileType'}:
                 # json.loads and zlib decompression are ordinary parsing, not execution.
@@ -162,7 +163,7 @@ def protected_pr_changes(root, base):
     changed=subprocess.check_output(['git','-C',str(root),'diff','--name-only',base,'HEAD'],text=True).splitlines()
     protected={'index.json','sdk.json','gc-minimap/tools/safe_io.py','.github/CODEOWNERS'}
     return [name+': protected policy/generated file; maintainer-reviewed integration required' for name in changed
-            if name in protected or name.startswith('.github/workflows/') or name.startswith('tools/')]
+            if name in protected or name.startswith('.github/workflows/') or name.startswith('tools/') or name.startswith('gc-minimap/tests/')]
 
 
 if __name__=='__main__':

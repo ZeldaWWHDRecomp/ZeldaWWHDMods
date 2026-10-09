@@ -59,6 +59,9 @@ class FormatsTests(unittest.TestCase):
         data=iso();self.assertEqual(formats.iso_files(MemoryDisc(data)),{'res/map.arc':(0x1000,4)})
         for ident in (b'GZLP01',b'GZLJ01'):
             data[:6]=ident;self.assertEqual(len(formats.iso_files(MemoryDisc(data))),1)
+    def test_large_unselected_disc_file_has_no_read_allocation(self):
+        data=iso();struct.pack_into('>I',data,0x500+24+8,formats.LIMIT+1)
+        self.assertEqual(formats.iso_files(MemoryDisc(data))['res/map.arc'][1],formats.LIMIT+1)
     def test_iso_invalid(self):
         for field,value in ((0x1c,0),(0x424,0),(0x428,0xffffffff)):
             data=iso();struct.pack_into('>I',data,field,value)

@@ -55,14 +55,20 @@ with tempfile.TemporaryDirectory(prefix='trusted-policy-') as temporary:
     git('init','-q')
     git('config','user.name','Synthetic policy test')
     git('config','user.email','policy@example.invalid')
-    for name in ['tools/package.py','tools/validate.py','tools/test_package.py','gc-minimap/tools/safe_io.py','index.json','sdk.json','.github/workflows/packages.yml','.github/CODEOWNERS','gc-minimap/mod.c']:
+    for name in ['tools/package.py','tools/validate.py','tools/test_package.py','gc-minimap/tests/test_formats.py','gc-minimap/tools/safe_io.py','index.json','sdk.json','.github/workflows/packages.yml','.github/CODEOWNERS','gc-minimap/mod.c']:
         path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('authored synthetic baseline\n')
     git('add','.');git('commit','-qm','authored baseline');base=git('rev-parse','HEAD')
     for path in root.rglob('*'):
         if path.is_file() and '.git' not in path.parts:path.write_text('authored synthetic change\n')
     git('add','.');git('commit','-qm','authored changes')
     problems=protected_pr_changes(root,base)
-    for name in ['tools/package.py','tools/validate.py','tools/test_package.py','gc-minimap/tools/safe_io.py','index.json','sdk.json','.github/workflows/packages.yml','.github/CODEOWNERS']:
+    for name in ['tools/package.py','tools/validate.py','tools/test_package.py','gc-minimap/tests/test_formats.py','gc-minimap/tools/safe_io.py','index.json','sdk.json','.github/workflows/packages.yml','.github/CODEOWNERS']:
         assert any(problem.startswith(name+':') for problem in problems),name
     assert not any(problem.startswith('gc-minimap/mod.c:') for problem in problems)
 print('Trusted-base policy protects all CI entrypoints and setup capability context')
+
+for source in ('import bz2\nbz2.BZ2File(\"outside\",\"w\")','from lzma import LZMAFile','from bz2 import io','import compression\ncompression.zstd.open(\"outside\",\"w\")'):
+    assert setup_policy('codec.py',source),source
+
+assert check('renamed.png',b'RVZ'+bytes([1])+b'authored',release)
+assert check('renamed.png',b'WIA'+bytes([1])+b'authored',release)

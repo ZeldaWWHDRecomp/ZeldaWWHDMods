@@ -57,6 +57,11 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python3 "$RUNNER_TEMP/mod-policy/guard.py" . --sdk build/sdk --pr-base "$BASE_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Test reviewed minimap parsers and setup IO
+        run: python3 -m unittest discover -s gc-minimap/tests -p 'test_*.py'
       - name: Install PowerPC compiler
         run: sudo apt-get update && sudo apt-get install -y clang lld
       - name: Test source and package guard
