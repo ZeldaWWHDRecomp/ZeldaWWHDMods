@@ -72,6 +72,7 @@ static void image(u32 list, u32 handle, float x, float y, float w, float h,
     element.anchor = WWHD_HUD_TOP_LEFT;
     element.x=x; element.y=y; element.w=w; element.h=h;
     element.rotation=rotation;
+    element.thickness=1;
     element.u1=element.v1=1;
     element.image=handle;
     element.rgba=0xffffff00u | (u32)(opacity * 255.0f + .5f);
