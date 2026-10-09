@@ -21,24 +21,29 @@ WWHD_REPLACE(WWHD_ADDR_createHeap_0212A728,s32,dragon_actor_heap,(void* self)) {
 WWHD_GAME_ORIGINAL(WWHD_ADDR_daDr_Create,s32,original_actor_create,(void* self));
 WWHD_REPLACE(WWHD_ADDR_daDr_Create,s32,dragon_actor_create,(void* self)) {
     if(!dragon_tagged(self))return original_actor_create(self);
+    /* cPhs_ERROR terminates an obsolete asynchronous creation; stock create
+     * cleanup owns its heap/archive. Never adopt a newer request by ID alone. */
+    if(!owns_actor(self))return 5;
     int resources=dragon_valoo_resources;dragon_valoo_resources=1;
     s32 result=original_actor_create(self);dragon_valoo_resources=resources;
     dragon_ride_state* r=&dragon_ride;fopAc_ac_c* a=dragon_actor(self);
     if(result==4) {
         r->actor=a;r->audio_pos=r->pos;r->rope=(u32)wwhd_ext_lineMat0Ctor_025E9960(0);
-        if(r->rope && !wwhd_ext_lineMat0Init_025E9B80((void*)r->rope,1,8,0)) {
-            wwhd_ext_lineMat0Dtor_025E99E0((void*)r->rope,3);r->rope=0;
+        int initialized=r->rope && wwhd_ext_lineMat0Init_025E9B80((void*)r->rope,1,8,0);
+        if(!dragon_rope_ready(r->rope,initialized)) {
+            reset_ride();wwhd_log("[dragon] rope setup failed");return 5;
         }
         if(r->phase==DRAGON_LOADING)r->phase=DRAGON_APPROACH;
         wwhd_anm_init_02129DB4(a,0x10,5,2,1,-1);
         a->cullSizeFar=100000;a->actor_status=(a->actor_status&~0x100u)|0x80;
-    } else if(result==5){r->phase=DRAGON_IDLE;r->id=~0u;}
+    } else if(result==5)reset_ride();
     return result;
 }
 WWHD_GAME_ORIGINAL(WWHD_ADDR_daDr_Execute,s32,original_actor_execute,(void* self));
 WWHD_REPLACE(WWHD_ADDR_daDr_Execute,s32,dragon_actor_execute,(void* self)) {
     if(!dragon_tagged(self))return original_actor_execute(self);
     dragon_ride_state* r=&dragon_ride;fopAc_ac_c* a=dragon_actor(self);
+    if(!owns_actor(self) || self!=r->actor){wwhd_fopAcM_delete_actor_025D57E0((u32)a);return 1;}
     if(!dragon_sea()){wwhd_fopAcM_delete_actor_025D57E0((u32)a);return 1;}
     if(r->phase==DRAGON_LEAVING) {
         float delta=dragon_tick_delta();r->pos.y+=35*delta;r->pos.z+=80*delta;
@@ -71,7 +76,7 @@ WWHD_REPLACE(WWHD_ADDR_daDr_Execute,s32,dragon_actor_execute,(void* self)) {
 WWHD_GAME_ORIGINAL(WWHD_ADDR_daDr_Draw,s32,original_actor_draw,(void* self));
 WWHD_REPLACE(WWHD_ADDR_daDr_Draw,s32,dragon_actor_draw,(void* self)) {
     s32 result=original_actor_draw(self);dragon_ride_state* r=&dragon_ride;
-    if(!dragon_tagged(self)||!r->rope||!dragon_carried()||!r->player)return result;
+    if(!dragon_tagged(self)||!owns_actor(self)||self!=r->actor||!r->rope||!dragon_carried()||!r->player)return result;
     if(r->phase==DRAGON_LAUNCH && r->ticks<8)return result;
     u32 table=*(u32*)(r->rope+WWHD_OFFSET_line_mat0_points_table);if(!table)return result;
     cXyz* points=*(cXyz**)table;if(!points)return result;
@@ -107,8 +112,7 @@ WWHD_REPLACE(WWHD_ADDR_daDr_Delete,s32,dragon_actor_delete,(void* self)) {
     dragon_ride_state* r=&dragon_ride;
     if(self==r->actor) {
         if(dragon_carried())dragon_release(r->player);
-        if(r->rope)wwhd_ext_lineMat0Dtor_025E99E0((void*)r->rope,3);
-        u32 buttons=r->buttons;*r=(dragon_ride_state){.id=~0u,.buttons=buttons,.hand_offset={0,140,0},.lift_target=4000};
+        reset_ride();
     }
     int resources=dragon_valoo_resources;if(dragon_tagged(self))dragon_valoo_resources=1;
     s32 result=original_actor_delete(self);dragon_valoo_resources=resources;return result;

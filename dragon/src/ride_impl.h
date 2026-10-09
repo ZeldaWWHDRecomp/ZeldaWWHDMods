@@ -3,15 +3,34 @@
 #include "flight_math.h"
 #include "quest_state.h"
 #include "wwhd/camera.h"
+#include "recovery.h"
 #define BUTTON_A 0x8000u
 #define BUTTON_B 0x4000u
-#define DRAGON_TAG 0x4452474eu
+#define DRAGON_TAG DRAGON_PRIVATE_TAG
 #define ROPE_LENGTH 350.0f
 dragon_ride_state dragon_ride={.id=~0u,.hand_offset={0,140,0},.lift_target=4000};
 int dragon_valoo_resources;
 static dragon_song_state song;
 static int song_pending,summon_pending,boat_pending;
-int dragon_tagged(void* actor) {return actor && dragon_actor(actor)->mParameters==DRAGON_TAG;}
+static u32 request_parameter,request_generation;
+static void reset_ride(void) {
+    dragon_ride_state* r=&dragon_ride;
+    if(r->rope)wwhd_ext_lineMat0Dtor_025E99E0((void*)r->rope,3);
+    u32 buttons=r->buttons;*r=(dragon_ride_state){.id=~0u,.buttons=buttons,.hand_offset={0,140,0},.lift_target=4000};
+    request_parameter=0;
+}
+static int owns_actor(void* actor) {
+    return actor && dragon_request_owned(*dragon_word(actor,WWHD_OFFSET_actor_process_id),
+        dragon_actor(actor)->mParameters,dragon_ride.id,request_parameter);
+}
+static void cancel_wait(void) {
+    dragon_ride_state* r=&dragon_ride;
+    /* delete_id only finds completed actors. Forget a pending request; its
+     * generation-tagged create callback refuses it if it arrives later. */
+    if(r->actor)wwhd_fopAcM_delete_actor_025D57E0((u32)r->actor);
+    reset_ride();
+}
+int dragon_tagged(void* actor) {return actor && (dragon_actor(actor)->mParameters&DRAGON_PRIVATE_MASK)==DRAGON_TAG;}
 int dragon_carried(void) {return dragon_ride.phase==DRAGON_LAUNCH || dragon_ride.phase==DRAGON_TAKEOFF || dragon_ride.phase==DRAGON_RIDING;}
 static u32* play_word(u32 offset) {return dragon_word(wwhd_play_get(),offset);}
 static cXyz left_hand(daPy_lk_c* player) {return *(cXyz*)((u8*)player+WWHD_OFFSET_Link_left_hand_position);}
@@ -55,8 +74,10 @@ static void summon(daPy_lk_c* player) {
     r->yaw=dragon_actor(player)->shape_angle.y*(DRAGON_PI/32768);
     r->pos.x-=dragon_sin(r->yaw)*1800;r->pos.z-=dragon_cos(r->yaw)*1800;
     csXyz rotation={0,dragon_actor(player)->shape_angle.y,0};cXyz scale={.12f,.12f,.12f};
-    r->id=wwhd_fopAcM_create_025D5834((u32)profile,DRAGON_TAG,(u32)&r->pos,-1,(u32)&rotation,(u32)&scale,0xff,0);
-    if(r->id==~0u){wwhd_log("[dragon] summon failed");return;}
+    request_generation=(request_generation+1)&0xffffu;if(!request_generation)request_generation=1;
+    request_parameter=DRAGON_TAG|request_generation;
+    r->id=wwhd_fopAcM_create_025D5834((u32)profile,request_parameter,(u32)&r->pos,-1,(u32)&rotation,(u32)&scale,0xff,0);
+    if(r->id==~0u){request_parameter=0;wwhd_log("[dragon] summon failed");return;}
     r->phase=DRAGON_LOADING;r->ticks=0;
 }
 static void launch(daPy_lk_c* player) {
@@ -164,6 +185,10 @@ WWHD_REPLACE(WWHD_ADDR_daPy_lk_c__execute,s32,dragon_execute,(void* self)) {
         if(p==r->player)end_song(p);else {r->phase=DRAGON_IDLE;song.matched=0;r->song_wind=0;}
         song_pending=summon_pending=0;
     }
+    if(r->phase==DRAGON_LOADING || r->phase==DRAGON_APPROACH) {
+        r->ticks+=delta;
+        if(dragon_wait_cancel(r->phase,r->ticks,p==r->player,dragon_sea(),dragon_event(),pressed&BUTTON_B))cancel_wait();
+    }
     if(dragon_carried() && (p!=r->player||!dragon_sea()||dragon_event()||!dragon_tagged(r->actor)))dragon_release(r->player);
     if(r->phase==DRAGON_RIDING) {
         if(pressed&BUTTON_A)dragon_release(p);
@@ -187,7 +212,6 @@ WWHD_REPLACE(WWHD_ADDR_daPy_lk_c__execute,s32,dragon_execute,(void* self)) {
     }
     if(song_pending && r->phase==DRAGON_IDLE){song_pending=0;begin_song(p);}
     else if(r->phase==DRAGON_SONG && (r->ticks+=delta)>=90){dragon_quest_song_learned();end_song(p);summon_pending=1;}
-    if(r->phase==DRAGON_LOADING && (r->ticks+=delta)>300)dragon_release(p);
     if(r->phase==DRAGON_APPROACH && p==r->player && r->grab_valid) {
         cXyz target=dragon_actor(p)->current.pos;target.x-=r->grab_offset.x;target.y+=r->hand_offset.y+ROPE_LENGTH-r->grab_offset.y;target.z-=r->grab_offset.z;
         r->pos.x+=(target.x-r->pos.x)*dragon_blend(.08f,dragon_tick_delta());r->pos.y+=(target.y-r->pos.y)*dragon_blend(.08f,dragon_tick_delta());r->pos.z+=(target.z-r->pos.z)*dragon_blend(.08f,dragon_tick_delta());
