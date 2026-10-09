@@ -2,6 +2,99 @@
   "format_version": 1,
   "mods": [
     {
+      "id": "dragon",
+      "name": "Call of the Sky",
+      "description": "An optional Dragon Roost song quest and Valoo ride across the Great Sea.",
+      "authors": [
+        "ZeldaWWHDRecomp contributors"
+      ],
+      "version": "0.2.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Call of the Sky for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.2.11"
+      },
+      "downloads": {
+        "all": {
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/devel-7123548fbbe93a5cb7b8b01d7981b26f98c8f5e5/dragon.zip",
+          "size": 53252,
+          "sha256": "d495d07a2081d86dbcafac71e48e7e72dc30eabf94296c0f7212068fb0987c22"
+        }
+      }
+    },
+    {
+      "id": "gc-minimap",
+      "name": "GameCube sea minimap",
+      "description": "A GameCube-style island map on the Great Sea, prepared locally from your own game files.",
+      "authors": [
+        "ZeldaWWHDRecomp contributors"
+      ],
+      "version": "0.2.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "gc-source",
+          "type": "game_path",
+          "title": "Select your GameCube Wind Waker disc or extracted game folder",
+          "game": "gc_wind_waker",
+          "explanation": "USA, European and Japanese GameCube dumps are supported. Your files stay on this machine."
+        },
+        {
+          "id": "maps",
+          "type": "run_tool",
+          "title": "Prepare local island maps",
+          "tool": "tools/prepare.py",
+          "arguments": [
+            "--source",
+            "{game:gc_wind_waker}",
+            "--data",
+            "{data}"
+          ],
+          "outputs": [
+            "maps-ready.json"
+          ],
+          "explanation": "Reads your own game files and writes derived map images only to this mod\u2019s data folder."
+        },
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build minimap for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.2.11"
+      },
+      "downloads": {
+        "all": {
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/devel-7123548fbbe93a5cb7b8b01d7981b26f98c8f5e5/gc-minimap.zip",
+          "size": 29965,
+          "sha256": "35a32672c8f317914cf8f88b512a852dfb69377f6a4a491ed817a17bf892a925"
+        }
+      }
+    },
+    {
       "id": "heart-ticker",
       "name": "Heart ticker (guest mod example)",
       "description": "Guest SDK example: hearts tick down to half a heart and refill; never lethal.",
@@ -30,9 +123,9 @@
       },
       "downloads": {
         "all": {
-          "url": "build/packages/heart-ticker.zip",
-          "size": 8507,
-          "sha256": "883ba90448a91a33fcd9b159191de2163cdb8d5dd9c2b15d3c7ceb7880544b2a"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/devel-7123548fbbe93a5cb7b8b01d7981b26f98c8f5e5/heart-ticker.zip",
+          "size": 8503,
+          "sha256": "fd369c8f797b076a095b984c953ae4fa0e02ef9a80024e59db28e5d93139c962"
         }
       }
     }
