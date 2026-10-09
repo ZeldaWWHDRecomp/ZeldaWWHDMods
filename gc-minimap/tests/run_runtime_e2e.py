@@ -72,20 +72,22 @@ def state_cycle_result(out, synthetic, first_frame):
     captures = []
     for frame in (first_frame, first_frame + 2, first_frame + 4):
         path = out / ('frame_%d_present.png' % frame)
-        row = hud_observation(path) if path.is_file() else {}
+        row = hud_observation(path) if path.is_file() and synthetic else {}
+        row['capture_exists'] = path.is_file()
         row.update(frame=frame, after_restore_dump=restore_at >= 0 and dump_at > restore_at and
                    log.find('[gfx] wrote ' + path.name) > dump_at)
         captures.append(row)
+    ordered = all(row['capture_exists'] and row['after_restore_dump'] for row in captures)
     visible = all(row.get('marker_color_pixels', 0) >= 10 and
-                  (not synthetic or row.get('green_pixels', 0) > 5000) and
-                  row['after_restore_dump'] for row in captures)
-    passed = saved and restored and state.is_file() and dump.is_file() and visible
-    return {'passed': passed, 'save_written_log': saved, 'restore_success_log': restored,
+                  row.get('green_pixels', 0) > 5000 for row in captures) if synthetic else None
+    passed = saved and restored and state.is_file() and dump.is_file() and ordered and visible is not False
+    return {'passed': passed, 'synthetic_hud_recovery_pass': visible,
+            'real_map_visual_review_required': not synthetic, 'save_written_log': saved, 'restore_success_log': restored,
             'state_sha256': sha256_file(state) if state.is_file() else None,
             'post_restore_native_dump': dump.name, 'post_restore_present_hud': captures,
             'scope': 'Same-process compatible full-state restore with gc-minimap active. '
-                     'Post-restore chart/marker recovery exercises HUD epoch/resource recreation; '
-                     'synthetic data proves no real-map registration. No cross-version states.'}
+                     'Synthetic captures check chart/marker recovery; real-map captures require separate visual review. '
+                     'No real-map registration or cross-version claim from automated results.'}
 
 
 def main():
@@ -107,8 +109,6 @@ def main():
     args = parser.parse_args()
     if args.min_free_gib < 0:
         parser.error('Disk floor must be nonnegative')
-    if args.state_cycle and not args.synthetic_maps:
-        parser.error('--state-cycle requires --synthetic-maps for chart/marker evidence')
     if args.synthetic_marker_edge and not args.synthetic_maps:
         parser.error('--synthetic-marker-edge requires --synthetic-maps')
     args.out = args.out.resolve()

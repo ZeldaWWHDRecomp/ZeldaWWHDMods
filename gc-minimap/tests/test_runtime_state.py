@@ -31,6 +31,11 @@ class StateEvidenceTest(unittest.TestCase):
             out = Path(folder)
             log = self.fixture(out)
             self.assertTrue(harness.state_cycle_result(out, True, 3000)['passed'])
+            real = harness.state_cycle_result(out, False, 3000)
+            self.assertTrue(real['passed'])
+            self.assertTrue(real['real_map_visual_review_required'])
+            self.assertIsNone(real['synthetic_hud_recovery_pass'])
+            self.assertNotIn('green_pixels', real['post_restore_present_hud'][0])
             # Captures made before restoration cannot prove recovery.
             # Explicitly move the only frame-3000 write before restore.
             reordered = '[gfx] wrote frame_3000_present.png\n' + log.replace('[gfx] wrote frame_3000_present.png\n', '')
