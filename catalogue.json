@@ -28,6 +28,58 @@
       "port_versions": {
         "minimum": "0.2.10"
       }
+    },
+    {
+      "id": "gc-minimap",
+      "name": "GameCube sea minimap",
+      "description": "A GameCube-style island map on the Great Sea, prepared locally from your own game files.",
+      "authors": [
+        "ZeldaWWHDRecomp contributors"
+      ],
+      "version": "0.2.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "gc-source",
+          "type": "game_path",
+          "title": "Select your GameCube Wind Waker disc or extracted game folder",
+          "game": "gc_usa",
+          "explanation": "USA, European and Japanese GameCube dumps are supported. Your files stay on this machine."
+        },
+        {
+          "id": "maps",
+          "type": "run_tool",
+          "title": "Prepare local island maps",
+          "tool": "tools/prepare.py",
+          "arguments": [
+            "--source",
+            "{game:gc_usa}",
+            "--data",
+            "{data}"
+          ],
+          "outputs": [
+            "maps-ready.json"
+          ],
+          "explanation": "Reads your own game files and writes derived map images only to this mod\u2019s data folder."
+        },
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build minimap for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.2.11"
+      },
+      "art_generator": "generate_art.py"
     }
   ]
 }
