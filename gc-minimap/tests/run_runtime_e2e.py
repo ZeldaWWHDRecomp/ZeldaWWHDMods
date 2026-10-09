@@ -18,14 +18,23 @@ import zipfile
 import zlib
 
 
-def synthetic_maps(data):
+def synthetic_maps(data, edge=None):
     def chunk(kind, value):
         return struct.pack('>I', len(value)) + kind + value + struct.pack('>I', zlib.crc32(kind + value) & 0xffffffff)
     pixels = b''.join(b'\0' + bytes((31, 201, 109, 255)) * 32 for _ in range(32))
     image = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 32, 32, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(pixels)) + chunk(b'IEND', b'')
     for room in range(1, 50):
         gx, gz = (room - 1) % 7 - 3, (room - 1) // 7 - 3
-        (data / ('room-%02d.bounds' % room)).write_bytes(struct.pack('>4f', gx * 100000 - 50000, gz * 100000 - 50000, gx * 100000 + 50000, gz * 100000 + 50000))
+        bounds = [gx * 100000 - 50000, gz * 100000 - 50000, gx * 100000 + 50000, gz * 100000 + 50000]
+        # Authored bounds deliberately put every real position in this sector
+        # beyond one chart edge; no game memory or derived map data is changed.
+        if edge in ('left', 'right'):
+            low = gx * 100000 + (60000 if edge == 'left' else -70000)
+            bounds[0], bounds[2] = low, low + 10000
+        if edge in ('top', 'bottom'):
+            low = gz * 100000 + (60000 if edge == 'top' else -70000)
+            bounds[1], bounds[3] = low, low + 10000
+        (data / ('room-%02d.bounds' % room)).write_bytes(struct.pack('>4f', *bounds))
         (data / ('room-%02d-vector.png' % room)).write_bytes(image)
 
 
@@ -36,6 +45,7 @@ def main():
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--chart-data', type=Path, help='Previously prepared private map data')
     source.add_argument('--synthetic-maps', action='store_true', help='Authored HUD smoke fixture only')
+    parser.add_argument('--synthetic-marker-edge', choices=('left', 'right', 'top', 'bottom'), help='Authored boundary-clipping fixture; requires --synthetic-maps')
     parser.add_argument('--renderer', choices=('metal', 'vulkan'), required=True)
     parser.add_argument('--mode', choices=('30', 'interp60', 'true60'), default='30')
     parser.add_argument('--first-frame', type=int, default=3000)
@@ -45,6 +55,8 @@ def main():
     args = parser.parse_args()
     if args.min_free_gib < 0:
         parser.error('Disk floor must be nonnegative')
+    if args.synthetic_marker_edge and not args.synthetic_maps:
+        parser.error('--synthetic-marker-edge requires --synthetic-maps')
     args.out = args.out.resolve()
     repo = Path(__file__).resolve().parents[2]
     for checkout in (repo, args.sdk.resolve()):
@@ -75,7 +87,7 @@ def main():
     data = manager / 'Data/gc-minimap'
     data.mkdir(parents=True)
     if args.synthetic_maps:
-        synthetic_maps(data)
+        synthetic_maps(data, args.synthetic_marker_edge)
     else:
         for path in args.chart_data.iterdir():
             if path.is_file() and not path.is_symlink() and path.suffix in ('.png', '.bounds') and path.name.startswith('room-'):
@@ -120,7 +132,7 @@ def main():
             green = sum(g > r + 40 and g > b + 40 for r, g, b in crop.getdata())
         observations.append({'frame': frame, 'green_pixels': green})
     passed = all(row['green_pixels'] > 5000 for row in observations) if args.synthetic_maps else None
-    report = {'min_free_gib': args.min_free_gib, 'renderer': args.renderer, 'mode': args.mode, 'synthetic_maps': args.synthetic_maps, 'synthetic_hud_presence_pass': passed, 'frames': observations, 'binary_sha256': hashlib.sha256(args.binary.read_bytes()).hexdigest(), 'limitations': 'Smoke only. Does not prove setup/catalogue lifecycle, real map registration or legacy visual parity.'}
+    report = {'min_free_gib': args.min_free_gib, 'renderer': args.renderer, 'mode': args.mode, 'synthetic_maps': args.synthetic_maps, 'synthetic_marker_edge': args.synthetic_marker_edge, 'synthetic_hud_presence_pass': passed, 'frames': observations, 'binary_sha256': hashlib.sha256(args.binary.read_bytes()).hexdigest(), 'limitations': 'Smoke only. Does not prove setup/catalogue lifecycle, real map registration or legacy visual parity.'}
     (args.out / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
     if passed is False:
