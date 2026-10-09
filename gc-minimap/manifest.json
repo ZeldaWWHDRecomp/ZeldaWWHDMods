@@ -16,7 +16,7 @@
       "type": "number",
       "default": 6,
       "min": 0,
-      "max": 1280,
+      "max": 1200,
       "step": 1
     },
     {
@@ -25,7 +25,7 @@
       "type": "number",
       "default": 18,
       "min": 0,
-      "max": 720,
+      "max": 650,
       "step": 1
     },
     {
@@ -65,7 +65,7 @@
       "id": "gc-source",
       "type": "game_path",
       "title": "Select your GameCube Wind Waker disc or extracted game folder",
-      "game": "gc_usa",
+      "game": "gc_wind_waker",
       "explanation": "USA, European and Japanese GameCube dumps are supported. Your files stay on this machine."
     },
     {
@@ -75,7 +75,7 @@
       "tool": "tools/prepare.py",
       "arguments": [
         "--source",
-        "{game:gc_usa}",
+        "{game:gc_wind_waker}",
         "--data",
         "{data}"
       ],

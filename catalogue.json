@@ -51,7 +51,7 @@
           "id": "gc-source",
           "type": "game_path",
           "title": "Select your GameCube Wind Waker disc or extracted game folder",
-          "game": "gc_usa",
+          "game": "gc_wind_waker",
           "explanation": "USA, European and Japanese GameCube dumps are supported. Your files stay on this machine."
         },
         {
@@ -61,7 +61,7 @@
           "tool": "tools/prepare.py",
           "arguments": [
             "--source",
-            "{game:gc_usa}",
+            "{game:gc_wind_waker}",
             "--data",
             "{data}"
           ],
