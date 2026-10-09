@@ -91,10 +91,21 @@ static void draw(u32 list) {
     float overlay = a < .8f ? a / .8f : 1;
     image(list, frame, x+.1f*s, y+.1f*s, .8f*s, .8f*s, 0, overlay);
     /* Game yaw zero faces +Z (map down); original marker art points up. */
+    element = (wwhd_hud_element){0};
+    element.kind=WWHD_HUD_CLIP_PUSH;
+    element.anchor=WWHD_HUD_TOP_LEFT;
+    element.x=x+.1f*s; element.y=y+.1f*s;
+    element.w=element.h=.8f*s;
+    element.thickness=1;
+    wwhd_hud_clip(list, &element);
     float extent=.8f*s*.078f;
     image(list, marker, x+s*(.1f+.8f*point.x)-extent*.5f,
           y+s*(.1f+.8f*point.z)-extent*.5f, extent, extent,
           pi-(float)snapshot.yaw*(2*pi/65536.0f), overlay);
+    element = (wwhd_hud_element){0};
+    element.kind=WWHD_HUD_CLIP_POP;
+    element.thickness=1;
+    wwhd_hud_clip(list, &element);
     image(list, arrow, x+.45f*s, y+.02f*s, .1f*s, .05f*s, pi, overlay);
     image(list, arrow, x-.005f*s, y+.475f*s, .1f*s, .05f*s, pi*.5f, overlay);
     image(list, arrow, x+.905f*s, y+.475f*s, .1f*s, .05f*s, -pi*.5f, overlay);
