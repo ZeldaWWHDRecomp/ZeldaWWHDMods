@@ -11,7 +11,7 @@
   },
   "options": [],
   "author": "ZeldaWWHDRecomp contributors",
-  "description": "An optional Dragon Roost song quest and Valoo ride across the Great Sea.",
+  "description": "SDK v2 example prototype: an optional Dragon Roost song quest and Valoo ride across the Great Sea.",
   "minimum_manager_version": "1.3.0",
   "setup": [
     {

@@ -1,6 +1,6 @@
-# Call of the Sky
+# Call of the Sky — SDK v2 example
 
-SDK v2 PowerPC guest port of the optional Dragon Roost quest and Valoo ride.
+An SDK v2 PowerPC guest example of the optional Dragon Roost quest and Valoo ride.
 The original built-in prototype remains in `../legacy/dragon/`.
 
 Install through Mods → Browse, complete the guest build, enable code mods and
@@ -20,11 +20,12 @@ The synthesized song melody is omitted. The game sound calls used for chimes
 do not provide an established interface for this custom melody. See
 [the proposed generic audio service](../docs/audio-stream-service.md).
 
-This is a testing implementation, not a release approval. Guest compilation,
-regional translation and synthetic quest/recovery tests have passed; normal
-quest completion, actor cleanup, ride state restoration and the complete
-renderer/timing matrix still require gameplay verification. The opt-in
-`tests/run_runtime_e2e.py` harness records private evidence and distinguishes
-normal routes from instrumented failure fixtures. No game assets or saves
-are included. The prototype's custom flight and quest remain optional
-gameplay modifications rather than ordinary story progression.
+This example remains a prototype. USA/EU Metal/Vulkan timing checks, cancellation,
+boat/leaf recovery, occupied-neighbour save-slot preservation and same-run state
+restoration passed within the documented test fixtures. Quest and ride checks
+include instrumented travel fixtures; a complete ordinary quest playthrough is
+not established. The opt-in `tests/run_runtime_e2e.py` harness records private
+evidence and distinguishes normal routes from instrumented fixtures. No game
+assets or saves are included.
+
+Known limitations: not checked against every story scene that uses Medli or Valoo.
