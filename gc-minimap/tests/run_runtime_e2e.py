@@ -41,7 +41,10 @@ def main():
     parser.add_argument('--first-frame', type=int, default=3000)
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--max-game-sessions', type=int, choices=range(1, 5), default=4)
+    parser.add_argument('--min-free-gib', type=int, default=15, help='Explicit local disk floor; 0 disables the gate when authorized')
     args = parser.parse_args()
+    if args.min_free_gib < 0:
+        parser.error('Disk floor must be nonnegative')
     args.out = args.out.resolve()
     repo = Path(__file__).resolve().parents[2]
     for checkout in (repo, args.sdk.resolve()):
@@ -49,8 +52,8 @@ def main():
             parser.error('Private outputs must stay outside source checkouts')
     if args.first_frame < 700:
         parser.error('Allow at least 700 frames for startup')
-    if shutil.disk_usage(args.out.parent).free < 15 * 1024**3:
-        parser.error('Free disk is below 15 GiB')
+    if shutil.disk_usage(args.out.parent).free < args.min_free_gib * 1024**3:
+        parser.error('Free disk is below the configured floor')
     sys.path.insert(0, str(args.sdk.resolve() / 'tools/bench'))
     from run_bench import other_games, other_benchmarks
     if len(other_games()) >= args.max_game_sessions or other_benchmarks():
@@ -93,8 +96,8 @@ def main():
             while process.poll() is None and not (args.out / 'test_done').exists():
                 if time.monotonic() >= deadline:
                     raise RuntimeError('Functional case timed out')
-                if shutil.disk_usage(args.out).free < 15 * 1024**3:
-                    raise RuntimeError('Free disk fell below 15 GiB')
+                if shutil.disk_usage(args.out).free < args.min_free_gib * 1024**3:
+                    raise RuntimeError('Free disk fell below the configured floor')
                 if len(other_games(process.pid)) >= args.max_game_sessions or other_benchmarks():
                     raise RuntimeError('Functional game limit reached or a benchmark started')
                 time.sleep(1)
@@ -117,7 +120,7 @@ def main():
             green = sum(g > r + 40 and g > b + 40 for r, g, b in crop.getdata())
         observations.append({'frame': frame, 'green_pixels': green})
     passed = all(row['green_pixels'] > 5000 for row in observations) if args.synthetic_maps else None
-    report = {'renderer': args.renderer, 'mode': args.mode, 'synthetic_maps': args.synthetic_maps, 'synthetic_hud_presence_pass': passed, 'frames': observations, 'binary_sha256': hashlib.sha256(args.binary.read_bytes()).hexdigest(), 'limitations': 'Smoke only. Does not prove setup/catalogue lifecycle, real map registration or legacy visual parity.'}
+    report = {'min_free_gib': args.min_free_gib, 'renderer': args.renderer, 'mode': args.mode, 'synthetic_maps': args.synthetic_maps, 'synthetic_hud_presence_pass': passed, 'frames': observations, 'binary_sha256': hashlib.sha256(args.binary.read_bytes()).hexdigest(), 'limitations': 'Smoke only. Does not prove setup/catalogue lifecycle, real map registration or legacy visual parity.'}
     (args.out / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
     if passed is False:
