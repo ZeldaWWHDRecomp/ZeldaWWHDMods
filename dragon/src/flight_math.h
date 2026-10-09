@@ -24,3 +24,8 @@ static inline float dragon_sqrt(float x) {
     for(unsigned i=0;i<5;++i)r=(r+x/r)*.5f;
     return r;
 }
+
+static inline float dragon_blend(float rate,float delta) {
+    if(delta==.5f)return 1-dragon_sqrt(1-rate);
+    return dragon_clamp(rate*delta,0,1);
+}

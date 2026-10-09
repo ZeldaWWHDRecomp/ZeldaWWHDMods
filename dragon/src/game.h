@@ -33,3 +33,8 @@ static inline int dragon_profile(u32 create) {
     }
     return -1;
 }
+
+static inline float dragon_tick_delta(void) {
+    double delta=wwhd_logic_dt()*30;
+    return delta>0 && delta<=3?(float)delta:1;
+}

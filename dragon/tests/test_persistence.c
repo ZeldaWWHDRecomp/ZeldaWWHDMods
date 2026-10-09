@@ -5,7 +5,7 @@
 #undef WWHD_REPLACE
 #define WWHD_GAME_ORIGINAL(addr,ret,name,params) ret name params
 #define WWHD_REPLACE(addr,ret,name,params) static ret name params
-#include "../src/persistence.c"
+#include "../src/persistence_impl.h"
 static s32 stock_result;
 static char saved[3][128];
 static unsigned sizes[3],reads,writes;

@@ -10,7 +10,7 @@
 #define BUTTON_LEFT 0x0800u
 static const cXyz lookout={202100,2562,-199900};
 static const cXyz chimes[3]={{197720,94,-199470},{201800,2562,-199900},{209430,1900,-202600}};
-typedef struct {u32 id;fopAc_ac_c* actor;unsigned hit;} quest_actor;
+typedef struct {u32 id;fopAc_ac_c* actor;float hit;} quest_actor;
 static quest_actor medli={.id=~0u},gongs[3]={{.id=~0u},{.id=~0u},{.id=~0u}};
 static int creating_medli;
 static int tagged_medli(void* actor) {return actor && dragon_actor(actor)->mParameters==MEDLI_TAG;}
@@ -42,9 +42,10 @@ int dragon_quest_tick(daPy_lk_c* player,u32 pressed,int idle) {
     for(unsigned i=0;i<WWHD_COUNT_save_inventory;++i)
         leaf|=*(u8*)(save+WWHD_OFFSET_save_inventory+i)==0x34;
     if(dragon_quest_invite(&dragon_quest,leaf,wwhd_dComIfGs_isStageBossEnemy_02520A84(3)))dragon_quest_persist();
-    if(dragon_quest.toast)--dragon_quest.toast;
-    if(dragon_quest.cooldown)--dragon_quest.cooldown;
-    if(dragon_quest.progress.phase>=1 && dragon_roost(player) && !dragon_quest.cooldown) {
+    float delta=dragon_tick_delta();
+    if(dragon_quest.toast>0)dragon_quest.toast-=delta;
+    if(dragon_quest.cooldown>0)dragon_quest.cooldown-=delta;
+    if(dragon_quest.progress.phase>=1 && dragon_roost(player) && dragon_quest.cooldown<=0) {
         spawn(&medli,(u32)&wwhd_daNpc_Md_Create_02286B58,MEDLI_TAG,lookout);
         if(dragon_quest.progress.phase>=2)for(unsigned i=0;i<3;++i)
             spawn(&gongs[i],(u32)&wwhd_Mthd_Create_0234C308,MEDLI_TAG+1+i,chimes[i]);
@@ -103,8 +104,8 @@ WWHD_GAME_ORIGINAL(WWHD_ADDR_Act_c___execute_0234C23C,u8,original_gong_execute,(
 WWHD_REPLACE(WWHD_ADDR_Act_c___execute_0234C23C,u8,dragon_gong_execute,(void* self)) {
     int index=tagged_gong(self);if(index<0)return original_gong_execute(self);
     mDoExt_McaMorf* morf=(mDoExt_McaMorf*)*dragon_word(self,WWHD_OFFSET_daObjGong_Act_c_mpMorf);
-    if(morf){morf->mFrameCtrl.mRate=gongs[index].hit?1:0;wwhd_ext_play_025E535C(morf,0,0,0);}
-    if(gongs[index].hit)--gongs[index].hit;
+    if(morf){morf->mFrameCtrl.mRate=gongs[index].hit>0?1:0;wwhd_ext_play_025E535C(morf,0,0,0);}
+    if(gongs[index].hit>0)gongs[index].hit-=dragon_tick_delta();
     wwhd_Act_c__set_mtx_0234BFC4(self);return 1;
 }
 WWHD_GAME_ORIGINAL(WWHD_ADDR_Act_c___delete_0234C1C4,u8,original_gong_delete,(void* self));

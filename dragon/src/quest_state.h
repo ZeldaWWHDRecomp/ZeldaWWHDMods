@@ -5,7 +5,7 @@ typedef struct { unsigned phase, mask; } dragon_progress;
 typedef struct {
     dragon_progress progress;
     int slot, dialog;
-    unsigned cooldown, toast;
+    float cooldown, toast;
 } dragon_quest_state;
 typedef struct { unsigned matched; } dragon_song_state;
 
