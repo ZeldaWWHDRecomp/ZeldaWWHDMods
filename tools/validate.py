@@ -71,7 +71,7 @@ def validate(directory, root_index=None):
         # Binary hashes depend on compiler version; source metadata must match the committed index.
         source=json.loads(root_index.read_text())
         require(not any('downloads' in entry for entry in source['mods']), 'Source metadata cannot provide download URLs/hashes')
-        require({entry['id']:entry for entry in source['mods']} == described, 'Source metadata is stale; regenerate it')
+        require({entry['id']:{key:value for key,value in entry.items() if key!='art_generator'} for entry in source['mods']} == described, 'Source metadata is stale; regenerate it')
 
 
 if __name__ == '__main__':

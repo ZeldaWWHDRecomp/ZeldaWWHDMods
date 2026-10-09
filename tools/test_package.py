@@ -44,3 +44,10 @@ assert main != devel and '/main-'+revision in main and '/devel-'+revision in dev
 for base,channel,commit in [('relative','main',revision),('http://example.invalid','main',revision),('https://user:pass@example.invalid','main',revision),('https://example.invalid/#fragment','main',revision),('https://example.invalid','../main',revision),('https://example.invalid','main','short')]:
     rejects(lambda: package_root(base,channel,commit))
 print('Immutable absolute package channel URL checks passed')
+
+from package import generated_art
+art=generated_art(Path(__file__).resolve().parents[1]/'gc-minimap','generate_art.py')
+assert art and art==generated_art(Path(__file__).resolve().parents[1]/'gc-minimap','generate_art.py')
+assert all(name.startswith('assets/') and data.startswith(b'\x89PNG\r\n\x1a\n') for name,data in art.items())
+rejects(lambda: generated_art(Path('.'),'../generate_art.py'))
+print('Original art generation is reproducible and confined to assets paths')

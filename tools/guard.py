@@ -54,11 +54,11 @@ def check(name, data, release, source=False):
     return problems
 
 
-def setup_policy(name, data, helper=False):
+def setup_policy(name, data, helper=False, local_modules=(), pure=False):
     problems=[]
     try: tree=ast.parse(data,filename=name)
     except (SyntaxError,ValueError) as error: return [name+': invalid setup Python: '+str(error)]
-    modules=SETUP_MODULES | ({'os','pathlib','sys','stat','tempfile'} if helper else set())
+    modules=(SETUP_MODULES-({'safe_io'} if pure else set())) | set(local_modules) | ({'os','pathlib','sys','stat','tempfile'} if helper else set())
     for node in ast.walk(tree):
         if isinstance(node,(ast.Import,ast.ImportFrom)):
             names=[alias.name for alias in node.names] if isinstance(node,ast.Import) else [node.module or '']
@@ -129,8 +129,18 @@ def scan(root,sdk,packages=False):
                 for name in setup_files(folder,manifest):
                     path=folder/name
                     if path.is_symlink() or not path.is_file(): problems.append(str(path)+': missing/symlink setup tool');continue
-                    problems.extend(setup_policy(folder.name+'/'+name,path.read_text(),helper=folder.name=='gc-minimap' and name=='tools/safe_io.py'))
+                    problems.extend(setup_policy(folder.name+'/'+name,path.read_text(),helper=folder.name=='gc-minimap' and name=='tools/safe_io.py',local_modules=[Path(item).stem for item in setup_files(folder,manifest)]))
             except ValueError as error: problems.append(folder.name+': '+str(error))
+    if not packages and (root/'catalogue.json').exists():
+        source=json.loads((root/'catalogue.json').read_text())
+        for entry in source['mods']:
+            if 'art_generator' not in entry: continue
+            ident=entry.get('id','');generator=entry['art_generator']
+            if not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,63}',ident) or generator!='generate_art.py':
+                problems.append('Unsafe original-art generator declaration');continue
+            path=root/ident/generator
+            if path.is_symlink() or not path.is_file(): problems.append(ident+': missing/symlink original-art generator');continue
+            problems.extend(setup_policy(ident+'/'+generator,path.read_text(),pure=True))
     return problems
 
 

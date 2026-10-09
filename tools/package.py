@@ -2,12 +2,13 @@
 """Build platform-independent guest packages against the pinned public SDK."""
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 from pathlib import Path
 import subprocess
 import zipfile
-from guard import scan, setup_files
+from guard import scan, setup_files, setup_policy
 from validate import validate, https
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +44,25 @@ def owned_payload(folder, manifest):
             if len(payload) > 4096 or sum(map(len, payload.values())) > 512 * 1024 * 1024:
                 raise ValueError('Combined-package inventory exceeds limits')
     return payload
+
+
+def generated_art(folder, declaration):
+    if declaration is None: return {}
+    if declaration!='generate_art.py': raise ValueError('Unsafe original-art generator path')
+    path=folder/declaration
+    if path.is_symlink() or not path.is_file(): raise ValueError('Missing/symlink original-art generator')
+    problems=setup_policy(str(path),path.read_text(),pure=True)
+    if problems: raise ValueError('\n'.join(problems))
+    spec=importlib.util.spec_from_file_location('reviewed_original_art',path)
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    assets=module.generate()
+    if not isinstance(assets,dict) or len(assets)>64: raise ValueError('Invalid original-art inventory')
+    result={}
+    for name,data in assets.items():
+        if not isinstance(name,str) or not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,63}\.png',name): raise ValueError('Unsafe original-art filename')
+        if not isinstance(data,bytes) or not data.startswith(b'\x89PNG\r\n\x1a\n') or len(data)>1024*1024: raise ValueError('Invalid/oversized original PNG')
+        result['assets/'+name]=data
+    return result
 
 
 def package_root(base_url, channel, revision):
@@ -93,6 +113,9 @@ def build(sdk, out, clang, lld, base_url, channel='devel', revision=None):
         for tool in setup_files(folder,manifest): payload[tool]=(folder/tool).read_bytes()
         payload['mod.elf'] = elf.read_bytes()
         payload.update(owned_payload(folder, manifest))
+        art=generated_art(folder,declared[name].get('art_generator'))
+        if set(art)&set(payload): raise ValueError('Generated art collides with packaged paths')
+        payload.update(art)
         with zipfile.ZipFile(archive, 'w') as bundle:
             for path, data in sorted(payload.items()):
                 info = zipfile.ZipInfo(path, date_time=(2026, 1, 1, 0, 0, 0))
@@ -101,7 +124,7 @@ def build(sdk, out, clang, lld, base_url, channel='devel', revision=None):
                 bundle.writestr(info, data)
         obj.unlink();elf.unlink()
         data = archive.read_bytes()
-        entry=dict(declared[name])
+        entry={key:value for key,value in declared[name].items() if key!='art_generator'}
         for key in ('id','kind','version','setup'):
             if entry.get(key)!=manifest.get(key): raise ValueError('Source metadata/manifest mismatch: '+key)
         entry['downloads']={'all':dict(url=base_url+'/'+archive.name,size=len(data),sha256=hashlib.sha256(data).hexdigest())}
