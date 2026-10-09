@@ -4,6 +4,7 @@
 dragon_hud_state dragon_hud;
 static wwhd_hud_element element;
 static char height_text[80],note_text[80],chime_text[64];
+static const float panel_x=360, panel_width=560;
 static unsigned text_length(const char* text) { unsigned i=0;while(text[i])++i;return i; }
 static char* number(char* out,int n) {
     char reversed[12]; unsigned size=0;
@@ -16,7 +17,7 @@ static char* append(char* out,const char* text) { while(*text)*out++=*text++;ret
 static void text(u32 list,const char* value,float y,float size,u32 rgba) {
     if(!value || !*value)return;
     element=(wwhd_hud_element){0};element.thickness=1;element.u1=element.v1=1;element.kind=WWHD_HUD_TEXT;element.anchor=WWHD_HUD_TOP_LEFT;
-    element.x=42;element.y=y;element.size=size;element.rgba=rgba;
+    element.x=panel_x+18;element.y=y;element.size=size;element.rgba=rgba;
     element.text=value;element.text_bytes=text_length(value);wwhd_hud_emit(list,&element);
 }
 static void draw(u32 list) {
@@ -28,7 +29,7 @@ static void draw(u32 list) {
     int quest=dragon_hud.quest_visible && phase==DRAGON_IDLE;
     float h=quest?220:160, y=720-h-24;
     element=(wwhd_hud_element){0};element.thickness=1;element.u1=element.v1=1;element.kind=WWHD_HUD_RECT;element.anchor=WWHD_HUD_TOP_LEFT;
-    element.x=24;element.y=y;element.w=560;element.h=h;element.rgba=0x060e14e0;
+    element.x=panel_x;element.y=y;element.w=panel_width;element.h=h;element.rgba=0x060e14e0;
     wwhd_hud_emit(list,&element);
     const char *title=titles[phase],*line1="Automatic Grappling Hook pickup, then lift",*line2="",*line3="",*action="Flight controls unlock after the lift";
     if(phase==DRAGON_RIDING) {line1="Left stick ← / → Turn   ↑ / ↓ Climb / dive"; action="A Release · Then press your Deku Leaf button";}
