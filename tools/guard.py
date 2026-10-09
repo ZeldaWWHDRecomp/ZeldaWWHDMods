@@ -46,9 +46,10 @@ def check(name, data, release, source=False):
         try: text=data.decode('utf-8')
         except UnicodeDecodeError: problems.append(name+': source must be UTF-8 text')
         else:
-            if '\x00' in text: problems.append(name+': NUL in text source')
+            if any(ord(c)<32 and c not in '\t\n\r' for c in text): problems.append(name+': control byte in text source')
             # Long encoded payloads and minified lines need a readable source representation.
             if re.search(r'[A-Za-z0-9+/]{1024,}={0,2}',text) or re.search(r'(?:\\x[0-9a-fA-F]{2}){128,}',text): problems.append(name+': encoded blob refused')
+            if re.search(r'(?:0x[0-9a-fA-F]{2}\s*,\s*){128,}',text): problems.append(name+': encoded byte array refused')
             if any(len(line)>4096 for line in text.splitlines()): problems.append(name+': minified/oversized source line')
     return problems
 
@@ -102,10 +103,16 @@ def scan(root,sdk,packages=False):
         name=path.relative_to(root).as_posix()
         if path.is_symlink(): problems.append(name+': symlink refused'); continue
         if not path.is_file(): problems.append(name+': non-regular file refused'); continue
-        data=path.read_bytes();total+=len(data)
+        size=path.stat().st_size
+        total+=size
+        if not packages and size>MAX_FILE: problems.append(name+': source exceeds 2 MiB');continue
+        if packages and size>256*1024*1024: problems.append(name+': package artifact exceeds 256 MiB');continue
+        data=path.read_bytes()
         problems.extend(check(name,data,release,source=not packages))
         if packages and path.suffix.lower()=='.zip':
             with zipfile.ZipFile(path) as archive:
+                if len(archive.infolist())>4096 or sum(info.file_size for info in archive.infolist())>512*1024*1024:
+                    problems.append(name+': expanded package inventory exceeds limits');continue
                 for info in archive.infolist():
                     if info.is_dir(): continue
                     if info.file_size>128*1024*1024: problems.append(info.filename+': oversized package file');continue

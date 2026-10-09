@@ -26,3 +26,8 @@ for source in ('import subprocess','from urllib.request import urlopen','import 
 assert setup_policy('safe_io.py','import subprocess',helper=True)
 assert setup_policy('safe_io.py','import os\nos.system("bad")',helper=True)
 print('Source-only and setup AST checks passed; review still required')
+
+assert check('bytes.c',b'const char data[]={'+b'0x12,'*130+b'};',release,source=True)
+assert check('nested/.hidden.py',b'pass',release,source=True)
+assert check('.github/.hidden',b'pass',release,source=True)
+assert check('control.py',b'pass'+bytes([1]),release,source=True)
