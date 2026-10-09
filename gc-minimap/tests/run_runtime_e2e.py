@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import struct
@@ -38,6 +39,55 @@ def synthetic_maps(data, edge=None):
         (data / ('room-%02d-vector.png' % room)).write_bytes(image)
 
 
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as source:
+        for block in iter(lambda: source.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def hud_observation(path):
+    from PIL import Image
+    with Image.open(path) as image:
+        pixels = image.convert('RGB').crop((28, 499, 208, 679)).getdata()
+        green = marker = 0
+        for r, g, b in pixels:
+            green += g > r + 40 and g > b + 40
+            marker += r > 200 and b < 110 and r > g + 10
+    return {'green_pixels': green, 'marker_color_pixels': marker}
+
+
+def state_cycle_result(out, synthetic, first_frame):
+    log = (out / 'runtime.log').read_text(errors='replace')
+    saved = bool(re.search(r'\[savestate\] slot 1: written \(', log))
+    restored = bool(re.search(r'\[savestate\] slot 1: restored in ', log))
+    state = out / 'states/slot1.bin'
+    # Native STATE_DUMP is the raw GX2 scan surface, before the guest HUD.
+    # Require its successful restore-triggered dump before scheduled presentation
+    # captures, then inspect those captures which include the host HUD overlay.
+    dump = out / 'state_load1_3.png'
+    restore_at = log.find('[savestate] slot 1: restored in ')
+    dump_at = log.find('[gfx] wrote state_load1_3.png')
+    captures = []
+    for frame in (first_frame, first_frame + 2, first_frame + 4):
+        path = out / ('frame_%d_present.png' % frame)
+        row = hud_observation(path) if path.is_file() else {}
+        row.update(frame=frame, after_restore_dump=restore_at >= 0 and dump_at > restore_at and
+                   log.find('[gfx] wrote ' + path.name) > dump_at)
+        captures.append(row)
+    visible = all(row.get('marker_color_pixels', 0) >= 10 and
+                  (not synthetic or row.get('green_pixels', 0) > 5000) and
+                  row['after_restore_dump'] for row in captures)
+    passed = saved and restored and state.is_file() and dump.is_file() and visible
+    return {'passed': passed, 'save_written_log': saved, 'restore_success_log': restored,
+            'state_sha256': sha256_file(state) if state.is_file() else None,
+            'post_restore_native_dump': dump.name, 'post_restore_present_hud': captures,
+            'scope': 'Same-process compatible full-state restore with gc-minimap active. '
+                     'Post-restore chart/marker recovery exercises HUD epoch/resource recreation; '
+                     'synthetic data proves no real-map registration. No cross-version states.'}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('binary', 'game', 'save', 'sdk', 'package', 'out'):
@@ -49,6 +99,7 @@ def main():
     parser.add_argument('--renderer', choices=('metal', 'vulkan'), required=True)
     parser.add_argument('--mode', choices=('30', 'interp60', 'true60'), default='30')
     parser.add_argument('--first-frame', type=int, default=3000)
+    parser.add_argument('--state-cycle', action='store_true', help='Save and restore a same-run native full state; verify post-restore HUD')
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--max-game-sessions', type=int, choices=range(1, 5), default=4)
     parser.add_argument('--min-free-gib', type=int, default=15, help='Explicit local disk floor; 0 disables the gate when authorized')
@@ -56,6 +107,8 @@ def main():
     args = parser.parse_args()
     if args.min_free_gib < 0:
         parser.error('Disk floor must be nonnegative')
+    if args.state_cycle and not args.synthetic_maps:
+        parser.error('--state-cycle requires --synthetic-maps for chart/marker evidence')
     if args.synthetic_marker_edge and not args.synthetic_maps:
         parser.error('--synthetic-marker-edge requires --synthetic-maps')
     args.out = args.out.resolve()
@@ -99,6 +152,9 @@ def main():
     config.write_text(json.dumps({'format_version': 1, 'python': [sys.executable], 'compiler': ['clang'], 'builder': str(args.sdk.resolve() / 'tools/guestmod/build_guest_mod.py'), 'include': str(args.sdk.resolve() / 'runtime/include')}))
     env = {key: value for key, value in os.environ.items() if not key.startswith('WWHD_')}
     env.update(WWHD_CODE_MODS='1', WWHD_NO_AUDIO='1', WWHD_NO_HOST_INPUT='1', WWHD_HIDDEN_WINDOWS='1', WWHD_UNCAPPED='1', WWHD_RENDERER_RUNTIME=args.renderer, WWHD_MOD_MANAGER_DIR=str(manager), WWHD_TEST_TRUST_NATIVE_MODS='gc-minimap', WWHD_GUEST_BUILD_CONFIG=str(config), WWHD_SETTINGS=str(args.out / 'settings.ini'), WWHD_DISPLAY_SETTINGS=str(args.out / 'display.plist'), WWHD_CONTROLS=str(args.out / 'controls.json'), WWHD_SHADER_CACHE=str(args.out / 'shaders.bin'), WWHD_VK_SHADER_CACHE=str(args.out / 'vkshaders'), WWHD_VK_PIPELINE_CACHE=str(args.out / 'vkpipelines.bin'), WWHD_STATE_DIR=str(args.out / 'states'), WWHD_TEST_ORIGIN=str(args.first_frame - 50), WWHD_TEST_END='10', WWHD_DUMP_FRAMES=','.join(str(args.first_frame + n) for n in (0, 2, 4)), WWHD_DUMP_PRESENT='1', WWHD_SIM_SCREEN='1280x720', WWHD_PRESS=','.join('%d-%d:8000' % (frame, frame + 8) for frame in range(150, args.first_frame - 200, 30)), WWHD_TRUE60='1' if args.mode == 'true60' else '0', WWHD_INTERP='0', XDG_CONFIG_HOME=str(args.out / 'config'))
+    if args.state_cycle:
+        env.update(WWHD_STATE_SAVE_AT='%d:1' % (args.first_frame - 150),
+                   WWHD_STATE_LOAD_AT='%d:1' % (args.first_frame - 80), WWHD_STATE_DUMP='3')
     if args.mode == 'interp60':
         env['WWHD_INTERP_AT_STEP'] = str(args.first_frame - 190)
     with (args.out / 'runtime.log').open('w') as log:
@@ -133,10 +189,12 @@ def main():
             green = sum(g > r + 40 and g > b + 40 for r, g, b in crop.getdata())
         observations.append({'frame': frame, 'green_pixels': green})
     passed = all(row['green_pixels'] > 5000 for row in observations) if args.synthetic_maps else None
-    report = {'allow_concurrent_benchmark': args.allow_concurrent_benchmark, 'min_free_gib': args.min_free_gib, 'renderer': args.renderer, 'mode': args.mode, 'synthetic_maps': args.synthetic_maps, 'synthetic_marker_edge': args.synthetic_marker_edge, 'synthetic_hud_presence_pass': passed, 'frames': observations, 'binary_sha256': hashlib.sha256(args.binary.read_bytes()).hexdigest(), 'limitations': 'Smoke only. Does not prove setup/catalogue lifecycle, real map registration or legacy visual parity.'}
+    report = {'allow_concurrent_benchmark': args.allow_concurrent_benchmark, 'min_free_gib': args.min_free_gib, 'renderer': args.renderer, 'mode': args.mode, 'synthetic_maps': args.synthetic_maps, 'synthetic_marker_edge': args.synthetic_marker_edge, 'synthetic_hud_presence_pass': passed, 'frames': observations, 'binary_sha256': sha256_file(args.binary), 'package_sha256': sha256_file(args.package), 'sdk_head': subprocess.check_output(['git', '-C', str(args.sdk.resolve()), 'rev-parse', 'HEAD'], text=True).strip(), 'limitations': 'Smoke only. Does not prove setup/catalogue lifecycle, real map registration or legacy visual parity.'}
+    if args.state_cycle:
+        report['state_cycle'] = state_cycle_result(args.out, args.synthetic_maps, args.first_frame)
     (args.out / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
-    if passed is False:
+    if passed is False or (args.state_cycle and not report['state_cycle']['passed']):
         raise SystemExit(1)
 
 
