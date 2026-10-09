@@ -52,6 +52,7 @@ def main():
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--max-game-sessions', type=int, choices=range(1, 5), default=4)
     parser.add_argument('--min-free-gib', type=int, default=15, help='Explicit local disk floor; 0 disables the gate when authorized')
+    parser.add_argument('--allow-concurrent-benchmark', action='store_true', help='Authorized functional checks only; results are not performance evidence')
     args = parser.parse_args()
     if args.min_free_gib < 0:
         parser.error('Disk floor must be nonnegative')
@@ -68,7 +69,7 @@ def main():
         parser.error('Free disk is below the configured floor')
     sys.path.insert(0, str(args.sdk.resolve() / 'tools/bench'))
     from run_bench import other_games, other_benchmarks
-    if len(other_games()) >= args.max_game_sessions or other_benchmarks():
+    if len(other_games()) >= args.max_game_sessions or (other_benchmarks() and not args.allow_concurrent_benchmark):
         parser.error('Functional game limit reached or a benchmark is running')
     args.out.mkdir(exist_ok=False)
     manager = args.out / 'manager'
@@ -110,7 +111,7 @@ def main():
                     raise RuntimeError('Functional case timed out')
                 if shutil.disk_usage(args.out).free < args.min_free_gib * 1024**3:
                     raise RuntimeError('Free disk fell below the configured floor')
-                if len(other_games(process.pid)) >= args.max_game_sessions or other_benchmarks():
+                if len(other_games(process.pid)) >= args.max_game_sessions or (other_benchmarks() and not args.allow_concurrent_benchmark):
                     raise RuntimeError('Functional game limit reached or a benchmark started')
                 time.sleep(1)
         finally:
@@ -132,7 +133,7 @@ def main():
             green = sum(g > r + 40 and g > b + 40 for r, g, b in crop.getdata())
         observations.append({'frame': frame, 'green_pixels': green})
     passed = all(row['green_pixels'] > 5000 for row in observations) if args.synthetic_maps else None
-    report = {'min_free_gib': args.min_free_gib, 'renderer': args.renderer, 'mode': args.mode, 'synthetic_maps': args.synthetic_maps, 'synthetic_marker_edge': args.synthetic_marker_edge, 'synthetic_hud_presence_pass': passed, 'frames': observations, 'binary_sha256': hashlib.sha256(args.binary.read_bytes()).hexdigest(), 'limitations': 'Smoke only. Does not prove setup/catalogue lifecycle, real map registration or legacy visual parity.'}
+    report = {'allow_concurrent_benchmark': args.allow_concurrent_benchmark, 'min_free_gib': args.min_free_gib, 'renderer': args.renderer, 'mode': args.mode, 'synthetic_maps': args.synthetic_maps, 'synthetic_marker_edge': args.synthetic_marker_edge, 'synthetic_hud_presence_pass': passed, 'frames': observations, 'binary_sha256': hashlib.sha256(args.binary.read_bytes()).hexdigest(), 'limitations': 'Smoke only. Does not prove setup/catalogue lifecycle, real map registration or legacy visual parity.'}
     (args.out / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report))
     if passed is False:
