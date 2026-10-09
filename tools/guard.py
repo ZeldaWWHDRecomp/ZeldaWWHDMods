@@ -58,17 +58,31 @@ def setup_policy(name, data, helper=False, local_modules=(), pure=False):
     problems=[]
     try: tree=ast.parse(data,filename=name)
     except (SyntaxError,ValueError) as error: return [name+': invalid setup Python: '+str(error)]
+    parents={child:parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
+    safe_aliases={alias.asname or alias.name for node in ast.walk(tree) if isinstance(node,ast.Import) for alias in node.names if alias.name=='safe_io'}
     modules=(SETUP_MODULES-({'safe_io'} if pure else set())) | set(local_modules) | ({'os','pathlib','sys','stat','tempfile'} if helper else set())
     for node in ast.walk(tree):
         if isinstance(node,(ast.Import,ast.ImportFrom)):
             names=[alias.name for alias in node.names] if isinstance(node,ast.Import) else [node.module or '']
+            if not helper and any(alias.name.startswith('_') or alias.name in DANGEROUS or alias.name in {'os','sys','pathlib','tempfile','safe_io','Path','Context','arguments'} for alias in node.names) and isinstance(node,ast.ImportFrom):
+                problems.append(name+': private or capability symbol import refused')
             if isinstance(node,ast.ImportFrom) and node.level: problems.append(name+': relative setup imports refused')
+            if not helper and isinstance(node,ast.ImportFrom) and (node.module or '').split('.')[0]=='safe_io':
+                problems.append(name+': import safe_io as a module; only arguments() is exported')
             for module in names:
+                if not helper and module.startswith('safe_io.'):
+                    problems.append(name+': safe_io submodule imports refused')
                 if module.split('.')[0] not in modules: problems.append(name+': setup import refused: '+module)
+        if not helper and isinstance(node,ast.Name) and node.id in safe_aliases:
+            parent=parents.get(node);call=parents.get(parent)
+            if not (isinstance(parent,ast.Attribute) and parent.value is node and parent.attr=='arguments' and isinstance(call,ast.Call) and call.func is parent and not call.args and not call.keywords):
+                problems.append(name+': safe_io is only available as arguments() with original command-line context')
         if isinstance(node,ast.Name) and (node.id in (DANGEROUS - ({'open'} if helper else set())) or (node.id.startswith('__') and node.id!='__name__')):
             problems.append(name+': dynamic or unsafe setup name: '+node.id)
         if isinstance(node,ast.Attribute):
-            if node.attr.startswith('__'): problems.append(name+': dunder setup access refused')
+            if node.attr.startswith('__') or (not helper and node.attr.startswith('_')): problems.append(name+': private setup access refused')
+            if not helper and node.attr in {'os','sys','pathlib','tempfile','safe_io','Path','Context'}:
+                problems.append(name+': raw capability/module export refused: '+node.attr)
             if node.attr in {'system','popen','spawn','execv','execve','fork','connect','urlopen'}: problems.append(name+': process/network effect refused: '+node.attr)
             if not helper and node.attr in {'open','write','write_bytes','write_text','mkdir','unlink','rename','replace','rmdir','remove','system','popen','load','loads','decompressobj','read_bytes','read_text','FileType'}:
                 # json.loads and zlib decompression are ordinary parsing, not execution.
@@ -144,6 +158,13 @@ def scan(root,sdk,packages=False):
     return problems
 
 
+def protected_pr_changes(root, base):
+    changed=subprocess.check_output(['git','-C',str(root),'diff','--name-only',base,'HEAD'],text=True).splitlines()
+    protected={'index.json','sdk.json','gc-minimap/tools/safe_io.py','.github/CODEOWNERS'}
+    return [name+': protected policy/generated file; maintainer-reviewed integration required' for name in changed
+            if name in protected or name.startswith('.github/workflows/') or name.startswith('tools/')]
+
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('root',type=Path)
@@ -152,11 +173,6 @@ if __name__=='__main__':
     parser.add_argument('--pr-base', help='Trusted base revision; protected generated/policy files may not change in PRs')
     args=parser.parse_args()
     problems=scan(args.root.resolve(),args.sdk.resolve(),args.packages)
-    if args.pr_base:
-        changed=subprocess.check_output(['git','-C',str(args.root),'diff','--name-only',args.pr_base,'HEAD'],text=True).splitlines()
-        protected={'index.json','sdk.json','gc-minimap/tools/safe_io.py'}
-        for name in changed:
-            if name in protected or name.startswith('.github/workflows/') or name in {'tools/guard.py','.github/CODEOWNERS'}:
-                problems.append(name+': protected policy/generated file; maintainer-reviewed integration required')
+    if args.pr_base: problems.extend(protected_pr_changes(args.root,args.pr_base))
     for problem in problems: print(problem)
     raise SystemExit(bool(problems))
