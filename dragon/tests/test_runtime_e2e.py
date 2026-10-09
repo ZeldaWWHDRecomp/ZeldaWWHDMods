@@ -6,7 +6,7 @@ import tempfile
 import unittest
 import zipfile
 
-from run_runtime_e2e import (continue_progress, inspect_outputs, plan, safe_copy_save,
+from run_runtime_e2e import (capture_frames, continue_progress, inspect_outputs, plan, safe_copy_save,
                              sha256, unpack_package, validate_route)
 
 
@@ -73,6 +73,27 @@ class RuntimeHarness(unittest.TestCase):
             (folder / 'runtime.log').write_text('[guestmods] loaded dragon\n[savestate] slot 1: restored in 30 ms\n')
             checks, _, _ = inspect_outputs(folder, route, '30')
             self.assertTrue(checks['full_restore:1'])
+
+    def test_interpolation_requires_actual_chosen_rate_and_hold_passes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            route = self.route()
+            for log, expected in [
+                ('[interp] display refresh rate 120 Hz: frame interpolation draws up to 120 fps', False),
+                ('[interp] frame interpolation on (120 fps)\n[interp] 30 logic steps/s (120 fps, 4.00 frames per step)', False),
+                ('[interp] frame interpolation on (60 fps)\n[interp] 30 logic steps/s (60 fps, 2.00 frames per step)', True),
+            ]:
+                (folder / 'runtime.log').write_text(log)
+                checks, _, _ = inspect_outputs(folder, route, 'interp60')
+                self.assertEqual(checks['interpolation_enabled'] and checks['interpolation_two_frames'], expected)
+
+    def test_interpolation_capture_clock_counts_hold_swaps(self):
+        route = self.route()
+        route['origin_frame'] = 3300
+        route['capture_frames'] = [3100, 3110, 3300, 5700, 6120]
+        self.assertEqual(capture_frames(route, 'interp60'), [3100, 3110, 3490, 8290, 9130])
+        self.assertEqual(capture_frames(route, '30'), route['capture_frames'])
+        self.assertEqual(capture_frames(route, 'true60'), route['capture_frames'])
 
     def test_continuation_requires_reviewed_current_normal_flow(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -174,6 +174,16 @@ def parse_progress(path):
     return list(map(int, match.groups()))
 
 
+def capture_frames(route, mode):
+    """Routes use logic-step captures for interpolation, whose hold swaps add frames."""
+    frames = route.get('capture_frames', [])
+    if mode != 'interp60':
+        return frames
+    enabled_step = route['origin_frame'] - 190
+    return [frame if frame <= enabled_step else enabled_step + 2 * (frame - enabled_step)
+            for frame in frames]
+
+
 def inspect_outputs(directory, route, mode, enabled=True):
     log = (directory / 'runtime.log').read_text(errors='replace')
     checks = {'finished': (directory / 'test_done').is_file(),
@@ -191,7 +201,7 @@ def inspect_outputs(directory, route, mode, enabled=True):
         except (OSError, ValueError):
             actual_progress[slot] = None
         checks['progress:' + slot] = actual_progress[slot] == expected
-    for frame in route.get('capture_frames', []):
+    for frame in capture_frames(route, mode):
         checks['capture:' + str(frame)] = (directory / f'frame_{frame}_present.png').is_file()
     rows = []
     trace = directory / 'link.txt'
@@ -213,7 +223,8 @@ def inspect_outputs(directory, route, mode, enabled=True):
         count = sum(number == slot for _, number in route['full_load'])
         checks['full_restore:' + str(slot)] = len(re.findall(r'\[savestate\] slot ' + str(slot) + r': restored in ', log)) >= count
     if mode == 'interp60':
-        checks['interpolation_enabled'] = '60 fps mode 1' in log
+        checks['interpolation_enabled'] = '[interp] frame interpolation on (60 fps)' in log
+        checks['interpolation_two_frames'] = bool(re.search(r'\[interp\].*\(60 fps, 2\.00 frames per step\)', log))
     return checks, actual_progress, {'rows': len(rows), 'half_passes': sum(row['full'] == 0 for row in rows), 'observed_procs': sorted({row['proc'] for row in rows})}
 
 
@@ -331,11 +342,12 @@ def main():
         WWHD_STATE_DIR=str(args.out / 'states'), WWHD_TEST_ORIGIN=str(route['origin_frame']), WWHD_TEST_END=str(route['duration']),
         WWHD_PRESS=timed_input(route.get('boot_press', []), 'press'), WWHD_TEST_PRESS=timed_input(route.get('press', []), 'press'),
         WWHD_TEST_STICK=timed_input(route.get('stick', []), 'stick'), WWHD_TEST_RSTICK=timed_input(route.get('rstick', []), 'stick'),
-        WWHD_DUMP_FRAMES=','.join(map(str, route.get('capture_frames', []))), WWHD_DUMP_PRESENT='1', WWHD_SIM_SCREEN='1280x720',
+        WWHD_DUMP_FRAMES=','.join(map(str, capture_frames(route, args.mode))), WWHD_DUMP_PRESENT='1', WWHD_SIM_SCREEN='1280x720',
         WWHD_LINK_TRACE='link.txt', WWHD_CAM_TRACE='camera.txt', WWHD_SE_TRACE='sounds.txt', WWHD_PROC_DIGEST='digest.txt', WWHD_SAVEINFO_DUMP='saveinfo.bin',
         WWHD_TRUE60='1' if args.mode == 'true60' else '0', WWHD_INTERP='0', WWHD_INTERP_FPS='60', WWHD_INTERP_PACED='0', XDG_CONFIG_HOME=str(args.out / 'config'))
     if args.mode == 'interp60':
         env['WWHD_INTERP_AT_STEP'] = str(route['origin_frame'] - 190)
+        env['WWHD_DISPLAY_HZ'] = '60'
     for key in ('full_save', 'full_load'):
         if route.get(key):
             env['WWHD_STATE_' + ('SAVE' if key == 'full_save' else 'LOAD') + '_AT'] = ','.join(f'{frame}:{slot}' for frame, slot in route[key])
