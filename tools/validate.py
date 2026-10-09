@@ -16,7 +16,7 @@ def require(condition, message):
 def https(value):
     parsed = urlsplit(value)
     return (value.startswith('https://') and bool(parsed.hostname) and not parsed.username
-            and not parsed.password and not parsed.fragment and len(value) <= 2048
+            and not parsed.password and not parsed.fragment and not parsed.query and len(value) <= 2048
             and all(ord(c) > 32 and ord(c) != 127 and c != '\\' for c in value))
 
 

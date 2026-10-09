@@ -53,7 +53,9 @@ def package_root(base_url, channel, revision):
 
 
 def build(sdk, out, clang, lld, base_url, channel='devel', revision=None):
-    revision = revision or subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
+    actual_revision=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
+    if revision is not None and revision!=actual_revision: raise ValueError('Source revision must match checkout')
+    revision=actual_revision
     base_url = package_root(base_url,channel,revision)
     source = json.loads((ROOT/'catalogue.json').read_text())
     if any('downloads' in entry for entry in source['mods']): raise ValueError('Source metadata must not supply downloads/hashes')

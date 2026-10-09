@@ -38,7 +38,7 @@ def check(name, data, release, source=False):
     if any(marker in data for marker in FORBIDDEN) or any(pattern.search(data) for pattern in PATTERNS): problems.append(name+': non-public or recompiled material marker')
     if source:
         parts=Path(name).parts
-        if any(part.startswith('.') for part in parts) and not (parts[0]=='.github' or name=='.gitignore'):
+        if any(part.startswith('.') and not (i==0 and part=='.github') for i,part in enumerate(parts)) and name!='.gitignore':
             problems.append(name+': hidden source path refused')
         if suffix in BINARIES or data.startswith(BINARY_MAGIC): problems.append(name+': compiled/archive/binary source refused')
         if suffix not in TEXT and Path(name).name not in {'LICENSE','COPYING','CODEOWNERS','.gitignore'}: problems.append(name+': unrecognised source type')
