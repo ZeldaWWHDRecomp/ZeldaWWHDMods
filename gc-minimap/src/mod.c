@@ -88,15 +88,16 @@ static void draw(u32 list) {
     if (!point.valid) return;
     float s=options.side, x=options.x, y=720-s-options.bottom, a=options.opacity;
     image(list, chart, x+.1f*s, y+.1f*s, .8f*s, .8f*s, 0, a);
-    image(list, frame, x, y, s, s, 0, a);
+    float overlay = a < .8f ? a / .8f : 1;
+    image(list, frame, x+.1f*s, y+.1f*s, .8f*s, .8f*s, 0, overlay);
     /* Game yaw zero faces +Z (map down); original marker art points up. */
-    float extent=.8f*s*.062f;
+    float extent=.8f*s*.078f;
     image(list, marker, x+s*(.1f+.8f*point.x)-extent*.5f,
           y+s*(.1f+.8f*point.z)-extent*.5f, extent, extent,
-          pi-(float)snapshot.yaw*(2*pi/65536.0f), a);
-    image(list, arrow, x+.45f*s, y+.02f*s, .1f*s, .05f*s, pi, a);
-    image(list, arrow, x-.005f*s, y+.475f*s, .1f*s, .05f*s, pi*.5f, a);
-    image(list, arrow, x+.905f*s, y+.475f*s, .1f*s, .05f*s, -pi*.5f, a);
+          pi-(float)snapshot.yaw*(2*pi/65536.0f), overlay);
+    image(list, arrow, x+.45f*s, y+.02f*s, .1f*s, .05f*s, pi, overlay);
+    image(list, arrow, x-.005f*s, y+.475f*s, .1f*s, .05f*s, pi*.5f, overlay);
+    image(list, arrow, x+.905f*s, y+.475f*s, .1f*s, .05f*s, -pi*.5f, overlay);
 }
 static int is_sea(const u8* stage) {
     return stage[0]=='s' && stage[1]=='e' && stage[2]=='a' &&

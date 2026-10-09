@@ -10,19 +10,6 @@ def png(size, pixels):
     return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(rows, 9)) + chunk(b'IEND', b'')
 
 
-def inside(x, y, vertices):
-    sign = 0
-    for index, (ax, ay) in enumerate(vertices):
-        bx, by = vertices[(index + 1) % len(vertices)]
-        cross = (bx - ax) * (y - ay) - (by - ay) * (x - ax)
-        if cross:
-            direction = 1 if cross > 0 else -1
-            if sign and sign != direction:
-                return False
-            sign = direction
-    return True
-
-
 def raster(size, shade):
     pixels = bytearray()
     # Four authored subpixel samples give deterministic straight-alpha edges.
@@ -35,26 +22,36 @@ def raster(size, shade):
     return png(size, pixels)
 
 
+def display_colour(rgb, alpha=1):
+    # The authored prototype shader emits premultiplied linear RGB. Convert to
+    # straight display-encoded PNG samples for the SDK's source-alpha renderer.
+    channels = []
+    for value in rgb:
+        value = min(1, max(0, value / alpha))
+        encoded = 12.92 * value if value <= .0031308 else 1.055 * value ** (1 / 2.4) - .055
+        channels.append(round(encoded * 255))
+    return tuple(channels) + (round(alpha * 255),)
+
+
 def frame(x, y):
-    edge = min(x, y, 1 - x, 1 - y)
-    if edge < .014:
-        return (163, 184, 212, 235)
-    if edge < .027:
-        return (36, 67, 97, 220)
-    return (0, 0, 0, 0)
+    return display_colour((.64, .72, .83), .92) if min(x, y, 1 - x, 1 - y) < .015 else (0, 0, 0, 0)
 
 
 def marker(x, y):
-    if inside(x, y, ((.5, .04), (.94, .94), (.5, .72), (.06, .94))):
-        return (255, 218, 61, 255) if y < .64 else (212, 56, 44, 255)
+    # Square canvas keeps the rotation pivot at Link, including the asymmetric
+    # .039-tip/.023-base triangle used by the original authored panel.
+    px, py = (x - .5) * .078, (.5 - y) * .078
+    if -.023 < py < .039 and abs(px) < (.039 - py) * .47:
+        return display_colour((1, .88, .05) if py > 0 else (.95, .18, .05))
     return (0, 0, 0, 0)
 
 
 def arrow(x, y):
-    if inside(x, y, ((.07, .15), (.93, .15), (.5, .91))):
-        if inside(x, y, ((.19, .22), (.81, .22), (.5, .78))):
-            return (84, 130, 160, 238)
-        return (163, 184, 212, 235)
+    # Downward canonical art; the HUD rotates it for the three panel edges.
+    px, py = (x - .5) * .1, (.5 - y) * .05
+    if -.025 < py < .025 and abs(px) < .025 + py:
+        edge = min(.025 - py, (.025 + py - abs(px)) * .7071)
+        return display_colour((.78, .84, .91), .9) if edge < .005 else display_colour((.03, .06, .20), .6)
     return (0, 0, 0, 0)
 
 
