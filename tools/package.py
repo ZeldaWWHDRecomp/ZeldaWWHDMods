@@ -46,6 +46,18 @@ def owned_payload(folder, manifest):
     return payload
 
 
+
+def guest_sources(folder):
+    """Retain the flat unity translation unit and its local C/header dependencies."""
+    source = folder / 'src/mod.c' if (folder / 'src/mod.c').exists() else folder / 'mod.c'
+    if source.is_symlink() or not source.is_file(): raise ValueError('Missing/symlink guest translation unit')
+    payload = {}
+    for path in sorted(source.parent.iterdir()):
+        if path.suffix not in {'.c', '.h'}: continue
+        if path.is_symlink() or not path.is_file(): raise ValueError('Guest source symlink/non-file refused')
+        payload['src/' + path.name] = path.read_bytes()
+    return source, payload
+
 def generated_art(folder, declaration):
     if declaration is None: return {}
     if declaration!='generate_art.py': raise ValueError('Unsafe original-art generator path')
@@ -98,7 +110,7 @@ def build(sdk, out, clang, lld, base_url, channel='devel', revision=None):
         folder = ROOT / name
         manifest = json.loads((folder / 'manifest.json').read_text())
         if manifest.get('kind')!='guest' or manifest.get('id')!=name: raise ValueError('Invalid declared guest folder')
-        source_file=folder/'src/mod.c' if (folder/'src/mod.c').exists() else folder/'mod.c'
+        source_file, sources = guest_sources(folder)
         obj, elf = out / (name + '.o'), out / (name + '.elf')
         subprocess.run([clang, '--target=powerpc-unknown-eabi', '-mcpu=750', '-O2', '-ffreestanding',
                         '-fno-builtin', '-nostdlib', '-fno-jump-tables', '-ffunction-sections', '-fdata-sections',
@@ -106,10 +118,7 @@ def build(sdk, out, clang, lld, base_url, channel='devel', revision=None):
         subprocess.run([lld, '-m', 'elf32ppc', '-r', str(obj), '-o', str(elf)], check=True)
         archive = out / (name + '.zip')
         payload = {file.name: file.read_bytes() for file in [folder / 'manifest.json', folder / 'README.md', folder / 'LICENSE']}
-        payload['src/mod.c'] = source_file.read_bytes()
-        for header in sorted(source_file.parent.glob('*.h')):
-            if header.is_symlink(): raise ValueError('Source header symlink refused')
-            payload['src/'+header.name]=header.read_bytes()
+        payload.update(sources)
         for tool in setup_files(folder,manifest): payload[tool]=(folder/tool).read_bytes()
         payload['mod.elf'] = elf.read_bytes()
         payload.update(owned_payload(folder, manifest))
