@@ -201,6 +201,37 @@
       "port_versions": {
         "minimum": "0.3.0"
       }
+    },
+    {
+      "id": "sky-island",
+      "name": "The sky island",
+      "description": "A side quest: the Helmaroc King carries Link to an island floating above the sea, with ruins, waterfalls and a boss arena.",
+      "experimental": true,
+      "authors": [
+        "ZeldaWWHDRecomp contributors"
+      ],
+      "version": "0.2.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [
+        "story-notebook"
+      ],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build the sky island for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.4.0"
+      }
     }
   ]
 }

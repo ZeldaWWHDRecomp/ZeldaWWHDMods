@@ -1,0 +1,1255 @@
+{
+ "format_version": 1,
+ "id": "sky-island",
+ "name": "The sky island",
+ "version": "0.2.0",
+ "game_id": "wwhd",
+ "minimum_manager_version": "1.5.0",
+ "kind": "guest",
+ "guest": {
+  "api_version": 1,
+  "elf": "mod.elf"
+ },
+ "author": "ZeldaWWHDRecomp contributors",
+ "description": "An island floating above the sea. On the pier of Outset Island, by the lookout, the Helmaroc King swoops down and carries Link there; an updraft off Outset is a second way up. Its boss arena holds a heart container; the warp out opens once it is taken. It is a quest in the Story Notebook, \"The island in the sky\", that starts with a letter and ends with a reward of 100 rupees.",
+ "experimental": true,
+ "setup": [
+  {
+   "id": "build",
+   "type": "build_guest_mod",
+   "title": "Build the sky island for this installation"
+  }
+ ],
+ "dependencies": [
+  {
+   "id": "story-notebook",
+   "minimum_version": "0.6.0"
+  }
+ ],
+ "actors": [
+  {
+   "behaviour": "static",
+   "collision": {
+    "height": 60,
+    "radius": 2100,
+    "shape": "cylinder",
+    "surface": "grass"
+   },
+   "id": "far-island",
+   "kind": "mod",
+   "model": "island-distant",
+   "position": {
+    "x": -200852,
+    "y": 6640,
+    "z": 300728
+   },
+   "room": 44,
+   "rotation": {
+    "x": 0,
+    "y": 198,
+    "z": 0
+   },
+   "stage": "sea",
+   "when": {
+    "not_flag": "sky.landed"
+   }
+  }
+ ],
+ "models": [
+  {
+   "id": "island-distant",
+   "kind": "static",
+   "source": "assets/island-distant.glb"
+  }
+ ],
+ "quests": [
+  {
+   "id": "sky",
+   "journal": "on_enable",
+   "letter": {
+    "id": "sky",
+    "sender": "An old sailor",
+    "text": "Dear Link, a great bird has been seen over the pier on Outset, near the lookout. They say it carries travellers up to an island floating in the sky. Walk out along the pier and see for yourself!"
+   },
+   "reward": {
+    "item": "rupee_orange",
+    "text": "A heart container from the island, and 100 rupees"
+   },
+   "start": {
+    "text": "Check a Rito postbox for a letter."
+   },
+   "steps": [
+    {
+     "n": 1,
+     "place": {
+      "x": -194790,
+      "z": 314530
+     },
+     "text": "Walk along Outset's pier towards the lookout, where a great bird has been seen.",
+     "where": "Outset Island"
+    },
+    {
+     "n": 2,
+     "place": {
+      "room": 0,
+      "sea": {
+       "x": -194790,
+       "z": 314530
+      },
+      "stage": "stage:sky",
+      "x": -650,
+      "y": 350,
+      "z": -200
+     },
+     "text": "Find the boss key on the sky island.",
+     "where": "The sky island"
+    },
+    {
+     "n": 3,
+     "place": {
+      "room": 1,
+      "sea": {
+       "x": -194790,
+       "z": 314530
+      },
+      "stage": "stage:sky",
+      "x": 0,
+      "y": 200,
+      "z": 3600
+     },
+     "text": "Open the boss door and defeat the guardian in the arena.",
+     "where": "The sky island"
+    },
+    {
+     "n": 4,
+     "place": {
+      "room": 1,
+      "sea": {
+       "x": -194790,
+       "z": 314530
+      },
+      "stage": "stage:sky",
+      "x": 0,
+      "y": 200,
+      "z": 4400
+     },
+     "text": "Claim the heart container from the big chest.",
+     "where": "The sky island's arena"
+    },
+    {
+     "n": 5,
+     "place": {
+      "room": 1,
+      "sea": {
+       "x": -194790,
+       "z": 314530
+      },
+      "stage": "stage:sky",
+      "x": 600,
+      "y": 200,
+      "z": 4300
+     },
+     "text": "Step into the warp light to return home.",
+     "where": "The sky island's arena"
+    }
+   ],
+   "title": "The island in the sky"
+  }
+ ],
+ "quests_format": 1,
+ "scenes": [
+  {
+   "id": "bird",
+   "steps": [
+    {
+     "actors": [
+      {
+       "actor": "Dk",
+       "clips": [
+        {
+         "archive": "Dk",
+         "file": "fly1.bck",
+         "frame": 0
+        },
+        {
+         "archive": "Demo04",
+         "file": "04_dk_cut08_hokaku.bck",
+         "frame": 50,
+         "loop": false
+        },
+        {
+         "archive": "Demo04",
+         "file": "04_dk_cut08_esc.bck",
+         "frame": 81
+        },
+        {
+         "archive": "Demo04",
+         "file": "04_dk_cut08_hokaku.bck",
+         "frame": 440,
+         "loop": false
+        },
+        {
+         "archive": "Demo04",
+         "file": "04_dk_cut08_esc.bck",
+         "frame": 471
+        }
+       ],
+       "id": "bird",
+       "params": 2,
+       "position": {
+        "curve": "smooth",
+        "keys": [
+         {
+          "frame": 0,
+          "value": {
+           "x": 0,
+           "y": 2600,
+           "z": 4200
+          }
+         },
+         {
+          "frame": 45,
+          "value": {
+           "x": 0,
+           "y": 900,
+           "z": 1400
+          }
+         },
+         {
+          "frame": 67,
+          "value": {
+           "x": -50,
+           "y": 180,
+           "z": -100
+          }
+         },
+         {
+          "frame": 75,
+          "value": {
+           "x": -50,
+           "y": 205,
+           "z": -170
+          }
+         },
+         {
+          "frame": 90,
+          "value": {
+           "x": 300,
+           "y": 450,
+           "z": -250
+          }
+         },
+         {
+          "frame": 105,
+          "value": {
+           "x": 900,
+           "y": 900,
+           "z": -200
+          }
+         },
+         {
+          "frame": 150,
+          "value": {
+           "x": 1800,
+           "y": 1600,
+           "z": -1200
+          }
+         },
+         {
+          "frame": 210,
+          "value": {
+           "x": 1700,
+           "y": 2500,
+           "z": -3000
+          }
+         },
+         {
+          "frame": 270,
+          "value": {
+           "x": 900,
+           "y": 3500,
+           "z": -5500
+          }
+         },
+         {
+          "frame": 330,
+          "value": {
+           "x": 0,
+           "y": 4700,
+           "z": -8000
+          }
+         },
+         {
+          "frame": 390,
+          "value": {
+           "x": -900,
+           "y": 6000,
+           "z": -10500
+          }
+         },
+         {
+          "frame": 450,
+          "value": {
+           "x": -1500,
+           "y": 7530,
+           "z": -13250
+          }
+         },
+         {
+          "frame": 480,
+          "value": {
+           "x": -1800,
+           "y": 7900,
+           "z": -15500
+          }
+         }
+        ]
+       },
+       "rotation": {
+        "curve": "smooth",
+        "keys": [
+         {
+          "frame": 0,
+          "value": {
+           "x": 0,
+           "y": 180,
+           "z": 0
+          }
+         },
+         {
+          "frame": 45,
+          "value": {
+           "x": 0,
+           "y": 180,
+           "z": 0
+          }
+         },
+         {
+          "frame": 67,
+          "value": {
+           "x": 0,
+           "y": 178,
+           "z": 0
+          }
+         },
+         {
+          "frame": 75,
+          "value": {
+           "x": 0,
+           "y": 175,
+           "z": 0
+          }
+         },
+         {
+          "frame": 90,
+          "value": {
+           "x": 0,
+           "y": 150,
+           "z": 0
+          }
+         },
+         {
+          "frame": 105,
+          "value": {
+           "x": 0,
+           "y": 120,
+           "z": 0
+          }
+         },
+         {
+          "frame": 150,
+          "value": {
+           "x": 0,
+           "y": 160,
+           "z": 0
+          }
+         },
+         {
+          "frame": 210,
+          "value": {
+           "x": 0,
+           "y": 190,
+           "z": 0
+          }
+         },
+         {
+          "frame": 270,
+          "value": {
+           "x": 0,
+           "y": 200,
+           "z": 0
+          }
+         },
+         {
+          "frame": 330,
+          "value": {
+           "x": 0,
+           "y": 196,
+           "z": 0
+          }
+         },
+         {
+          "frame": 390,
+          "value": {
+           "x": 0,
+           "y": 190,
+           "z": 0
+          }
+         },
+         {
+          "frame": 450,
+          "value": {
+           "x": 0,
+           "y": 180,
+           "z": 0
+          }
+         },
+         {
+          "frame": 480,
+          "value": {
+           "x": 0,
+           "y": 180,
+           "z": 0
+          }
+         }
+        ]
+       },
+       "spawn": "always"
+      },
+      {
+       "actor": "Link",
+       "id": "link",
+       "modes": [
+        {
+         "frame": 0,
+         "mode": "wait"
+        },
+        {
+         "btk": "04_cl_cut7_odoroki.btk",
+         "btp": "04_cl_cut7_odoroki.btp",
+         "clip": "04_cl_cut7_odoroki.bck",
+         "frame": 30,
+         "loop": false
+        },
+        {
+         "blend": 4,
+         "btk": "04_cl_cut14_abareru.btk",
+         "btp": "04_cl_cut14_abareru.btp",
+         "clip": "04_cl_cut14_abareru.bck",
+         "frame": 64
+        },
+        {
+         "blend": 10,
+         "btk": "04_cl_cut16_bura.btk",
+         "btp": "04_cl_cut16_bura.btp",
+         "clip": "04_cl_cut16_bura.bck",
+         "frame": 160
+        },
+        {
+         "blend": 6,
+         "clip": "06_cl_rakkatyuu_o.bck",
+         "frame": 450,
+         "loop": false
+        }
+       ]
+      }
+     ],
+     "angle": 18,
+     "attach": [
+      {
+       "actor": "link",
+       "blend": 8,
+       "frame": 64,
+       "joint": "j_dk_ashi_r3",
+       "offset": {
+        "x": 170,
+        "y": 15,
+        "z": -50
+       },
+       "to": "bird",
+       "upright": true
+      }
+     ],
+     "camera": {
+      "eye": {
+       "curve": "smooth",
+       "keys": [
+        {
+         "frame": 0,
+         "value": {
+          "x": 350,
+          "y": 250,
+          "z": -700
+         }
+        },
+        {
+         "frame": 45,
+         "value": {
+          "x": 350,
+          "y": 250,
+          "z": -700
+         }
+        },
+        {
+         "frame": 64,
+         "value": {
+          "x": 700,
+          "y": 190,
+          "z": -450
+         }
+        },
+        {
+         "frame": 75,
+         "value": {
+          "x": 800,
+          "y": 60,
+          "z": -800
+         }
+        },
+        {
+         "frame": 84,
+         "value": {
+          "x": 450,
+          "y": -80,
+          "z": -550
+         }
+        },
+        {
+         "frame": 90,
+         "value": {
+          "x": 969,
+          "y": 132,
+          "z": -1258
+         }
+        },
+        {
+         "frame": 120,
+         "value": {
+          "x": 2178,
+          "y": 852,
+          "z": -1271
+         }
+        },
+        {
+         "frame": 150,
+         "value": {
+          "x": 2274,
+          "y": 1304,
+          "z": -2315
+         }
+        },
+        {
+         "frame": 180,
+         "value": {
+          "x": 2065,
+          "y": 1773,
+          "z": -3296
+         }
+        },
+        {
+         "frame": 210,
+         "value": {
+          "x": 1552,
+          "y": 2225,
+          "z": -4205
+         }
+        },
+        {
+         "frame": 240,
+         "value": {
+          "x": 1800,
+          "y": 2600,
+          "z": -2900
+         }
+        },
+        {
+         "frame": 300,
+         "value": {
+          "x": 850,
+          "y": 3700,
+          "z": -5450
+         }
+        },
+        {
+         "frame": 360,
+         "value": {
+          "x": 1500,
+          "y": 5000,
+          "z": -6500
+         }
+        },
+        {
+         "frame": 420,
+         "value": {
+          "x": 200,
+          "y": 7400,
+          "z": -11500
+         }
+        },
+        {
+         "frame": 450,
+         "value": {
+          "x": -500,
+          "y": 7650,
+          "z": -12450
+         }
+        },
+        {
+         "frame": 480,
+         "value": {
+          "x": -450,
+          "y": 7500,
+          "z": -12400
+         }
+        }
+       ]
+      },
+      "fovy": {
+       "curve": "smooth",
+       "keys": [
+        {
+         "frame": 0,
+         "value": 55
+        },
+        {
+         "frame": 64,
+         "value": 55
+        },
+        {
+         "frame": 84,
+         "value": 50
+        },
+        {
+         "frame": 105,
+         "value": 17
+        },
+        {
+         "frame": 210,
+         "value": 17
+        },
+        {
+         "frame": 240,
+         "value": 60
+        },
+        {
+         "frame": 300,
+         "value": 55
+        },
+        {
+         "frame": 360,
+         "value": 48
+        },
+        {
+         "frame": 420,
+         "value": 45
+        },
+        {
+         "frame": 450,
+         "value": 34
+        },
+        {
+         "frame": 480,
+         "value": 40
+        }
+       ]
+      },
+      "target": {
+       "curve": "smooth",
+       "keys": [
+        {
+         "frame": 0,
+         "value": {
+          "x": 0,
+          "y": 1500,
+          "z": 2500
+         }
+        },
+        {
+         "frame": 45,
+         "value": {
+          "x": 0,
+          "y": 800,
+          "z": 1200
+         }
+        },
+        {
+         "frame": 64,
+         "value": {
+          "x": -40,
+          "y": 180,
+          "z": -80
+         }
+        },
+        {
+         "frame": 75,
+         "value": {
+          "x": -50,
+          "y": 100,
+          "z": -170
+         }
+        },
+        {
+         "frame": 84,
+         "value": {
+          "x": 120,
+          "y": 230,
+          "z": -210
+         }
+        },
+        {
+         "frame": 90,
+         "value": {
+          "x": 219,
+          "y": 372,
+          "z": 41
+         }
+        },
+        {
+         "frame": 120,
+         "value": {
+          "x": 1087,
+          "y": 1092,
+          "z": -242
+         }
+        },
+        {
+         "frame": 150,
+         "value": {
+          "x": 1761,
+          "y": 1544,
+          "z": -905
+         }
+        },
+        {
+         "frame": 180,
+         "value": {
+          "x": 1934,
+          "y": 2013,
+          "z": -1801
+         }
+        },
+        {
+         "frame": 210,
+         "value": {
+          "x": 1813,
+          "y": 2465,
+          "z": -2727
+         }
+        },
+        {
+         "frame": 240,
+         "value": {
+          "x": -800,
+          "y": 5000,
+          "z": -12000
+         }
+        },
+        {
+         "frame": 300,
+         "value": {
+          "x": -900,
+          "y": 5600,
+          "z": -12500
+         }
+        },
+        {
+         "frame": 360,
+         "value": {
+          "x": -900,
+          "y": 6300,
+          "z": -12000
+         }
+        },
+        {
+         "frame": 420,
+         "value": {
+          "x": -1300,
+          "y": 7100,
+          "z": -12500
+         }
+        },
+        {
+         "frame": 450,
+         "value": {
+          "x": -1500,
+          "y": 7400,
+          "z": -13350
+         }
+        },
+        {
+         "frame": 480,
+         "value": {
+          "x": -1500,
+          "y": 6650,
+          "z": -13450
+         }
+        }
+       ]
+      }
+     },
+     "detach": [
+      {
+       "actor": "link",
+       "fall": true,
+       "frame": 450
+      }
+     ],
+     "frames": 480,
+     "id": "flight",
+     "origin": "link",
+     "type": "demo"
+    },
+    {
+     "eye": {
+      "x": -199050,
+      "y": 7640,
+      "z": 302876
+     },
+     "frames": 6,
+     "target": {
+      "x": -200373,
+      "y": 6790,
+      "z": 302202
+     },
+     "type": "camera"
+    },
+    {
+     "direction": "out",
+     "frames": 24,
+     "type": "fade"
+    },
+    {
+     "then": [
+      {
+       "action": "flag",
+       "id": "sky.landed",
+       "value": true
+      },
+      {
+       "action": "stage",
+       "id": "sky",
+       "point": 2,
+       "room": 0
+      },
+      {
+       "action": "quest_step",
+       "id": "sky",
+       "step": 2
+      }
+     ],
+     "type": "end"
+    }
+   ],
+   "trigger": {
+    "position": {
+     "x": -194790,
+     "y": 136,
+     "z": 314530
+    },
+    "radius": 120,
+    "room": 44,
+    "stage": "sea",
+    "type": "area"
+   }
+  }
+ ],
+ "stages": [
+  {
+   "doors": [
+    {
+     "angle": 180,
+     "lock": "boss",
+     "position": {
+      "x": 0,
+      "y": 200,
+      "z": 2400
+     },
+     "rooms": [
+      0,
+      1
+     ]
+    }
+   ],
+   "entrance": {
+    "point": 0,
+    "room": 44,
+    "stage": "sea"
+   },
+   "entries": [
+    {
+     "height": 1500,
+     "id": "updraft",
+     "position": {
+      "x": -194845,
+      "y": 0,
+      "z": 315400
+     },
+     "room": 44,
+     "size": {
+      "x": 400,
+      "y": 800,
+      "z": 400
+     },
+     "stage": "sea",
+     "style": "updraft",
+     "then": [
+      {
+       "action": "quest_step",
+       "id": "sky",
+       "step": 2
+      }
+     ],
+     "to": {
+      "point": 0,
+      "room": 0
+     }
+    }
+   ],
+   "id": "sky",
+   "joins": [
+    [
+     0,
+     2
+    ]
+   ],
+   "kind": "dungeon",
+   "light": {
+    "room": 44,
+    "stage": "sea"
+   },
+   "map": {
+    "title": "Sky Island"
+   },
+   "music_like": "GTower",
+   "rooms": [
+    {
+     "actors": [
+      {
+       "actor": "chest",
+       "angle": 90,
+       "id": "boss-key",
+       "item": "boss_key",
+       "position": {
+        "x": -650,
+        "y": 350,
+        "z": -200
+       },
+       "then": [
+        {
+         "action": "quest_step",
+         "id": "sky",
+         "step": 3
+        }
+       ]
+      },
+      {
+       "actor": "bokoblin",
+       "angle": 200,
+       "id": "guard-1",
+       "position": {
+        "x": 700,
+        "y": 285,
+        "z": 800
+       }
+      },
+      {
+       "actor": "keese",
+       "angle": 180,
+       "id": "guard-2",
+       "position": {
+        "x": -400,
+        "y": 640,
+        "z": 900
+       }
+      },
+      {
+       "actor": "pot",
+       "id": "pot-1",
+       "position": {
+        "x": 950,
+        "y": 289,
+        "z": -400
+       }
+      },
+      {
+       "actor": "pot",
+       "id": "pot-2",
+       "position": {
+        "x": 1050,
+        "y": 288,
+        "z": -330
+       }
+      },
+      {
+       "actor": "tree",
+       "angle": 0,
+       "id": "tree-1",
+       "position": {
+        "x": -1516,
+        "y": 373,
+        "z": 230
+       },
+       "scale": 1,
+       "variant": "large"
+      },
+      {
+       "actor": "tree",
+       "angle": 47,
+       "id": "tree-2",
+       "position": {
+        "x": -2089,
+        "y": 41,
+        "z": -697
+       },
+       "variant": "small"
+      },
+      {
+       "actor": "tree",
+       "angle": 94,
+       "id": "tree-3",
+       "position": {
+        "x": -1133,
+        "y": 303,
+        "z": -1265
+       },
+       "variant": "small"
+      },
+      {
+       "actor": "tree",
+       "angle": 141,
+       "id": "tree-4",
+       "position": {
+        "x": -808,
+        "y": 260,
+        "z": 1476
+       },
+       "variant": "bushy"
+      },
+      {
+       "actor": "tree",
+       "angle": 188,
+       "id": "tree-5",
+       "position": {
+        "x": -666,
+        "y": 230,
+        "z": -1309
+       },
+       "variant": "small"
+      },
+      {
+       "actor": "tree",
+       "angle": 235,
+       "id": "tree-6",
+       "position": {
+        "x": -275,
+        "y": 194,
+        "z": 1752
+       },
+       "variant": "small"
+      },
+      {
+       "actor": "tree",
+       "angle": 282,
+       "id": "tree-7",
+       "position": {
+        "x": 230,
+        "y": 248,
+        "z": 1331
+       },
+       "variant": "small_3"
+      },
+      {
+       "actor": "tree",
+       "angle": 329,
+       "id": "tree-8",
+       "position": {
+        "x": 476,
+        "y": 219,
+        "z": -1468
+       },
+       "variant": "small_3"
+      },
+      {
+       "actor": "tree",
+       "angle": 16,
+       "id": "tree-9",
+       "position": {
+        "x": 1415,
+        "y": 268,
+        "z": -790
+       },
+       "variant": "small_3"
+      },
+      {
+       "actor": "tree",
+       "angle": 63,
+       "id": "tree-10",
+       "position": {
+        "x": 1626,
+        "y": 225,
+        "z": 246
+       },
+       "variant": "small_3"
+      },
+      {
+       "actor": "tree",
+       "angle": 110,
+       "id": "tree-11",
+       "position": {
+        "x": 1646,
+        "y": 166,
+        "z": 1564
+       },
+       "variant": "bushy"
+      }
+     ],
+     "ground": "assets/island.glb",
+     "kit": {
+      "room": 41,
+      "stage": "sea"
+     },
+     "materials": {
+      "cliff": "m_iwa_v",
+      "fallfoam": "SC_00_m",
+      "grass": "m_kusa_v",
+      "rock": "m_iwa_v_2_",
+      "spray": "SC_00_m_2_",
+      "stream": "SC_00_m_v_x",
+      "vines": "lambert113_v",
+      "waterfall": "SC_00_m_v_x"
+     },
+     "room": 0,
+     "spawns": [
+      {
+       "angle": 0,
+       "point": 0,
+       "position": {
+        "x": -100,
+        "y": 316,
+        "z": -900
+       }
+      },
+      {
+       "angle": 0,
+       "point": 2,
+       "position": {
+        "x": 0,
+        "y": 340,
+        "z": -650
+       },
+       "start": "fall"
+      }
+     ]
+    },
+    {
+     "actors": [
+      {
+       "actor": "darknut",
+       "angle": 180,
+       "id": "champion",
+       "position": {
+        "x": 0,
+        "y": 200,
+        "z": 3600
+       },
+       "then": [
+        {
+         "action": "quest_step",
+         "id": "sky",
+         "step": 4
+        }
+       ]
+      },
+      {
+       "actor": "chest",
+       "angle": 180,
+       "id": "heart",
+       "item": "heart_container",
+       "position": {
+        "x": 0,
+        "y": 200,
+        "z": 4400
+       },
+       "then": [
+        {
+         "action": "quest_step",
+         "id": "sky",
+         "step": 5
+        }
+       ]
+      }
+     ],
+     "ground": "assets/arena.glb",
+     "kit": 0,
+     "materials": {
+      "paving": "lambert5_v",
+      "rock": "enkei_lambert112_v",
+      "rosette": "lambert5_v",
+      "wall": "lambert2_v"
+     },
+     "room": 1,
+     "spawns": [
+      {
+       "angle": 0,
+       "point": 1,
+       "position": {
+        "x": 0,
+        "y": 200,
+        "z": 2650
+       }
+      }
+     ]
+    },
+    {
+     "ground": "assets/ruins.glb",
+     "kit": {
+      "room": 0,
+      "stage": "Hyroom"
+     },
+     "materials": {
+      "crest": "lambert40_v",
+      "paving": "lambert7_v",
+      "ruin": "lambert9_v",
+      "stones": "lambert7_v"
+     },
+     "room": 2,
+     "spawns": [
+      {
+       "angle": 0,
+       "point": 3,
+       "position": {
+        "x": 0,
+        "y": -15000,
+        "z": 0
+       }
+      }
+     ]
+    }
+   ],
+   "template": "GTower",
+   "warps": [
+    {
+     "after": "heart",
+     "id": "home",
+     "position": {
+      "x": 600,
+      "y": 200,
+      "z": 4300
+     },
+     "room": 1,
+     "size": {
+      "x": 250,
+      "y": 250,
+      "z": 250
+     },
+     "then": [
+      {
+       "action": "quest_done",
+       "id": "sky"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
