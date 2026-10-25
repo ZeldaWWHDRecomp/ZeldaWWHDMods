@@ -94,6 +94,14 @@ static void controls(void) {
     assert(hdm_pressed(0x0800, 0, 0x0800) && !hdm_pressed(0x0800, 0x0800, 0x0800) && !hdm_pressed(0x0800, 0, 0));
     assert(hdm_next_sea_view(0, 3) == 1 && hdm_next_sea_view(1, 3) == 2 && hdm_next_sea_view(2, 3) == 0);
     assert(hdm_next_sea_view(1, 0) == 0);      /* no chart: never the chart view */
+    assert(hdm_blocked_buttons(0, 0, 1) == 0);                          /* on foot */
+    assert(hdm_blocked_buttons(0, 1, 1) == (0x0800 | 0x0400));          /* sailing: the cannon and the hook */
+    assert(hdm_blocked_buttons(0, 1, 0) == HDM_ALL_BUTTONS);            /* the boat in the Tower of the Gods */
+    assert(hdm_blocked_buttons(1, 0, 1) == HDM_ALL_BUTTONS);            /* an event or a stage change */
+    assert(!hdm_pressed(0x0800 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0800));
+    assert(hdm_pressed(0x0100 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0100));
+    assert(hdm_boarding_view(1, 2) == 0);      /* hidden on foot: the compasses alone */
+    assert(hdm_boarding_view(0, 0) == 1 && hdm_boarding_view(0, 2) == 2);
 }
 
 static void fitting(void) {

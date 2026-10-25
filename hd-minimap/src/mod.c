@@ -71,7 +71,7 @@ static struct {
 } snap;
 
 /* player choices */
-static struct { int hidden, expanded, zoom, sea_view, chart, feedback; float feedback_time; } ui = {0, 0, 0, 1, 0, 0, 0};
+static struct { int hidden, expanded, zoom, sea_view, chart, feedback, aboard; float feedback_time; } ui = {0, 0, 0, 1, 0, 0, 0, 0};
 enum { FEEDBACK_NONE, FEEDBACK_HIDDEN, FEEDBACK_EXPANDED, FEEDBACK_COMPACT };
 static u32 img_feedback[4];
 static const char* const feedback_art[4] = {0, "assets/hide.png", "assets/zoom.png", "assets/reduce.png"};
@@ -533,7 +533,8 @@ static void draw(u32 list) {
     }
     /* Link's step runs in the logic step before this callback; in menus or while paused it doesn't */
     if (!snap.visible || game_paused() || wwhd_logic_step() > captured_step + 1) return;
-    if (ui.hidden) { feedback(list, opt.side_compact); return; }
+    /* sailing, the view button hides the map instead (the compasses alone) */
+    if (ui.hidden && !(snap.mode == MODE_SEA && snap.on_ship)) { feedback(list, opt.side_compact); return; }
     float rest = opt.opacity, a = opt.fade ? hdm_fade_opacity(&fade, rest, opt.faded) : rest;
     if (a <= 0) return;
     static_images();
@@ -639,27 +640,29 @@ static void read_charts(u32 save) {
         ++snap.chart_count;
     }
 }
-static void handle_input(void) {
+/* read every step, so that a button held through an event is not taken for a press when it ends; blocked
+ * buttons belong to the game. Sailing, the view button shows and hides the map (show / hide is on foot). */
+static void handle_input(u32 blocked, int sailing) {
     wwhd_input_state in;
     wwhd_input_read(&in);
-    u32 b = in.buttons;
+    u32 b = in.buttons, now = b & ~blocked;
     if (ui.feedback_time > 0) ui.feedback_time -= (float)wwhd_logic_dt();
-    if (hdm_pressed(b, previous_buttons, opt.key_toggle)) {
+    if (!sailing && hdm_pressed(now, previous_buttons, opt.key_toggle)) {
         ui.hidden = !ui.hidden;
         ui.feedback = ui.hidden ? FEEDBACK_HIDDEN : (ui.expanded ? FEEDBACK_EXPANDED : FEEDBACK_COMPACT);
         ui.feedback_time = ui.hidden ? 1.5f : 0;
     }
-    if (!ui.hidden) {
-        if (hdm_pressed(b, previous_buttons, opt.key_size) && !(snap.mode == MODE_SEA && snap.on_ship)) {
+    if (!ui.hidden || sailing) {
+        if (hdm_pressed(now, previous_buttons, opt.key_size) && !sailing) {
             ui.expanded = !ui.expanded;
             ui.feedback = ui.expanded ? FEEDBACK_EXPANDED : FEEDBACK_COMPACT;
             ui.feedback_time = 1.0f;
         }
-        if (hdm_pressed(b, previous_buttons, opt.key_view)) {
-            if (snap.mode == MODE_DUNGEON) ui.zoom = !ui.zoom;
-            else if (snap.mode == MODE_SEA && snap.on_ship) ui.sea_view = hdm_next_sea_view(ui.sea_view, snap.chart_count);
+        if (hdm_pressed(now, previous_buttons, opt.key_view)) {
+            if (sailing) ui.sea_view = hdm_next_sea_view(ui.sea_view, snap.chart_count);
+            else if (snap.mode == MODE_DUNGEON) ui.zoom = !ui.zoom;
         }
-        if (hdm_pressed(b, previous_buttons, opt.key_chart) && snap.mode == MODE_SEA && snap.on_ship && ui.sea_view == 2 && snap.chart_count)
+        if (hdm_pressed(now, previous_buttons, opt.key_chart) && sailing && ui.sea_view == 2 && snap.chart_count)
             ui.chart = (ui.chart + 1) % snap.chart_count;
     }
     previous_buttons = b;
@@ -673,23 +676,25 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     if (!play || !actor || (u32)actor != *(u32*)(play + WWHD_PLAY_PLAYER_OFFSET)) return;
     captured_step = wwhd_logic_step();
     snap.visible = 0;
-    if (play[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET] || play[WWHD_PLAY_EVENT_RUNNING_OFFSET]) return;
     u32 status0 = *(u32*)(play + PLAY_STATUS0), status1 = *(u32*)(play + PLAY_STATUS1);
-    handle_input();
-    if ((status0 & STTS0_HIDE) || (status1 & STTS1_CONDUCT)) return;
     for (int i = 0, ended = 0; i < 8; ++i) {
         char ch = ended ? 0 : (char)play[WWHD_PLAY_START_STAGE_NAME_OFFSET + i];
         if (!ch) ended = 1;
         snap.stage[i] = ch;
     }
     snap.stage[8] = 0;
+    int at_sea = hdm_same(snap.stage, "sea"), busy = play[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET] || play[WWHD_PLAY_EVENT_RUNNING_OFFSET];
+    snap.on_ship = (status0 & STTS0_SHIP) != 0;
+    if (snap.on_ship && !ui.aboard && at_sea) ui.sea_view = hdm_boarding_view(ui.hidden, ui.sea_view);
+    ui.aboard = snap.on_ship;
+    handle_input(hdm_blocked_buttons(busy, snap.on_ship, at_sea), snap.on_ship && at_sea);
+    if (busy || (status0 & STTS0_HIDE) || (status1 & STTS1_CONDUCT)) return;
     u32 save = *(u32*)&WWHD_GAME_DATA(WWHD_ADDR_dComIfG_save_info_pointer, u8);
     if (!save) return;
     snap.x = actor->current.pos.x; snap.y = actor->current.pos.y; snap.z = actor->current.pos.z;
     snap.yaw = actor->shape_angle.y;
     snap.room = actor->current.roomNo;
-    snap.on_ship = (status0 & STTS0_SHIP) != 0;
-    if (hdm_same(snap.stage, "sea")) {
+    if (at_sea) {
         snap.mode = MODE_SEA;
         snap.sector = hdm_sea_room(snap.x, snap.z);
         if (!snap.sector) return;

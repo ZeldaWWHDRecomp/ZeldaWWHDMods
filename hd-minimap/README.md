@@ -29,10 +29,15 @@ options:
 
 | Input | Action |
 | --- | --- |
-| D-pad left | Show or hide the minimap |
+| D-pad left | Show or hide the minimap (on foot) |
 | D-pad right | Compact or expanded (on foot) |
 | D-pad down | In a dungeon: zoom on Link, turned with Link like the GamePad's zoomed map (option). Sailing: compasses only → minimap → minimap and chart |
 | L stick click | Sailing chart view: next owned chart |
+
+Aboard the boat, D-pad left and right stay the boat's own (cannon and grappling hook) and D-pad down
+shows and hides the minimap: boarding with the minimap hidden starts with the compasses alone. On the
+boat in the Tower of the Gods, every button is left to the game. A button held through a cutscene or
+dialogue does nothing when it ends.
 
 ## Settings
 
@@ -49,7 +54,7 @@ restart, like every code mod option.
 - The map pictures are not in this package. The port reads them from your installed game while it
   runs, in your game's language. The mod only names the game's layouts, textures and panes.
 
-## Known limits (0.1.1)
+## Known limits (0.1.2)
 
 - The treasure chart's ribbon shows the chart's number, not its name (the names are game text).
 - Link's position is not drawn on the treasure chart (as in Minimap HD).
@@ -64,9 +69,13 @@ Woods; Tower of the Gods; Earth Temple; Wind Temple (with and without the Map an
 
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
-buttons, sailing views and plan fitting. No game data is included.
+buttons (including those left to the game aboard), sailing views and plan fitting. No game data is
+included.
 
 ## Changes
 
+- **0.1.2:** aboard the boat, D-pad left and right stay the cannon and grappling hook (D-pad left no
+  longer also hides the minimap); D-pad down shows and hides it. No map buttons on the boat in the
+  Tower of the Gods. A button held through a cutscene or dialogue no longer acts when it ends.
 - **0.1.1:** no longer experimental.
 - **0.1.0:** first version.
