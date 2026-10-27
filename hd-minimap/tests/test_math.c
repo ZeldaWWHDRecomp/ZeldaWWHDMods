@@ -120,8 +120,26 @@ static void plan_rooms(void) {
     assert(!hdm_plan_room(bad, 1, 0, &floor, &room));
 }
 
+static void forsaken(void) {
+    assert(hdm_forsaken_turned("ma2room") && hdm_forsaken_turned("ma3room"));
+    assert(!hdm_forsaken_turned("majroom") && !hdm_forsaken_turned("MajyuE") && !hdm_forsaken_turned("ma2roo"));
+    float x, y, cx = HDM_FORSAKEN_CENTRE_X - 34, cy = HDM_FORSAKEN_CENTRE_Y + 4;  /* N_FloorCenter_00 at (-34, 4) */
+    hdm_forsaken_place(cx / HDM_FORSAKEN_SCALE, -cy / HDM_FORSAKEN_SCALE, cx, cy, &x, &y);
+    assert(fabsf(x - cx) < 1e-3f && fabsf(y - cy) < 1e-3f);  /* the centre stays */
+    hdm_forsaken_place((cx + 10) / HDM_FORSAKEN_SCALE, -cy / HDM_FORSAKEN_SCALE, cx, cy, &x, &y);
+    assert(fabsf(x - (cx + 4.227f)) < 1e-2f && fabsf(y - (cy - 9.063f)) < 1e-2f);  /* east turns clockwise */
+    /* ma2room's 1F door between the ring's rooms 1 and 2 (world 2215 / -6117.7, DMAP origin -149 / -311.5) lands
+     * where the panes P_Room_01 (95.55 / -55.25, 117 x 162.5) and P_Room_02 (108.55 / 91.65, 130 x 156) meet */
+    hdm_forsaken_place(2215.0f + 149.0f, -6117.7f + 311.5f, cx, cy, &x, &y);
+    assert(fabsf(x - 95.55f) <= 58.5f && fabsf(y + 55.25f) <= 81.25f);
+    assert(fabsf(x - 108.55f) <= 65.0f && fabsf(y - 91.65f) <= 78.0f);
+    assert(hdm_plan_heading(0x8000, 0) == (short)0x8000 && hdm_plan_heading(0x4000, 1) == 0x4000 - 0x2E38);
+    assert(hdm_plan_heading(-0x7000, 1) == (short)(-0x7000 - 0x2E38 + 0x10000));  /* wraps */
+}
+
 int main(void) {
     plan_rooms();
+    forsaken();
     sectors();
     location_table();
     names();

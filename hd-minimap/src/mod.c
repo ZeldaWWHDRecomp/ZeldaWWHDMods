@@ -64,7 +64,7 @@ static struct {
     int door_count, boss_visible;
     struct { float x, z; s16 heading; } doors[MAX_POINTS];
     float boss_x, boss_z, boss_dx, boss_dy;
-    int dmap;
+    int dmap, turned;  /* turned: Forsaken Fortress after the first visit */
     int point_count;
     struct { float x, z; } points[MAX_POINTS];
     char stage[9];
@@ -85,9 +85,10 @@ static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img
 static u32 img_island, img_chart, img_ribbon, img_chart_base, img_mark, img_mark_fill;
 static int island_room = -1, island_full = -1, chart_key = -1;
 static struct { int pane, room; float x, y, w, h; u32 image; } rooms[MAX_ROOMS];
-/* the floor screens' room tables (DungeonMapFloor_00..05): (plan room, floor, room) per plan room */
+/* the floor screens' room tables (DungeonMapFloor_00..05): (plan room, floor, room) per plan room; Forsaken
+ * Fortress's corridors are in none */
 static const unsigned int* plan_table(int dungeon, int* count) {
-    static const int counts[6] = {15, 21, 27, 22, 22, 18};
+    static const int counts[6] = {10, 21, 27, 22, 22, 18};
     if (dungeon < 0 || dungeon > 5) return 0;
     *count = counts[dungeon];
     switch (dungeon) {
@@ -101,6 +102,8 @@ static const unsigned int* plan_table(int dungeon, int* count) {
 }
 static int room_count, rooms_dungeon = -1, rooms_floor = -1;
 static float floor_min_x, floor_min_y, floor_max_x, floor_max_y;
+/* the point Forsaken Fortress's later markers turn about (read with its plan) */
+static float forsaken_cx = HDM_FORSAKEN_CENTRE_X, forsaken_cy = HDM_FORSAKEN_CENTRE_Y;
 
 static wwhd_hud_element element;
 static char name[96];
@@ -202,6 +205,10 @@ static void floor_rooms(int dungeon, int floor) {
     forget_rooms();
     rooms_dungeon = dungeon; rooms_floor = floor;
     if (!hdm_floor_tag(floor, tag)) return;
+    if (dungeon == 0 && wwhd_game_pane_get("layout-pane:DungeonMapFloor_00/N_FloorCenter_00", &pane)) {
+        forsaken_cx = HDM_FORSAKEN_CENTRE_X + pane.x;
+        forsaken_cy = HDM_FORSAKEN_CENTRE_Y + pane.y;
+    }
     floor_min_x = floor_min_y = 1e9f; floor_max_x = floor_max_y = -1e9f;
     for (int p = 0; p < MAX_ROOMS; ++p) {
         hdm_room_pane_key(key, dungeon, p);
@@ -230,8 +237,10 @@ static void floor_rooms(int dungeon, int floor) {
 }
 /* world X/Z -> the floor layout's root coordinates, as the game places its map markers: relative to the
  * stage's DMAP origin, scaled by the game's map width ratio over the DMAP scale entry (hdDungeonMap_c
- * updateMapBounds); +y up */
+ * updateMapBounds); +y up. Forsaken Fortress after the first visit: the first visit's scale, turned with its
+ * plan (hd_minimap.h) */
 static void world_to_layout(float x, float z, float* lx, float* ly) {
+    if (snap.turned) { hdm_forsaken_place(x - snap.origin_x, z - snap.origin_z, forsaken_cx, forsaken_cy, lx, ly); return; }
     float k = snap.size > 0 ? snap.map_width / snap.size : 0;
     *lx = (x - snap.origin_x) * k;
     *ly = -(z - snap.origin_z) * k;
@@ -441,7 +450,8 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
     }
     dinner = inner; dturn = 0;
     hdm_to_panel(&dview, inner, link_x, link_y, &dlink_px, &dlink_py);
-    if (ui.zoom && opt.zoom_turns) dturn = -yaw_rotation(snap.yaw);
+    s16 heading = hdm_plan_heading(snap.yaw, snap.turned);
+    if (ui.zoom && opt.zoom_turns) dturn = -yaw_rotation(heading);
     float ox = x + inset, oy = y + inset;
     if (opt.background) rect(list, ox, oy, inner, inner, 0x000000, opt.bg_opacity * a / (opt.opacity > 0 ? opt.opacity : 1));
     clip(list, 1, ox, oy, inner, inner);
@@ -463,8 +473,10 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         float lx, ly, px, py;
         world_to_layout(snap.doors[i].x, snap.doors[i].z, &lx, &ly);
         place(lx, ly, &px, &py);
+        /* turned as the game turns its door pane: rotZ is the heading plus the plan's turn, counterclockwise
+         * (USA 0268B438), and the HUD turns clockwise */
         image(list, img_door, ox + px - 16 * unit, oy + py - 5 * unit, 32 * unit, 10 * unit,
-              dturn + (float)snap.doors[i].heading * (2 * pi / 65536.0f), 0xffffff, a);
+              dturn - (float)hdm_plan_heading(snap.doors[i].heading, snap.turned) * (2 * pi / 65536.0f), 0xffffff, a);
     }
     if (snap.has_compass) {
         if (!img_chest) img_chest = game_image("DungeonMapTreasure_00/MapTreasure_00^t#P_Treasure_00");
@@ -492,11 +504,8 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         place(lx, ly, &px, &py);
         marker(list, *img, ox + px, oy + py, side * .1f, 0, a);
     }
-    {
-        s16 yaw = snap.yaw;
-        if (dturn != 0) yaw = (s16)0x8000;  /* turned with Link: he always faces up */
-        heading_marker(list, img_face, 0, ox + dlink_px, oy + dlink_py, side, yaw, a);
-    }
+    if (dturn != 0) heading = (s16)0x8000;  /* turned with Link: he always faces up */
+    heading_marker(list, img_face, 0, ox + dlink_px, oy + dlink_py, side, heading, a);
     clip(list, 0, 0, 0, 0, 0);
     frame(list, x, y, side, a);
 }
@@ -716,6 +725,7 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     if (opt.debug && (wwhd_logic_step() % 60) == 0) { wwhd_log_int("dungeon", snap.dungeon); wwhd_log_int("dungeon.map", snap.has_map); }
     if (!snap.has_map) { snap.mode = MODE_NONE; return; }
     snap.has_compass = forsaken ? stage_compass(2) != 0 : dungeon_item(membit, 1) != 0;
+    snap.turned = hdm_forsaken_turned(snap.stage);
     read_stage(play);
     /* the game's map width ratio (the GamePad map pane over its reference width): from the game's own
      * dungeon map when it has one, else the value it has in every dungeon */

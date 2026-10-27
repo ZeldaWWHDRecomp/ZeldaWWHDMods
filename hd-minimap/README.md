@@ -49,7 +49,7 @@ restart, like every code mod option.
 - The map pictures are not in this package. The port reads them from your installed game while it
   runs, in your game's language. The mod only names the game's layouts, textures and panes.
 
-## Known limits (0.1.1)
+## Known limits (0.1.2)
 
 - The treasure chart's ribbon shows the chart's number, not its name (the names are game text).
 - Link's position is not drawn on the treasure chart (as in Minimap HD).
@@ -64,9 +64,12 @@ Woods; Tower of the Gods; Earth Temple; Wind Temple (with and without the Map an
 
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
-buttons, sailing views and plan fitting. No game data is included.
+buttons, sailing views, plan fitting and the Forsaken Fortress plan turn. No game data is included.
 
 ## Changes
 
+- **0.1.2:** Forsaken Fortress: Link, doors and chests now land on their rooms in the turned plan of
+  the second and third visits, as on the GamePad. Doors facing east, west or a diagonal turn as on the
+  GamePad in every dungeon.
 - **0.1.1:** no longer experimental.
 - **0.1.0:** first version.
