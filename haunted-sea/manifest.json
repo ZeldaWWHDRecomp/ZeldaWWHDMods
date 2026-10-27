@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "id": "haunted-sea",
+  "name": "Haunted sea",
+  "version": "0.1.0",
+  "game_id": "wwhd",
+  "kind": "guest",
+  "guest": {
+    "api_version": 1,
+    "elf": "mod.elf"
+  },
+  "options": [
+    {
+      "id": "how_often",
+      "type": "enum",
+      "name": "How often",
+      "default": "Now and then",
+      "choices": ["Rare", "Now and then", "Often", "Always"]
+    },
+    {
+      "id": "monsters",
+      "type": "enum",
+      "name": "Monsters",
+      "default": "Sometimes",
+      "choices": ["Sometimes", "Often", "Relentless"]
+    }
+  ],
+  "author": "asadsi",
+  "description": "Now and then, at night far out at sea, the wind dies, fog rolls in and the sea turns on Link: Gyorgs, Seahats, Kargarocs, cannon boats, Poes and the Ghost Ship.",
+  "experimental": true,
+  "minimum_manager_version": "1.5.0",
+  "setup": [
+    {
+      "id": "build",
+      "type": "build_guest_mod",
+      "title": "Build Haunted sea for this installation"
+    }
+  ]
+}

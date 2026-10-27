@@ -231,6 +231,35 @@
       "port_versions": {
         "minimum": "0.4.1"
       }
+    },
+    {
+      "id": "haunted-sea",
+      "name": "Haunted sea",
+      "description": "Now and then, at night far out at sea, the wind dies, fog rolls in and the sea turns on Link: Gyorgs, Seahats, Kargarocs, cannon boats, Poes and the Ghost Ship.",
+      "authors": [
+        "asadsi"
+      ],
+      "version": "0.1.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Haunted sea for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.2.11"
+      },
+      "experimental": true
     }
   ]
 }
