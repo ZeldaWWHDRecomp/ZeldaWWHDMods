@@ -504,7 +504,7 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         float span = (floor_max_x - floor_min_x > floor_max_y - floor_min_y ? floor_max_x - floor_min_x : floor_max_y - floor_min_y) * .45f;
         dview = hdm_fit(link_x - span / 2, link_y - span / 2, link_x + span / 2, link_y + span / 2, inner, 0);
     } else {
-        dview = hdm_fit(floor_min_x, floor_min_y, floor_max_x, floor_max_y, inner, .04f);
+        dview = hdm_plan_view(inner, .04f);
     }
     dinner = inner; dturn = 0;
     hdm_to_panel(&dview, inner, link_x, link_y, &dlink_px, &dlink_py);
@@ -537,9 +537,9 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
             image(list, img_searchlight[stopped], ox + px - w / 2, oy + py - h / 2, w, h, dturn, 0xffffff, stopped ? a * 128 / 255 : a);
         }
     }
-    /* marker sizes follow the GamePad's: a chest 24 x 18, a door 32 x 10, the boss icon 35 x 29 (layout units
-     * of a 520-unit plan), scaled to the panel */
-    float unit = side / 330.0f;
+    /* marker sizes follow the GamePad's: a chest 24 x 18, a door 32 x 10, the boss icon 35 x 29, in the plan's
+     * layout units (its marker layouts), at the whole plan's scale; the zoom keeps them that size */
+    float unit = hdm_plan_view(inner, .04f).scale;
     if (!img_door) img_door = game_image("DungeonMapDoor_00/MapDoor_00^t#P_Door_00");
     for (int i = 0; i < snap.door_count; ++i) {
         float lx, ly, px, py;

@@ -78,7 +78,7 @@ Woods; Tower of the Gods; Earth Temple; Wind Temple (with and without the Map an
 
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
-buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting,
+buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and framing,
 the Forsaken Fortress plan turn, its outside and searchlights, and the dungeon zoom's turn. No game data is included.
 
 ## Changes
@@ -98,5 +98,7 @@ the Forsaken Fortress plan turn, its outside and searchlights, and the dungeon z
   - Forsaken Fortress: on foot outside the fortress on the later visits, the minimap shows the plan's
     outside with Link and its three searchlights, searching or stopped, as on the GamePad, instead of
     the island.
+  - Dungeon plans are framed as on the GamePad, so each floor keeps its place (floors line up when
+    changing floor) and doors, chests and the boss icon keep their size against the rooms.
 - **0.1.1:** no longer experimental.
 - **0.1.0:** first version.
