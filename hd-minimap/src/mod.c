@@ -40,6 +40,7 @@ WWHD_GAME_FUNC(0x025C4740, u8*, stage_doors, (void));
 #define STTS0_HIDE (0x1000u | 0x2000u | 0x4000u | 0x20000u | 0x80000u | 0x200000u) /* aiming, first person, telescope */
 #define STTS0_SHIP 0x10000u
 #define STTS1_CONDUCT 0x1u
+#define UI_SCENE 0x101F8344         /* the game's UI scene: +0x178 the TV HUD, +0x218 the map screens */
 
 enum { MODE_NONE, MODE_SEA, MODE_DUNGEON };
 #define MAX_ROOMS 40
@@ -75,6 +76,13 @@ static struct { int hidden, expanded, zoom, sea_view, chart, feedback, aboard; f
 enum { FEEDBACK_NONE, FEEDBACK_HIDDEN, FEEDBACK_EXPANDED, FEEDBACK_COMPACT };
 static u32 img_feedback[4];
 static const char* const feedback_art[4] = {0, "assets/hide.png", "assets/zoom.png", "assets/reduce.png"};
+static u32 img_icons[HDM_ICON_COUNT];
+static const char* const icon_art[HDM_ICON_COUNT] = {
+    0, "assets/hide.png", "assets/hide-undiscovered.png", "assets/zoom.png", "assets/reduce.png",
+    "BtnDungeonItemIcon_00/MapItemIcon_02^l#P_Btn_00", "assets/zoom.png", "assets/unknown.png",
+};
+/* the HUD's D-pad (Main_00's part Shortcut_00, pane N_ShortcutState_00): TV position, scale and fade */
+static struct { int found; float x, y, scale, alpha; } dpad;
 static u32 previous_buttons;
 static hdm_fade fade = {1, 1};
 static int initialized;
@@ -152,6 +160,7 @@ static void forget_images(void) {
     img_frame = img_wind = img_unknown = img_face = img_arrow = img_chest = img_medli = img_makar = img_ship = img_base = img_door = img_boss = 0;
     img_island = img_chart = img_ribbon = img_chart_base = img_mark = img_mark_fill = 0; island_room = island_full = chart_key = -1;
     for (int i = 0; i < 4; ++i) img_feedback[i] = 0;
+    for (int i = 0; i < HDM_ICON_COUNT; ++i) img_icons[i] = 0;
     for (int i = 0; i < room_count; ++i) rooms[i].image = 0;
     room_count = 0; rooms_dungeon = rooms_floor = -1;
 }
@@ -513,11 +522,62 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
 /* the shortcut's picture for a moment after a press (Minimap HD's icons), drawn last so that it stays on
  * top of the map, at the panel's top-right corner */
 static void feedback(u32 list, float side) {
-    if (!ui.feedback || ui.feedback_time <= 0) return;
+    if (dpad.found || !ui.feedback || ui.feedback_time <= 0) return;  /* the D-pad's icons say it instead */
     if (!img_feedback[ui.feedback]) img_feedback[ui.feedback] = wwhd_hud_texture(WWHD_HUD_PACKAGE, feedback_art[ui.feedback]);
     float t = ui.feedback_time > .3f ? 1 : ui.feedback_time / .3f, size = 56;
     float x = opt.x + side - size * .75f, y = 720 - opt.bottom - side - size * .25f;
     image(list, img_feedback[ui.feedback], x, y, size, size, 0, 0xffffff, t * (opt.opacity > .3f ? opt.opacity : .3f));
+}
+
+/* ---- the map's icons beside the HUD's D-pad, read from the game's HUD (never written) so that they
+ * move and fade with it ---- */
+static int heap_pointer(u32 p) { return p >= 0x10000000u && p < 0x50000000u && !(p & 3); }
+static u32 follow(u32 p, u32 offset) { return heap_pointer(p) ? *(u32*)(p + offset) : 0; }
+static void read_dpad(void) {
+    dpad.found = 0;
+    u32 hud = follow(*(u32*)&WWHD_GAME_DATA(UI_SCENE, u8), 0x178);
+    /* the HUD's Shortcut_00 layout, its root pane, then RootPane > N_Shortcut_00 > N_All_00 > N_ShortcutInOut_00 > N_ShortcutState_00 */
+    u32 pane = follow(follow(follow(follow(follow(hud, 0x4C), 0x30), 0x44), 4), 0x0C);
+    for (int i = 0; i < 4; ++i) pane = follow(pane, 0x14);
+    if (!heap_pointer(pane) || !hdm_same((const char*)(pane + 0x80), "N_ShortcutState_00")) return;
+    /* the pane's global matrix in Main_00's 1280 x 720 root (+y up), its global alpha */
+    f32 scale = *(f32*)(pane + 0x48), tx = *(f32*)(pane + 0x54), ty = *(f32*)(pane + 0x64);
+    if (!hdm_finite(scale) || !hdm_finite(tx) || !hdm_finite(ty) || scale < .05f || scale > 8 || tx < -1280 || tx > 1280 || ty < -720 || ty > 720) return;
+    dpad.found = 1;
+    dpad.x = 640 + tx; dpad.y = 360 - ty; dpad.scale = scale;
+    dpad.alpha = *(u8*)(pane + 0x46) / 255.0f;
+    for (u32 p = pane, depth = 0; heap_pointer(p) && depth < 16; p = *(u32*)(p + 0x0C), ++depth)
+        if (!(*(u8*)(p + 0x44) & 1)) dpad.alpha = 0;  /* a hidden parent hides the D-pad */
+}
+/* an icon centred (ox, oy) layout units from the D-pad's pane, size units wide, with the shadow Minimap HD's
+ * icons have in the game: black, offset (dx, dy) */
+static void dpad_icon(u32 list, int icon, float ox, float oy, float size, float dx, float dy, float shadow) {
+    if (!icon) return;
+    if (!img_icons[icon])
+        img_icons[icon] = icon == HDM_ICON_COMPASS ? game_image(icon_art[icon]) : wwhd_hud_texture(WWHD_HUD_PACKAGE, icon_art[icon]);
+    float s = dpad.scale, w = size * s, x = dpad.x + ox * s - w / 2, y = dpad.y - oy * s - w / 2;
+    image(list, img_icons[icon], x + dx * s, y - dy * s, w, w, 0, 0x000000, shadow * dpad.alpha);
+    image(list, img_icons[icon], x, y, w, w, 0, 0xffffff, dpad.alpha);
+}
+static void dpad_icons(u32 list) {
+    read_dpad();
+    if (opt.debug && (wwhd_logic_step() % 60) == 0) {
+        wwhd_log_int("dpad.found", dpad.found); wwhd_log_float("dpad.x", dpad.x); wwhd_log_float("dpad.y", dpad.y);
+        wwhd_log_float("dpad.scale", dpad.scale); wwhd_log_float("dpad.alpha", dpad.alpha);
+    }
+    if (!dpad.found || dpad.alpha <= 0) return;
+    hdm_icons icons = hdm_dpad_icons(snap.mode == MODE_SEA, snap.mode == MODE_DUNGEON, snap.on_ship, ui.hidden, ui.expanded,
+                                     snap.discovered, snap.covered);
+    /* only on the D-pad buttons that do it */
+    if (opt.key_toggle != hdm_button_bit("left")) icons.left = HDM_ICON_NONE;
+    if (opt.key_size != hdm_button_bit("right")) icons.right = HDM_ICON_NONE;
+    if (opt.key_view != hdm_button_bit("down")) icons.down = HDM_ICON_NONE;
+    /* the places and sizes of Minimap HD's icons: 68-unit pictures at 0.8 with a half-transparent shadow,
+     * the compass 136-unit at 0.5 */
+    dpad_icon(list, icons.left, -23, -9, 54.4f, 3, -2, .5f);
+    dpad_icon(list, icons.right, 61, -9, 54.4f, 3, -2, .5f);
+    if (icons.down == HDM_ICON_COMPASS) dpad_icon(list, icons.down, 16, -50, 68.15f, 2, -2, .48f);
+    else dpad_icon(list, icons.down, 16, -55, 54.4f, 3, -2, .5f);
 }
 static unsigned long long captured_step = ~0ull;
 static void draw(u32 list) {
@@ -542,6 +602,7 @@ static void draw(u32 list) {
     }
     /* Link's step runs in the logic step before this callback; in menus or while paused it doesn't */
     if (!snap.visible || game_paused() || wwhd_logic_step() > captured_step + 1) return;
+    dpad_icons(list);
     /* sailing, the view button hides the map instead (the compasses alone) */
     if (ui.hidden && !(snap.mode == MODE_SEA && snap.on_ship)) { feedback(list, opt.side_compact); return; }
     float rest = opt.opacity, a = opt.fade ? hdm_fade_opacity(&fade, rest, opt.faded) : rest;

@@ -204,6 +204,27 @@ static inline int hdm_boarding_view(int hidden, int view) {
     return hidden ? 0 : (view ? view : 1);
 }
 
+/* ---- the map's icons beside the HUD's D-pad (Minimap HD's shortcut icons): left shows and hides the
+ * minimap, right is compact / expanded, down the dungeon zoom (the compass) or, sailing, the view ---- */
+enum { HDM_ICON_NONE, HDM_ICON_MAP, HDM_ICON_MAP_UNKNOWN, HDM_ICON_EXPAND, HDM_ICON_REDUCE, HDM_ICON_COMPASS,
+       HDM_ICON_VIEW, HDM_ICON_UNKNOWN, HDM_ICON_COUNT };
+typedef struct { int left, right, down; } hdm_icons;
+/* sea / dungeon: where the minimap is; discovered: the sector's map is known; covered: Link is on its
+ * island art. Aboard at sea, left and right are the boat's; aboard elsewhere (the Tower of the Gods) no icon. */
+static inline hdm_icons hdm_dpad_icons(int sea, int dungeon, int on_ship, int hidden, int expanded, int discovered, int covered) {
+    hdm_icons d = {HDM_ICON_NONE, HDM_ICON_NONE, HDM_ICON_NONE};
+    if (sea && on_ship) {
+        d.down = !discovered ? HDM_ICON_UNKNOWN : covered ? HDM_ICON_VIEW : HDM_ICON_NONE;
+        return d;
+    }
+    if ((!sea && !dungeon) || on_ship) return d;
+    d.left = sea && !discovered ? HDM_ICON_MAP_UNKNOWN : HDM_ICON_MAP;
+    if (hidden) return d;
+    d.right = expanded ? HDM_ICON_REDUCE : HDM_ICON_EXPAND;
+    if (dungeon) d.down = HDM_ICON_COMPASS;
+    return d;
+}
+
 /* ---- rectangles: fit a box (cx, cy, w, h in layout units, +y up) into a square panel ---- */
 typedef struct { float scale, cx, cy; } hdm_view;
 static inline hdm_view hdm_fit(float min_x, float min_y, float max_x, float max_y, float side, float padding) {

@@ -104,6 +104,26 @@ static void controls(void) {
     assert(hdm_boarding_view(0, 0) == 1 && hdm_boarding_view(0, 2) == 2);
 }
 
+static void dpad_icons(void) {
+    /* sea, dungeon, on_ship, hidden, expanded, discovered, covered */
+    hdm_icons d = hdm_dpad_icons(1, 0, 0, 0, 0, 1, 1);            /* on foot, island: map, expand */
+    assert(d.left == HDM_ICON_MAP && d.right == HDM_ICON_EXPAND && d.down == HDM_ICON_NONE);
+    d = hdm_dpad_icons(1, 0, 0, 1, 0, 1, 1);                       /* hidden: only the map at left */
+    assert(d.left == HDM_ICON_MAP && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
+    d = hdm_dpad_icons(0, 1, 0, 0, 1, 0, 0);                       /* dungeon, expanded: reduce, the compass */
+    assert(d.left == HDM_ICON_MAP && d.right == HDM_ICON_REDUCE && d.down == HDM_ICON_COMPASS);
+    d = hdm_dpad_icons(1, 0, 0, 0, 0, 0, 0);                       /* undiscovered on foot */
+    assert(d.left == HDM_ICON_MAP_UNKNOWN);
+    d = hdm_dpad_icons(1, 0, 1, 1, 1, 1, 1);                       /* sailing: only the view, even hidden on foot */
+    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_VIEW);
+    assert(hdm_dpad_icons(1, 0, 1, 0, 0, 0, 0).down == HDM_ICON_UNKNOWN);
+    assert(hdm_dpad_icons(1, 0, 1, 0, 0, 1, 0).down == HDM_ICON_NONE);   /* out at sea: the compasses */
+    d = hdm_dpad_icons(0, 1, 1, 0, 0, 0, 0);                       /* the boat in the Tower of the Gods */
+    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
+    d = hdm_dpad_icons(0, 0, 0, 0, 0, 0, 0);                       /* no minimap here */
+    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
+}
+
 static void fitting(void) {
     hdm_view v = hdm_fit(-100, -50, 100, 50, 200, 0);
     float x, y;
@@ -153,6 +173,7 @@ int main(void) {
     names();
     fading();
     controls();
+    dpad_icons();
     fitting();
     puts("hd-minimap math: ok");
     return 0;

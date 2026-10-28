@@ -39,6 +39,13 @@ shows and hides the minimap: boarding with the minimap hidden starts with the co
 boat in the Tower of the Gods, every button is left to the game. A button held through a cutscene or
 dialogue does nothing when it ends.
 
+Minimap HD's icons beside the HUD's D-pad (under the hearts) show what it does. On foot: the folded map
+on the left (faded in an undiscovered sector) and, while the minimap is shown, expand or reduce on the
+right and, in a dungeon, the game's compass on down (the zoom). Sailing, only down: the open map while
+the island is in view, the question mark in an undiscovered sector. They move and fade with the HUD's
+D-pad, and an icon is drawn only while its D-pad button keeps that action in the options. If the HUD's
+D-pad cannot be read, the minimap's corner shows the icon briefly instead.
+
 ## Settings
 
 Position and both sizes, overall opacity, faded opacity, fade on movement (Link and camera input), black
@@ -58,6 +65,7 @@ restart, like every code mod option.
 
 - The treasure chart's ribbon shows the chart's number, not its name (the names are game text).
 - Link's position is not drawn on the treasure chart (as in Minimap HD).
+- D-pad left shows the same folded map whether the minimap is shown or hidden.
 
 ## Checked in the game
 
@@ -69,8 +77,8 @@ Woods; Tower of the Gods; Earth Temple; Wind Temple (with and without the Map an
 
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
-buttons (including those left to the game aboard), sailing views, plan fitting and the Forsaken
-Fortress plan turn. No game data is included.
+buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and
+the Forsaken Fortress plan turn. No game data is included.
 
 ## Changes
 
@@ -81,5 +89,7 @@ Fortress plan turn. No game data is included.
   - Forsaken Fortress: Link, doors and chests now land on their rooms in the turned plan of the second
     and third visits, as on the GamePad. Doors facing east, west or a diagonal turn as on the GamePad in
     every dungeon.
+  - Minimap HD's icons beside the HUD's D-pad (map, expand or reduce, the dungeon compass, the sailing
+    view), moving and fading with it. They replace the brief icon in the minimap's corner.
 - **0.1.1:** no longer experimental.
 - **0.1.0:** first version.
