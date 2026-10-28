@@ -126,13 +126,40 @@ static inline int hdm_dungeon_of(const char* stage) {
 static inline int hdm_forsaken_turned(const char* stage) {
     return hdm_same(stage, "ma2room") || hdm_same(stage, "ma3room");
 }
-/* a point (dx, dz) from the stage's DMAP origin -> the plan (+y up), turned about the centre (cx, cy) */
-static inline void hdm_forsaken_place(float dx, float dz, float cx, float cy, float* x, float* y) {
+/* a point (dx, dz) from an origin -> the plan (+y up) at a scale, turned with Forsaken Fortress's plan about
+ * the centre (cx, cy) */
+static inline void hdm_turned_place(float dx, float dz, float scale, float cx, float cy, float* x, float* y) {
     const float c = 0.422697f, s = -0.906271f;  /* cos and sin of -64.995 degrees (USA 0x100F9BD0) */
-    float px = dx * HDM_FORSAKEN_SCALE - cx, py = -dz * HDM_FORSAKEN_SCALE - cy;
+    float px = dx * scale - cx, py = -dz * scale - cy;
     *x = cx + px * c - py * s;
     *y = cy + px * s + py * c;
 }
+/* a point (dx, dz) from the stage's DMAP origin -> the plan (+y up), turned about the centre (cx, cy) */
+static inline void hdm_forsaken_place(float dx, float dz, float cx, float cy, float* x, float* y) {
+    hdm_turned_place(dx, dz, HDM_FORSAKEN_SCALE, cx, cy, x, y);
+}
+
+/* ---- Forsaken Fortress's outside after the first visit: the Great Sea's room 1 (sector A1). On foot on the
+ * fortress's island art (the square the GamePad tests, USA 02687398), the GamePad shows the plan's outdoor
+ * picture (DungeonMapFloor_00, P_Outdoor_00) instead of the island; aboard, the island (USA 02687674). Its
+ * markers: from room 1's map origin (its 2DMA), at a fixed scale, turned with the plan about 25.6 / 46.8 from
+ * the pane N_OutdoorCenter_00 (USA 0268B9A4, 0268BBCC; the origin in 02657FE8) ---- */
+#define HDM_OUTDOOR_SECTOR 1
+#define HDM_OUTDOOR_SCALE 0.0308909f       /* layout units per world unit (USA 0x100F9BC8) */
+#define HDM_OUTDOOR_CENTRE_X 25.6f
+#define HDM_OUTDOOR_CENTRE_Y 46.8f
+#define HDM_OUTDOOR_ORIGIN_X -300999.0f    /* sea_Room1's 2DMA */
+#define HDM_OUTDOOR_ORIGIN_Z -300353.0f
+static inline int hdm_forsaken_outside(int sector, int on_ship, int covered) {
+    return sector == HDM_OUTDOOR_SECTOR && !on_ship && covered;
+}
+/* its three searchlights (L_Searchlight_00..02): searching until the event bit or the light's switch in room 1
+ * is on; then the plan shows them stopped, MapSearchlight_01 at half opacity instead of MapSearchlight_00
+ * (USA 0268A098, 02661574; the animation Searchlight_00_Valid) */
+#define HDM_SEARCHLIGHTS 3
+#define HDM_SEARCHLIGHTS_EVENT 0x1820
+#define HDM_SEARCHLIGHT_SWITCH 101          /* + the light's number (USA 0x100F98E0) */
+static inline int hdm_searchlight_stopped(int event_on, int switch_on) { return event_on || switch_on; }
 /* a game angle (Link's heading, a door's) as seen on the plan: turned with it */
 static inline short hdm_plan_heading(int heading, int turned) {
     return (short)(turned ? heading - HDM_FORSAKEN_TURN : heading);
