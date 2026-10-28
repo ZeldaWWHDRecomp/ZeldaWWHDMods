@@ -225,6 +225,14 @@ static inline hdm_icons hdm_dpad_icons(int sea, int dungeon, int on_ship, int hi
     return d;
 }
 
+/* ---- the dungeon zoom's turn: the plan turns about Link so that a heading (game angle, 0x10000 a turn)
+ * faces up: Link's, or with the camera option the camera's when the game has one ---- */
+static inline int hdm_turn_heading(int with_camera, int link, int has_camera, int camera) {
+    return with_camera && has_camera ? camera : link;
+}
+/* Link's heading as drawn on the plan turned so that `up` faces up (0x8000 is up on the panel) */
+static inline short hdm_heading_on_turned(int heading, int up) { return (short)(heading - up + 0x8000); }
+
 /* ---- rectangles: fit a box (cx, cy, w, h in layout units, +y up) into a square panel ---- */
 typedef struct { float scale, cx, cy; } hdm_view;
 static inline hdm_view hdm_fit(float min_x, float min_y, float max_x, float max_y, float side, float padding) {

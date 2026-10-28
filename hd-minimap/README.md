@@ -31,7 +31,7 @@ options:
 | --- | --- |
 | D-pad left | Show or hide the minimap (on foot) |
 | D-pad right | Compact or expanded (on foot) |
-| D-pad down | In a dungeon: zoom on Link, turned with Link like the GamePad's zoomed map (option). Sailing: compasses only → minimap → minimap and chart |
+| D-pad down | In a dungeon: zoom on Link, turned with Link or with the camera like the GamePad's zoomed map (options). Sailing: compasses only → minimap → minimap and chart |
 | L stick click | Sailing chart view: next owned chart |
 
 Aboard the boat, D-pad left and right stay the boat's own (cannon and grappling hook) and D-pad down
@@ -51,7 +51,8 @@ D-pad cannot be read, the minimap's corner shows the icon briefly instead.
 Position and both sizes, overall opacity, faded opacity, fade on movement (Link and camera input), black
 background and its opacity, parchment behind island maps (off: the map is see-through), smooth island maps (on: the port enlarges
 the game's 100 × 100 island art three times with Lanczos-3 and sharpening on your machine; off or on
-an older port: the original art), wind arrow, dungeon maps, and the four buttons. Changes apply after a
+an older port: the original art), wind arrow, dungeon maps, whether the dungeon zoom turns and with
+what (Link, the default, or the camera), and the four buttons. Changes apply after a
 restart, like every code mod option.
 
 ## Requirements and data
@@ -77,8 +78,8 @@ Woods; Tower of the Gods; Earth Temple; Wind Temple (with and without the Map an
 
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
-buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and
-the Forsaken Fortress plan turn. No game data is included.
+buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting,
+the Forsaken Fortress plan turn and the dungeon zoom's turn. No game data is included.
 
 ## Changes
 
@@ -91,5 +92,8 @@ the Forsaken Fortress plan turn. No game data is included.
     every dungeon.
   - Minimap HD's icons beside the HUD's D-pad (map, expand or reduce, the dungeon compass, the sailing
     view), moving and fading with it. They replace the brief icon in the minimap's corner.
+  - The dungeon zoom can turn with the camera, like the GamePad's zoomed map (option "Dungeon zoom turns
+    with": Link or camera; Link stays the default). Turned with the camera, Link's arrow shows where he
+    faces on the turned plan.
 - **0.1.1:** no longer experimental.
 - **0.1.0:** first version.

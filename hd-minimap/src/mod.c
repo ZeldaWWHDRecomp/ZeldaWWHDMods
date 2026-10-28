@@ -32,6 +32,9 @@ WWHD_GAME_FUNC(0x025C4740, u8*, stage_doors, (void));
 #define PLAY_PARTNER 0x5B38         /* the second player slot: Medli or Makar in their temples */
 #define PLAY_STATUS0 0x5CD8
 #define PLAY_STATUS1 0x5CDC
+#define PLAY_CAMERA 0x5AF8          /* the game's one camera slot: its camera at +0 */
+#define PLAY_CAMERA_INDEX 0x5B30    /* the current camera slot (s8) */
+#define CAMERA_HEADING 0x236        /* the camera's heading (s16), the angle the GamePad's zoomed map turns with */
 #define SAVE_PLAYER_MAP 0xE4
 #define SAVE_MEMBIT 0x798
 #define SAVE_CHART_SET 0x1C1
@@ -49,14 +52,14 @@ enum { MODE_NONE, MODE_SEA, MODE_DUNGEON };
 
 static struct {
     float x, side_compact, side_expanded, bottom, opacity, faded, bg_opacity;
-    int fade, background, wind, dungeons, debug, zoom_turns, parchment, smooth;
+    int fade, background, wind, dungeons, debug, zoom_turns, turn_camera, parchment, smooth;
     u32 key_toggle, key_size, key_view, key_chart;
 } opt;
 
 static struct {
-    int mode, visible, sector, discovered, covered, on_ship, dungeon, floor, room, has_map, has_compass, companion;
+    int mode, visible, sector, discovered, covered, on_ship, dungeon, floor, room, has_map, has_compass, companion, camera;
     float x, y, z, cx, cz, island_dx, island_dz;
-    s16 yaw, cyaw;
+    s16 yaw, cyaw, camera_yaw;
     u32 wind;
     int chart_set, chart_count;
     struct { s8 sea, save, number; s16 rect[4]; } charts[MAX_CHARTS];
@@ -138,6 +141,11 @@ static void configure(void) {
     opt.dungeons = wwhd_config_bool("dungeons", 1);
     opt.debug = wwhd_config_bool("debug", 0);
     opt.zoom_turns = wwhd_config_bool("zoom_turns", 1);
+    {
+        static char with[8];
+        with[0] = 0;
+        opt.turn_camera = wwhd_config_string("zoom_turn_with", with, sizeof with) && hdm_same(with, "camera");
+    }
     opt.parchment = wwhd_config_bool("parchment", 0);
     opt.smooth = wwhd_config_bool("smooth", 1);
     opt.key_toggle = key_option("key_toggle", "left");
@@ -433,8 +441,8 @@ static void draw_chart(u32 list, float x, float y, float side, float a) {
     element.text = number; element.text_bytes = n < 10 ? 1 : 2;
     wwhd_hud_emit(list, &element);
 }
-/* layout point -> panel point; zoomed, the plan turns about Link so that he faces up, as the GamePad's
- * zoomed map does (hdDungeonMap_c::updateMapRotation follows Link's heading) */
+/* layout point -> panel point; zoomed, the plan can turn about Link so that his heading faces up or, with
+ * the camera option, the camera's, as the GamePad's zoomed map does */
 static hdm_view dview;
 static float dinner, dturn, dlink_px, dlink_py;
 static void place(float lx, float ly, float* px, float* py) {
@@ -460,7 +468,8 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
     dinner = inner; dturn = 0;
     hdm_to_panel(&dview, inner, link_x, link_y, &dlink_px, &dlink_py);
     s16 heading = hdm_plan_heading(snap.yaw, snap.turned);
-    if (ui.zoom && opt.zoom_turns) dturn = -yaw_rotation(heading);
+    s16 up = (s16)hdm_turn_heading(opt.turn_camera, heading, snap.camera, hdm_plan_heading(snap.camera_yaw, snap.turned));
+    if (ui.zoom && opt.zoom_turns) dturn = -yaw_rotation(up);
     float ox = x + inset, oy = y + inset;
     if (opt.background) rect(list, ox, oy, inner, inner, 0x000000, opt.bg_opacity * a / (opt.opacity > 0 ? opt.opacity : 1));
     clip(list, 1, ox, oy, inner, inner);
@@ -513,7 +522,7 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         place(lx, ly, &px, &py);
         marker(list, *img, ox + px, oy + py, side * .1f, 0, a);
     }
-    if (dturn != 0) heading = (s16)0x8000;  /* turned with Link: he always faces up */
+    if (dturn != 0) heading = hdm_heading_on_turned(heading, up);  /* relative to the turned plan's up */
     heading_marker(list, img_face, 0, ox + dlink_px, oy + dlink_py, side, heading, a);
     clip(list, 0, 0, 0, 0, 0);
     frame(list, x, y, side, a);
@@ -793,6 +802,12 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     snap.has_compass = forsaken ? stage_compass(2) != 0 : dungeon_item(membit, 1) != 0;
     snap.turned = hdm_forsaken_turned(snap.stage);
     read_stage(play);
+    {
+        s8 slot = (s8)play[PLAY_CAMERA_INDEX];
+        u32 camera = slot == 0 ? *(u32*)(play + PLAY_CAMERA) : 0;
+        snap.camera = heap_pointer(camera);
+        if (snap.camera) snap.camera_yaw = *(s16*)(camera + CAMERA_HEADING);
+    }
     /* the game's map width ratio (the GamePad map pane over its reference width): from the game's own
      * dungeon map when it has one, else the value it has in every dungeon */
     snap.map_width = 1.68919f;
@@ -837,6 +852,15 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
         wwhd_log_hex("partner.5B38", *(u32*)(play + 0x5B38)); wwhd_log_hex("partner.5B3C", *(u32*)(play + 0x5B3C));
         wwhd_log_hex("link", (u32)actor); wwhd_log_int("companion", snap.companion); wwhd_log_int("chests", snap.point_count);
         wwhd_log_int("compass", snap.has_compass);
+        wwhd_log_int("turn.camera", snap.camera); wwhd_log_hex("turn.camera_yaw", (u16)snap.camera_yaw);
+        wwhd_log_hex("turn.link_yaw", (u16)snap.yaw);
+        {
+            /* the GamePad's zoom adds 65 degrees when this is 6 or 7, or 0 in room 1 (room_control_stay_no) */
+            u32 ui_scene = *(u32*)&WWHD_GAME_DATA(UI_SCENE, u8);
+            u32 coord = heap_pointer(ui_scene) ? *(u32*)(ui_scene + 0x218) : 0;
+            if (heap_pointer(coord)) wwhd_log_int("turn.map_kind", *(s32*)(coord + 0x54));
+            wwhd_log_int("turn.stay_no", WWHD_GAME_DATA(0x1047E6C8, s8));
+        }
         {
             int count = 0;
             const unsigned int* table = plan_table(snap.dungeon, &count);

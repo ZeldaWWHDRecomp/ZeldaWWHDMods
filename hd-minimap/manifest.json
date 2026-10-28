@@ -120,9 +120,19 @@
     },
     {
       "id": "zoom_turns",
-      "name": "Dungeon zoom turns with Link",
+      "name": "Dungeon zoom turns",
       "type": "bool",
       "default": true
+    },
+    {
+      "id": "zoom_turn_with",
+      "name": "Dungeon zoom turns with",
+      "type": "enum",
+      "default": "link",
+      "choices": [
+        "link",
+        "camera"
+      ]
     },
     {
       "id": "key_toggle",

@@ -124,6 +124,15 @@ static void dpad_icons(void) {
     assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
 }
 
+static void turning(void) {
+    assert(hdm_turn_heading(0, 0x1000, 1, 0x4000) == 0x1000);      /* turned with Link */
+    assert(hdm_turn_heading(1, 0x1000, 1, 0x4000) == 0x4000);      /* with the camera */
+    assert(hdm_turn_heading(1, 0x1000, 0, 0x4000) == 0x1000);      /* no camera: Link's heading */
+    assert(hdm_heading_on_turned(0x1234, 0x1234) == (short)0x8000);   /* the heading turned up is drawn up */
+    assert(hdm_heading_on_turned(0x4000, 0) == (short)0xC000);
+    assert(hdm_heading_on_turned(0x7000, -0x7000) == 0x6000);         /* wraps around a turn */
+}
+
 static void fitting(void) {
     hdm_view v = hdm_fit(-100, -50, 100, 50, 200, 0);
     float x, y;
@@ -174,6 +183,7 @@ int main(void) {
     fading();
     controls();
     dpad_icons();
+    turning();
     fitting();
     puts("hd-minimap math: ok");
     return 0;
