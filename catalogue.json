@@ -235,7 +235,7 @@
     {
       "id": "qol",
       "name": "QoL extras",
-      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects.",
+      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, songs by touch, one-hit kills, minigames by touch.",
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],

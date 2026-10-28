@@ -6,6 +6,7 @@
 #include "wwhd_guest.h"
 #include "wwhd/bindings.h"
 #include "wwhd/data.h"
+#include "wwhd/actor.h"
 #include "wwhd/link.h"
 
 /* the game's state (dComIfGp: the accessor's object; offsets in the port's play_context.h) */

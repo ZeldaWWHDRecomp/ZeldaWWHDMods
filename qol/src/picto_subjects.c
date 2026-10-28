@@ -22,7 +22,6 @@
 #define PICTO_INGAME_UI 0x101F8344  /* sIngameUi (hdIngameUi_c*, 0 outside gameplay) */
 
 static int picto_on;
-static int picto_registered;
 static wwhd_hud_element picto_box, picto_text;
 static const char* picto_label;
 static u32 picto_label_bytes;
@@ -70,11 +69,4 @@ static void picto_draw(u32 list) {
     picto_text = (wwhd_hud_element){.kind = WWHD_HUD_TEXT, .anchor = WWHD_HUD_TOP_LEFT, .x = 330, .y = 80, .size = 24,
                                     .thickness = 1, .rgba = rgba, .text = picto_label, .text_bytes = picto_label_bytes};
     wwhd_hud_emit(list, &picto_text);
-}
-
-static void picto_step(void) {
-    if (!picto_registered) {
-        picto_registered = 1;
-        wwhd_hud_register(picto_draw, WWHD_HUD_TV);
-    }
 }
