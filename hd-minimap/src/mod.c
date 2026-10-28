@@ -155,7 +155,7 @@ static void configure(void) {
     {
         static char with[8];
         with[0] = 0;
-        opt.turn_camera = wwhd_config_string("zoom_turn_with", with, sizeof with) && hdm_same(with, "camera");
+        opt.turn_camera = !(wwhd_config_string("zoom_turn_with", with, sizeof with) && hdm_same(with, "link"));
     }
     opt.parchment = wwhd_config_bool("parchment", 0);
     opt.smooth = wwhd_config_bool("smooth", 1);

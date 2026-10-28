@@ -52,7 +52,7 @@ Position and both sizes, overall opacity, faded opacity, fade on movement (Link 
 background and its opacity, parchment behind island maps (off: the map is see-through), smooth island maps (on: the port enlarges
 the game's 100 × 100 island art three times with Lanczos-3 and sharpening on your machine; off or on
 an older port: the original art), wind arrow, dungeon maps, whether the dungeon zoom turns and with
-what (Link, the default, or the camera), and the four buttons. Changes apply after a
+what (the camera, the default, or Link), and the four buttons. Changes apply after a
 restart, like every code mod option.
 
 ## Requirements and data
@@ -92,8 +92,8 @@ the Forsaken Fortress plan turn, its outside and searchlights, and the dungeon z
     every dungeon.
   - Minimap HD's icons beside the HUD's D-pad (map, expand or reduce, the dungeon compass, the sailing
     view), moving and fading with it. They replace the brief icon in the minimap's corner.
-  - The dungeon zoom can turn with the camera, like the GamePad's zoomed map (option "Dungeon zoom turns
-    with": Link or camera; Link stays the default). Turned with the camera, Link's arrow shows where he
+  - The dungeon zoom turns with the camera by default, like the GamePad's zoomed map (option "Dungeon
+    zoom turns with": camera or Link, as before). Turned with the camera, Link's arrow shows where he
     faces on the turned plan.
   - Forsaken Fortress: on foot outside the fortress on the later visits, the minimap shows the plan's
     outside with Link and its three searchlights, searching or stopped, as on the GamePad, instead of

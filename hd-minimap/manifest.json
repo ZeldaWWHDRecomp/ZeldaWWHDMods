@@ -128,7 +128,7 @@
       "id": "zoom_turn_with",
       "name": "Dungeon zoom turns with",
       "type": "enum",
-      "default": "link",
+      "default": "camera",
       "choices": [
         "link",
         "camera"
