@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "id": "qol",
+  "name": "QoL extras",
+  "version": "0.1.0",
+  "game_id": "wwhd",
+  "minimum_manager_version": "1.5.0",
+  "kind": "guest",
+  "experimental": true,
+  "guest": {"api_version": 1, "elf": "mod.elf"},
+  "author": "ZeldaWWHDRecomp contributors",
+  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects.",
+  "options": [
+    {"id": "clothes", "type": "enum", "name": "Link's clothes", "choices": ["As in the story", "Hero's clothes", "Casual clothes"],
+     "default": "As in the story", "menu": true, "live": true, "section": "Link",
+     "description": "The Hero's clothes or the casual clothes (the lobster shirt) at any time."},
+    {"id": "replay_songs", "type": "bool", "name": "Replay conducted songs", "default": false, "menu": true, "live": true,
+     "section": "Songs", "description": "After a song is conducted, Link plays it back before its effect, as on the GameCube."},
+    {"id": "picto_subjects", "type": "bool", "name": "Picto subjects", "default": false, "menu": true, "live": true,
+     "section": "Picto Box", "description": "In the album, a label says whether the picto is good for a figurine, or why not."}
+  ],
+  "setup": [
+    {"id": "build", "type": "build_guest_mod", "title": "Build the QoL extras for this installation"}
+  ]
+}

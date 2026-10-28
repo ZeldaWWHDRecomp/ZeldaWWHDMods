@@ -231,6 +231,35 @@
       "port_versions": {
         "minimum": "0.4.1"
       }
+    },
+    {
+      "id": "qol",
+      "name": "QoL extras",
+      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects.",
+      "authors": [
+        "ZeldaWWHDRecomp contributors"
+      ],
+      "version": "0.1.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build the QoL extras for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true
     }
   ]
 }
