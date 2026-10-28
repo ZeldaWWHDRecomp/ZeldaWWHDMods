@@ -20,6 +20,8 @@ WWHD_GAME_FUNC(WWHD_ADDR_dSv_memBit_c_isVisitedRoom, s32, room_visited, (u32 mem
 WWHD_GAME_FUNC(WWHD_ADDR_dComIfGs_isStageTbox, s32, stage_chest_open, (s32 stage, s32 chest));
 WWHD_GAME_FUNC(WWHD_ADDR_dComIfGs_isStageMap, s32, stage_map, (s32 stage));
 WWHD_GAME_FUNC(WWHD_ADDR_dComIfGs_isStageCompass, s32, stage_compass, (s32 stage));
+WWHD_GAME_FUNC(WWHD_ADDR_dSv_info_c_isSwitch, s32, info_switch, (u32 info, s32 sw, s32 room));
+WWHD_GAME_FUNC(WWHD_ADDR_dSv_event_c_isEventBit, s32, event_bit, (u32 event, u32 bit));
 WWHD_GAME_FUNC(0x0258DC48, u8, stage_floor, (void* stage, f32 y));                     /* dMap_GetFloorNo */
 WWHD_GAME_FUNC(0x0258DBF4, u8, room_floor, (s32 room, f32 y));                         /* dMap_GetFloorNo_WithRoom */
 WWHD_GAME_FUNC(0x0257DACC, u32, wind_angle, (void));                                   /* dKyw_get_wind_angle */
@@ -38,6 +40,8 @@ WWHD_GAME_FUNC(0x025C4740, u8*, stage_doors, (void));
 #define SAVE_PLAYER_MAP 0xE4
 #define SAVE_MEMBIT 0x798
 #define SAVE_CHART_SET 0x1C1
+#define SAVE_INFO 0x20              /* dSv_info_c, as the GamePad's searchlights read it */
+#define SAVE_EVENT 0x644
 #define CHART_TABLE 0x1047A878      /* the loaded chart table (cmapdat): count, then 0x26-byte entries */
 #define LOCATION_TABLE 0x1047A874   /* the loaded location table (FmapDat): count, then 8-byte entries */
 #define STTS0_HIDE (0x1000u | 0x2000u | 0x4000u | 0x20000u | 0x80000u | 0x200000u) /* aiming, first person, telescope */
@@ -69,6 +73,8 @@ static struct {
     struct { float x, z; s16 heading; } doors[MAX_POINTS];
     float boss_x, boss_z, boss_dx, boss_dy;
     int dmap, turned;  /* turned: Forsaken Fortress after the first visit */
+    int outdoor;       /* its outside: the sea's room 1 drawn as the plan's outdoor picture */
+    int searchlights_stopped;  /* its searchlights that no longer search, one bit each */
     int point_count;
     struct { float x, z; } points[MAX_POINTS];
     char stage[9];
@@ -94,6 +100,7 @@ static int initialized;
 static unsigned long long image_epoch;
 static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img_medli, img_makar, img_ship, img_base, img_door, img_boss;
 static u32 img_island, img_chart, img_ribbon, img_chart_base, img_mark, img_mark_fill;
+static u32 img_searchlight[2];  /* searching, stopped */
 static int island_room = -1, island_full = -1, chart_key = -1;
 static struct { int pane, room; float x, y, w, h; u32 image; } rooms[MAX_ROOMS];
 /* the floor screens' room tables (DungeonMapFloor_00..05): (plan room, floor, room) per plan room; Forsaken
@@ -115,6 +122,10 @@ static int room_count, rooms_dungeon = -1, rooms_floor = -1;
 static float floor_min_x, floor_min_y, floor_max_x, floor_max_y;
 /* the point Forsaken Fortress's later markers turn about (read with its plan) */
 static float forsaken_cx = HDM_FORSAKEN_CENTRE_X, forsaken_cy = HDM_FORSAKEN_CENTRE_Y;
+static float outdoor_cx = HDM_OUTDOOR_CENTRE_X, outdoor_cy = HDM_OUTDOOR_CENTRE_Y;
+#define OUTDOOR_FLOOR 0x100  /* the floor of the outdoor plan: no game floor */
+/* the outdoor plan's searchlight parts (L_Searchlight_00..02), read with it */
+static struct { int found; float x, y, w, h; } searchlights[HDM_SEARCHLIGHTS];
 
 static wwhd_hud_element element;
 static char name[96];
@@ -167,6 +178,7 @@ static void forget_images(void) {
     /* after a state load the handles are gone: just forget them */
     img_frame = img_wind = img_unknown = img_face = img_arrow = img_chest = img_medli = img_makar = img_ship = img_base = img_door = img_boss = 0;
     img_island = img_chart = img_ribbon = img_chart_base = img_mark = img_mark_fill = 0; island_room = island_full = chart_key = -1;
+    img_searchlight[0] = img_searchlight[1] = 0;
     for (int i = 0; i < 4; ++i) img_feedback[i] = 0;
     for (int i = 0; i < HDM_ICON_COUNT; ++i) img_icons[i] = 0;
     for (int i = 0; i < room_count; ++i) rooms[i].image = 0;
@@ -221,6 +233,31 @@ static void floor_rooms(int dungeon, int floor) {
     if (rooms_dungeon == dungeon && rooms_floor == floor) return;
     forget_rooms();
     rooms_dungeon = dungeon; rooms_floor = floor;
+    if (floor == OUTDOOR_FLOOR) {
+        /* Forsaken Fortress's outside: one picture, the sea's room 1 */
+        if (wwhd_game_pane_get("layout-pane:DungeonMapFloor_00/N_OutdoorCenter_00", &pane)) {
+            outdoor_cx = HDM_OUTDOOR_CENTRE_X + pane.x;
+            outdoor_cy = HDM_OUTDOOR_CENTRE_Y + pane.y;
+        }
+        if (!wwhd_game_pane_get("layout-pane:DungeonMapFloor_00/P_Outdoor_00", &pane)) return;
+        pane.texture[31] = 0;
+        int i = hdm_put(name, 0, "DungeonMapFloor_00/");
+        for (int k = 0; pane.texture[k]; ++k) name[i++] = pane.texture[k];
+        hdm_put(name, i, "#P_Outdoor_00");
+        rooms[0].pane = -1; rooms[0].room = HDM_OUTDOOR_SECTOR;
+        rooms[0].x = pane.x; rooms[0].y = pane.y; rooms[0].w = pane.w; rooms[0].h = pane.h;
+        rooms[0].image = game_image(name);
+        floor_min_x = pane.x - pane.w / 2; floor_max_x = pane.x + pane.w / 2;
+        floor_min_y = pane.y - pane.h / 2; floor_max_y = pane.y + pane.h / 2;
+        room_count = 1;
+        for (int k = 0; k < HDM_SEARCHLIGHTS; ++k) {
+            i = hdm_put(key, 0, "layout-pane:DungeonMapFloor_00/L_Searchlight_");
+            hdm_put2(key, i, k);
+            searchlights[k].found = wwhd_game_pane_get(key, &pane);
+            searchlights[k].x = pane.x; searchlights[k].y = pane.y; searchlights[k].w = pane.w; searchlights[k].h = pane.h;
+        }
+        return;
+    }
     if (!hdm_floor_tag(floor, tag)) return;
     if (dungeon == 0 && wwhd_game_pane_get("layout-pane:DungeonMapFloor_00/N_FloorCenter_00", &pane)) {
         forsaken_cx = HDM_FORSAKEN_CENTRE_X + pane.x;
@@ -255,8 +292,12 @@ static void floor_rooms(int dungeon, int floor) {
 /* world X/Z -> the floor layout's root coordinates, as the game places its map markers: relative to the
  * stage's DMAP origin, scaled by the game's map width ratio over the DMAP scale entry (hdDungeonMap_c
  * updateMapBounds); +y up. Forsaken Fortress after the first visit: the first visit's scale, turned with its
- * plan (hd_minimap.h) */
+ * plan (hd_minimap.h); its outside, from the sea's room 1 at the outdoor scale */
 static void world_to_layout(float x, float z, float* lx, float* ly) {
+    if (snap.outdoor) {
+        hdm_turned_place(x - HDM_OUTDOOR_ORIGIN_X, z - HDM_OUTDOOR_ORIGIN_Z, HDM_OUTDOOR_SCALE, outdoor_cx, outdoor_cy, lx, ly);
+        return;
+    }
     if (snap.turned) { hdm_forsaken_place(x - snap.origin_x, z - snap.origin_z, forsaken_cx, forsaken_cy, lx, ly); return; }
     float k = snap.size > 0 ? snap.map_width / snap.size : 0;
     *lx = (x - snap.origin_x) * k;
@@ -482,6 +523,19 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         float px, py, w = rooms[i].w * dview.scale, h = rooms[i].h * dview.scale;
         place(rooms[i].x, rooms[i].y, &px, &py);
         image(list, rooms[i].image, ox + px - w / 2, oy + py - h / 2, w, h, dturn, rgb, current || visited ? a : a * .7f);
+    }
+    if (snap.outdoor) {
+        /* the searchlights at their part panes, as the GamePad's Valid animation leaves them: searching, the
+         * light (P_Searchlight_00); stopped, the dark one (P_Searchlight_01) at half opacity */
+        if (!img_searchlight[0]) img_searchlight[0] = game_image("Searchlight_00/MapSearchlight_00^q#P_Searchlight_00");
+        if (!img_searchlight[1]) img_searchlight[1] = game_image("Searchlight_00/MapSearchlight_01^q#P_Searchlight_01");
+        for (int i = 0; i < HDM_SEARCHLIGHTS; ++i) {
+            if (!searchlights[i].found) continue;
+            int stopped = (snap.searchlights_stopped >> i) & 1;
+            float px, py, w = searchlights[i].w * dview.scale, h = searchlights[i].h * dview.scale;
+            place(searchlights[i].x, searchlights[i].y, &px, &py);
+            image(list, img_searchlight[stopped], ox + px - w / 2, oy + py - h / 2, w, h, dturn, 0xffffff, stopped ? a * 128 / 255 : a);
+        }
     }
     /* marker sizes follow the GamePad's: a chest 24 x 18, a door 32 x 10, the boss icon 35 x 29 (layout units
      * of a 520-unit plan), scaled to the panel */
@@ -748,13 +802,42 @@ static void handle_input(u32 blocked, int sailing) {
     hdm_fade_step(&fade, hdm_moving(in.lx, in.ly, in.rx, in.ry), (float)wwhd_logic_dt());
 }
 
+/* the camera the GamePad's zoomed map turns with */
+static void read_camera(u8* play) {
+    s8 slot = (s8)play[PLAY_CAMERA_INDEX];
+    u32 camera = slot == 0 ? *(u32*)(play + PLAY_CAMERA) : 0;
+    snap.camera = heap_pointer(camera);
+    if (snap.camera) snap.camera_yaw = *(s16*)(camera + CAMERA_HEADING);
+}
+/* Forsaken Fortress's outside after the first visit (the sea's room 1, on foot on its island, with the Map):
+ * the plan's outdoor picture and Link, as the GamePad shows it */
+static void forsaken_outside(u8* play, u32 save) {
+    snap.mode = MODE_DUNGEON;
+    snap.dungeon = 0; snap.outdoor = 1; snap.turned = 1;
+    snap.has_map = 1; snap.has_compass = stage_compass(2) != 0;
+    snap.floor = OUTDOOR_FLOOR; snap.room = HDM_OUTDOOR_SECTOR;
+    snap.visited = 0; snap.door_count = 0; snap.boss_visible = 0; snap.point_count = 0; snap.companion = 0;
+    snap.searchlights_stopped = 0;
+    int event_on = event_bit(save + SAVE_EVENT, HDM_SEARCHLIGHTS_EVENT) != 0;
+    for (int i = 0; i < HDM_SEARCHLIGHTS; ++i)
+        if (hdm_searchlight_stopped(event_on, info_switch(save + SAVE_INFO, HDM_SEARCHLIGHT_SWITCH + i, HDM_OUTDOOR_SECTOR) != 0))
+            snap.searchlights_stopped |= 1 << i;
+    if (opt.debug && (wwhd_logic_step() % 60) == 0) {
+        wwhd_log_int("outdoor.searchlights_stopped", snap.searchlights_stopped);
+        for (int i = 0; i < HDM_SEARCHLIGHTS; ++i) wwhd_log_int("outdoor.searchlight_found", searchlights[i].found);
+        wwhd_log_hex("outdoor.searchlight_image0", img_searchlight[0]); wwhd_log_hex("outdoor.searchlight_image1", img_searchlight[1]);
+    }
+    read_camera(play);
+    snap.visible = 1;
+}
+
 WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     if (!initialized) configure();
     wwhd_hud_register(draw, WWHD_HUD_TV);
     u8* play = wwhd_play_get();
     if (!play || !actor || (u32)actor != *(u32*)(play + WWHD_PLAY_PLAYER_OFFSET)) return;
     captured_step = wwhd_logic_step();
-    snap.visible = 0;
+    snap.visible = 0; snap.outdoor = 0;
     u32 status0 = *(u32*)(play + PLAY_STATUS0), status1 = *(u32*)(play + PLAY_STATUS1);
     for (int i = 0, ended = 0; i < 8; ++i) {
         char ch = ended ? 0 : (char)play[WWHD_PLAY_START_STAGE_NAME_OFFSET + i];
@@ -786,6 +869,10 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
             hdm_island_uv(snap.sector, snap.island_dx, snap.island_dz, snap.x, snap.z, &u, &v);
             snap.covered = hdm_inside(u, v);
         }
+        if (opt.dungeons && hdm_forsaken_outside(snap.sector, snap.on_ship, snap.covered) && stage_map(2)) {
+            forsaken_outside(play, save);
+            return;
+        }
         snap.wind = wind_angle();
         snap.chart_set = *(u8*)(save + SAVE_CHART_SET) & 3;
         read_charts(save);
@@ -802,12 +889,7 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     snap.has_compass = forsaken ? stage_compass(2) != 0 : dungeon_item(membit, 1) != 0;
     snap.turned = hdm_forsaken_turned(snap.stage);
     read_stage(play);
-    {
-        s8 slot = (s8)play[PLAY_CAMERA_INDEX];
-        u32 camera = slot == 0 ? *(u32*)(play + PLAY_CAMERA) : 0;
-        snap.camera = heap_pointer(camera);
-        if (snap.camera) snap.camera_yaw = *(s16*)(camera + CAMERA_HEADING);
-    }
+    read_camera(play);
     /* the game's map width ratio (the GamePad map pane over its reference width): from the game's own
      * dungeon map when it has one, else the value it has in every dungeon */
     snap.map_width = 1.68919f;

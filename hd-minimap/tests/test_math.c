@@ -174,9 +174,33 @@ static void forsaken(void) {
     assert(hdm_plan_heading(-0x7000, 1) == (short)(-0x7000 - 0x2E38 + 0x10000));  /* wraps */
 }
 
+static void forsaken_outside(void) {
+    /* the outdoor plan on foot on the fortress's island in sector 1; the island aboard, off it or elsewhere */
+    assert(hdm_forsaken_outside(1, 0, 1));
+    assert(!hdm_forsaken_outside(1, 1, 1) && !hdm_forsaken_outside(1, 0, 0) && !hdm_forsaken_outside(2, 0, 1));
+    float x, y, cx = HDM_OUTDOOR_CENTRE_X - 24, cy = HDM_OUTDOOR_CENTRE_Y - 15;  /* N_OutdoorCenter_00 at (-24, -15) */
+    hdm_turned_place(cx / HDM_OUTDOOR_SCALE, -cy / HDM_OUTDOOR_SCALE, HDM_OUTDOOR_SCALE, cx, cy, &x, &y);
+    assert(fabsf(x - cx) < 1e-3f && fabsf(y - cy) < 1e-3f);  /* the centre stays */
+    /* the middle of room 1's map box (its 2DMA: -308452 / -307806 to -293546 / -292900) is its origin and lands
+     * near the middle of P_Outdoor_00 (0 / 0, 507 x 507); the box's 14906 units span about its width */
+    hdm_turned_place((-308452.0f - 293546.0f) / 2 - HDM_OUTDOOR_ORIGIN_X, (-307806.0f - 292900.0f) / 2 - HDM_OUTDOOR_ORIGIN_Z,
+                     HDM_OUTDOOR_SCALE, cx, cy, &x, &y);
+    assert(fabsf(x) < 40 && fabsf(y) < 40);
+    assert(fabsf(14906.0f * HDM_OUTDOOR_SCALE - 460.5f) < 1);
+    /* the same turn as the rooms': forsaken_place is turned_place at the first visit's scale */
+    float fx, fy;
+    hdm_forsaken_place(1000, 2000, 3, 4, &fx, &fy);
+    hdm_turned_place(1000, 2000, HDM_FORSAKEN_SCALE, 3, 4, &x, &y);
+    assert(fx == x && fy == y);
+    /* a searchlight stops with its switch (101..103 in room 1) or with the event bit for all three */
+    assert(!hdm_searchlight_stopped(0, 0) && hdm_searchlight_stopped(0, 1) && hdm_searchlight_stopped(1, 0));
+    assert(HDM_SEARCHLIGHT_SWITCH + HDM_SEARCHLIGHTS - 1 == 103);
+}
+
 int main(void) {
     plan_rooms();
     forsaken();
+    forsaken_outside();
     sectors();
     location_table();
     names();
