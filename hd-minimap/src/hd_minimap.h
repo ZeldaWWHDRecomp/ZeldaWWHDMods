@@ -115,6 +115,29 @@ static inline int hdm_dungeon_of(const char* stage) {
     return -1;
 }
 
+/* ---- Forsaken Fortress after the first visit (ma2room, ma3room: the game's map kinds 6 and 7). Their stages
+ * are turned from the first visit's, whose plan the GamePad draws, so the game places their markers with the
+ * first visit's scale, turned 64.995 degrees clockwise about the plan's centre: 30.8 / 24.8 from the pane
+ * N_FloorCenter_00 (USA 0268BCFC and 026893C8; the map kinds by stage name in 0268698C) ---- */
+#define HDM_FORSAKEN_SCALE 0.026728f       /* layout units per world unit (USA 0x100F9BC4) */
+#define HDM_FORSAKEN_CENTRE_X 30.8f
+#define HDM_FORSAKEN_CENTRE_Y 24.8f
+#define HDM_FORSAKEN_TURN 0x2E38           /* the plan's turn in game angle units: 64.995 degrees */
+static inline int hdm_forsaken_turned(const char* stage) {
+    return hdm_same(stage, "ma2room") || hdm_same(stage, "ma3room");
+}
+/* a point (dx, dz) from the stage's DMAP origin -> the plan (+y up), turned about the centre (cx, cy) */
+static inline void hdm_forsaken_place(float dx, float dz, float cx, float cy, float* x, float* y) {
+    const float c = 0.422697f, s = -0.906271f;  /* cos and sin of -64.995 degrees (USA 0x100F9BD0) */
+    float px = dx * HDM_FORSAKEN_SCALE - cx, py = -dz * HDM_FORSAKEN_SCALE - cy;
+    *x = cx + px * c - py * s;
+    *y = cy + px * s + py * c;
+}
+/* a game angle (Link's heading, a door's) as seen on the plan: turned with it */
+static inline short hdm_plan_heading(int heading, int turned) {
+    return (short)(turned ? heading - HDM_FORSAKEN_TURN : heading);
+}
+
 /* ---- the game's room table of a dungeon plan: per plan room (marker, floor, room), three words each
  * (the floor screens' marker mappings that colour a plan room for a visited or current room) ---- */
 static inline int hdm_plan_room(const unsigned int* table, int count, int pane, int* floor, int* room) {
