@@ -161,12 +161,24 @@ static inline unsigned int hdm_button_bit(const char* s) {
     if (hdm_same(s, "r3")) return 0x20000;
     return 0;
 }
+/* buttons left to the game: all of them during an event or a stage change, and aboard outside the
+ * Great Sea (the Tower of the Gods); aboard at sea, D-pad left and right (the cannon and the grappling hook) */
+#define HDM_ALL_BUTTONS 0xffffffffu
+static inline unsigned int hdm_blocked_buttons(int busy, int on_ship, int at_sea) {
+    if (busy || (on_ship && !at_sea)) return HDM_ALL_BUTTONS;
+    return on_ship ? 0x0800u | 0x0400u : 0;
+}
 
 /* ---- sailing views: 0 compasses only (no minimap), 1 minimap, 2 minimap with a treasure chart ---- */
 static inline int hdm_next_sea_view(int view, int charts) {
     view = (view + 1) % 3;
     if (view == 2 && !charts) view = 0;
     return view;
+}
+/* the view on boarding: aboard, the view button shows and hides the map, so a map hidden on foot starts
+ * as the compasses alone; otherwise the last view with a map */
+static inline int hdm_boarding_view(int hidden, int view) {
+    return hidden ? 0 : (view ? view : 1);
 }
 
 /* ---- rectangles: fit a box (cx, cy, w, h in layout units, +y up) into a square panel ---- */

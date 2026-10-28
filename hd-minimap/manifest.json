@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "hd-minimap",
   "name": "HD minimap",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "game_id": "wwhd",
   "kind": "guest",
   "guest": {
