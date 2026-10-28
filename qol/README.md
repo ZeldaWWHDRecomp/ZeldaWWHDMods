@@ -19,13 +19,17 @@ singing the songs); each one is a switch of its own.
 ## Needs
 
 - The port with the Mod SDK's live options, input filters and touches (the QoL track's SDK addition).
-- Code-mod support (Settings → Mods → Enable code mods): turning on a code mod rebuilds the game code once,
-  which on Android takes about as long as the first setup.
+- Code-mod support (Mods → More → Code-mod support → Use code mods; on Android also the setup app's
+  **Code mods** switch): turning it on rebuilds the game code once. On Android that takes about as long as
+  the first setup and runs in the background; close and reopen the app when it is done. The package is then
+  built on the device when the game starts.
 
 ## Notes
 
 - Touch features work with a finger on a touch screen and with the mouse on the TV picture on a computer.
-
+  On Android they take the finger with the on-screen controls shown or hidden; on the GamePad picture
+  (picture-in-picture, or the phone showing the GamePad) the game's own touch keeps it.
+- Android: built and run the same way as on a computer, not yet tested on a phone.
 - Nothing here changes your save file on its own: the clothes change Link's model while you play; the story
   keeps its own choice.
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod.
