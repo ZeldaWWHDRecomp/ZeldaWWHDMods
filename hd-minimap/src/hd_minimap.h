@@ -231,6 +231,13 @@ static inline hdm_view hdm_fit(float min_x, float min_y, float max_x, float max_
     v.cy = (min_y + max_y) * 0.5f;
     return v;
 }
+/* the GamePad's whole plan: a fixed 500-unit frame about the floor screen's root (Minimap HD's native frame).
+ * A dungeon's floors share that root and are offset from each other in it, so every floor keeps its place
+ * instead of being centred on its own rooms */
+#define HDM_PLAN_FRAME 500.0f
+static inline hdm_view hdm_plan_view(float side, float padding) {
+    return hdm_fit(-HDM_PLAN_FRAME / 2, -HDM_PLAN_FRAME / 2, HDM_PLAN_FRAME / 2, HDM_PLAN_FRAME / 2, side, padding);
+}
 /* layout point -> panel pixel (relative to the panel's top-left) */
 static inline void hdm_to_panel(const hdm_view* v, float side, float x, float y, float* px, float* py) {
     *px = side * 0.5f + (x - v->cx) * v->scale;

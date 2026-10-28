@@ -106,6 +106,15 @@ static void fitting(void) {
     v = hdm_fit(0, 0, 100, 100, 200, .04f);
     hdm_to_panel(&v, 200, 0, 100, &x, &y);
     assert(fabsf(x - 8) < 1e-3f && fabsf(y - 8) < 1e-3f);
+    /* the whole plan: the root is the panel's centre whatever the floor, and the frame's corner lands on the
+     * padding; Forsaken Fortress's 1F (rooms centred 43.5 units up) stays above the centre, as on the GamePad */
+    v = hdm_plan_view(200, .04f);
+    hdm_to_panel(&v, 200, 0, 0, &x, &y);
+    assert(fabsf(x - 100) < 1e-4f && fabsf(y - 100) < 1e-4f);
+    hdm_to_panel(&v, 200, -HDM_PLAN_FRAME / 2, HDM_PLAN_FRAME / 2, &x, &y);
+    assert(fabsf(x - 8) < 1e-3f && fabsf(y - 8) < 1e-3f);
+    hdm_to_panel(&v, 200, -0.6f, 43.5f, &x, &y);
+    assert(y < 100 - 15);
 }
 
 static void plan_rooms(void) {
