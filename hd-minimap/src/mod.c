@@ -89,7 +89,7 @@ static struct {
     int searchlights_stopped;  /* its searchlights that no longer search, one bit each */
     int role;
     int point_count;
-    struct { float x, z; } points[MAX_POINTS];
+    struct { float x, z; int layout; } points[MAX_POINTS];
     char stage[9];
 } snap;
 
@@ -660,7 +660,8 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         if (!img_chest) img_chest = game_image("DungeonMapTreasure_00/MapTreasure_00^t#P_Treasure_00");
         for (int i = 0; i < snap.point_count; ++i) {
             float lx, ly, px, py;
-            world_to_layout(snap.points[i].x, snap.points[i].z, &lx, &ly);
+            if (snap.points[i].layout) { lx = snap.points[i].x; ly = snap.points[i].z; }
+            else world_to_layout(snap.points[i].x, snap.points[i].z, &lx, &ly);
             place(lx, ly, &px, &py);
             image(list, img_chest, ox + px - 12 * unit, oy + py - 9 * unit, 24 * unit, 18 * unit, 0, 0xffffff, a);
         }
@@ -769,7 +770,10 @@ static void draw(u32 list) {
         wwhd_log_float("sea.island_dx", snap.island_dx); wwhd_log_float("sea.island_dz", snap.island_dz);
         wwhd_log_int("sea.covered", snap.covered); wwhd_log_int("sea.ship", snap.on_ship); wwhd_log_int("sea.charts", snap.chart_count);
         wwhd_log_int("sea.chart_set", snap.chart_set);
-        if (snap.chart_name_bytes) wwhd_log(snap.chart_name);
+        if (snap.chart_name_bytes) {
+            wwhd_log(snap.chart_name);
+            wwhd_log_int("chart.native_index", selected_chart);
+        }
         wwhd_log_float("chart.world", WWHD_GAME_DATA(0x1010855C, f32));
         {
             u8* play = wwhd_play_get();
@@ -880,7 +884,7 @@ static void capture_chests(u32 membit, const u8* records, s32 count, int filter_
         if (filter_room && (int)(rooms & 63) != snap.room) continue;
         int opened = (type == 7 || type == 8) ? stage_chest_open(stage_kind, (s32)number) : chest_open(membit, (s32)number);
         if (opened || (!snap.outdoor && room_floor((s32)(rooms & 63), y) != snap.floor)) continue;
-        snap.points[snap.point_count].x = x; snap.points[snap.point_count].z = z; ++snap.point_count;
+        snap.points[snap.point_count].x = x; snap.points[snap.point_count].z = z; snap.points[snap.point_count].layout = 0; ++snap.point_count;
     }
 }
 /* the stage's doors on Link's floor (all shown: the plan needs the Map), and the boss door, which carries
@@ -1077,13 +1081,24 @@ static void forsaken_outside(u8* play, u32 save) {
         for (int i = 0; i < HDM_SEARCHLIGHTS; ++i) wwhd_log_int("outdoor.searchlight_found", searchlights[i].found);
         wwhd_log_hex("outdoor.searchlight_image0", img_searchlight[0]); wwhd_log_hex("outdoor.searchlight_image1", img_searchlight[1]);
     }
+    /* Native initFixedTreasures (026580E0): four runtime-initialized map
+     * coordinates at 101F5A70. Exterior uses Fortress stage-2 opened flags,
+     * not the current sea room's treasure list or memory bits. The native
+     * marker conversion (02666620) uses unit scale and negates Y here. */
     if (snap.has_compass) {
-        u8* list = stage_treasures();
-        if (list) capture_chests(save + SAVE_MEMBIT, list + 4, *(s32*)list, 1, 2);
-        u8* room = room_data((u32)play + 0x51cc, HDM_OUTDOOR_SECTOR);
-        u8* t = room ? *(u8**)(room + 0x40) : 0;
-        if (t) capture_chests(save + SAVE_MEMBIT, *(u8**)(t + 4), *(s32*)t, 1, 2);
+        const volatile u8* records = &WWHD_GAME_DATA(0x101F5A70, u8);
+        for (int i = 0; i < 4; ++i) {
+            const volatile u8* r = records + 16 * i;
+            float x = *(const volatile f32*)r, y = *(const volatile f32*)(r + 4);
+            u32 kind = *(const volatile u32*)(r + 12);
+            if (kind >= 32 || !hdm_finite(x) || !hdm_finite(y) || stage_chest_open(2, (s32)kind)) continue;
+            snap.points[snap.point_count].x = x;
+            snap.points[snap.point_count].z = -y;
+            snap.points[snap.point_count].layout = 1;
+            ++snap.point_count;
+        }
     }
+    if (opt.debug && (wwhd_logic_step() % 60) == 0) wwhd_log_int("outdoor.chests", snap.point_count);
     read_camera(play);
     snap.visible = 1;
 }

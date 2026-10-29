@@ -50,6 +50,18 @@ retained across steps. Existing floor calls `0x0258DC48`/`0x0258DBF4` directly q
 height-based stage/room floor data; `dMap_GetFloorNo_WithRoom` calls the raw table
 lookup at `0x0258DB6C`, so the guest does not inherit the menu's landing-held floor.
 
+## Fortress exterior chests
+
+The native exterior/fixed map path at `0x026581C8` calls `initFixedTreasures`
+(`0x026580E0`), using four records at `0x101F5A70`, initialized from the installed
+image by the dungeon map's static initializer. Their X/Y are map coordinates,
+not world positions or the sea room's TRES list. Marker conversion at `0x02666620`
+uses unit scale and negates Y for this native map context. The mod reads that live
+table with `WWHD_GAME_DATA`, validates coordinates/kind, and uses the existing
+`stage_chest_open(2, kind)` (`0x02520864`) exactly as the coordinator's exterior
+opened predicate (`0x02689DDC`) does. The Compass remains required. No coordinate
+or game artwork is packaged in the mod.
+
 ## Chart synchronization back to the GamePad: investigated, open
 
 Reviewed the actual GamePad path in `hd_screen_menu_map_states.cpp` and the USA
