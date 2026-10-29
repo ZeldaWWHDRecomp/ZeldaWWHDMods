@@ -1122,6 +1122,11 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     snap.on_ship = (status0 & STTS0_SHIP) != 0;
     /* Resolve current family before applying edges, including direct dungeon boat loads. */
     snap.mode = at_sea ? MODE_SEA : hdm_dungeon_of(snap.stage) >= 0 && opt.dungeons ? MODE_DUNGEON : MODE_NONE;
+    /* A later return to the same dungeon is a new altitude scope. Do not reuse
+     * a prior visit's accepted floor near a boundary after sea/stage travel. */
+    if (snap.mode != MODE_DUNGEON || play[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET]) {
+        floor_history = floor_dungeon = floor_role = -1;
+    }
     if (busy || (status0 & STTS0_HIDE) || (status1 & STTS1_CONDUCT)) {
         handle_input(HDM_ALL_BUTTONS, 0);
         return;
@@ -1162,6 +1167,7 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
             snap.covered = hdm_inside(u, v);
         }
         if (opt.dungeons && hdm_forsaken_outside(snap.sector, snap.on_ship, snap.covered) && stage_map(2)) {
+            snap.mode = MODE_DUNGEON;
             select_choice(1);
             handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), 0);
             forsaken_outside(play, save);
