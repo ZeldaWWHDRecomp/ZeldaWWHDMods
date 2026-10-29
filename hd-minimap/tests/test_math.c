@@ -96,12 +96,14 @@ static void controls(void) {
     assert(hdm_next_sea_view(1, 0) == 0);      /* no chart: never the chart view */
     assert(hdm_blocked_buttons(0, 0, 1) == 0);                          /* on foot */
     assert(hdm_blocked_buttons(0, 1, 1) == (0x0800 | 0x0400));          /* sailing: the cannon and the hook */
-    assert(hdm_blocked_buttons(0, 1, 0) == HDM_ALL_BUTTONS);            /* the boat in the Tower of the Gods */
+    assert(hdm_blocked_buttons(0, 1, 0) == (0x0800 | 0x0400));            /* the boat in the Tower of the Gods */
     assert(hdm_blocked_buttons(1, 0, 1) == HDM_ALL_BUTTONS);            /* an event or a stage change */
     assert(!hdm_pressed(0x0800 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0800));
     assert(hdm_pressed(0x0100 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0100));
-    assert(hdm_boarding_view(1, 2) == 0);      /* hidden on foot: the compasses alone */
-    assert(hdm_boarding_view(0, 0) == 1 && hdm_boarding_view(0, 2) == 2);
+    hdm_choice v = {0, 0, 1};
+    hdm_cycle_dungeon(&v); assert(!v.hidden && v.expanded && v.zoom);
+    hdm_cycle_dungeon(&v); assert(v.hidden && v.expanded && v.zoom);
+    hdm_cycle_dungeon(&v); assert(!v.hidden && !v.expanded && v.zoom);
 }
 
 static void dpad_icons(void) {
@@ -116,10 +118,10 @@ static void dpad_icons(void) {
     assert(d.left == HDM_ICON_MAP_UNKNOWN);
     d = hdm_dpad_icons(1, 0, 1, 1, 1, 1, 1);                       /* sailing: only the view, even hidden on foot */
     assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_VIEW);
-    assert(hdm_dpad_icons(1, 0, 1, 0, 0, 0, 0).down == HDM_ICON_UNKNOWN);
+    assert(hdm_dpad_icons(1, 0, 1, 0, 0, 0, 1).down == HDM_ICON_UNKNOWN);
     assert(hdm_dpad_icons(1, 0, 1, 0, 0, 1, 0).down == HDM_ICON_NONE);   /* out at sea: the compasses */
     d = hdm_dpad_icons(0, 1, 1, 0, 0, 0, 0);                       /* the boat in the Tower of the Gods */
-    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
+    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_VIEW);
     d = hdm_dpad_icons(0, 0, 0, 0, 0, 0, 0);                       /* no minimap here */
     assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
 }
@@ -207,6 +209,17 @@ static void forsaken_outside(void) {
 }
 
 int main(void) {
+    assert(hdm_stable_floor(0x80, 0x81, 0x80, 0x81) == 0x80);
+    assert(hdm_stable_floor(0x80, 0x81, 0x81, 0x81) == 0x81);
+    assert(hdm_stable_floor(0x81, 0x80, 0x80, 0x81) == 0x81);
+    assert(hdm_stable_floor(0x81, 0x80, 0x80, 0x80) == 0x80);
+    assert(hdm_stable_floor(-1, 0x80, 0x7f, 0x80) == 0x80);
+    assert(hdm_stable_floor(0x80, 10, 10, 10) == 0x80);
+    assert(hdm_chart_message(-1) == 0 && hdm_chart_message(49) == 0);
+    assert(hdm_chart_message(0) == 0x31d8 && hdm_chart_message(2) == 0x31da);
+    assert(hdm_chart_message(3) == 0x31e0 && hdm_chart_message(35) == 0x3200);
+    assert(hdm_chart_message(36) == 0x3715 && hdm_chart_message(43) == 0x371c);
+    assert(hdm_chart_message(44) == 0x3729 && hdm_chart_message(48) == 0x372d);
     plan_rooms();
     forsaken();
     forsaken_outside();

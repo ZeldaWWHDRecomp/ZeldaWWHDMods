@@ -215,7 +215,8 @@ static inline unsigned int hdm_button_bit(const char* s) {
  * Great Sea (the Tower of the Gods); aboard at sea, D-pad left and right (the cannon and the grappling hook) */
 #define HDM_ALL_BUTTONS 0xffffffffu
 static inline unsigned int hdm_blocked_buttons(int busy, int on_ship, int at_sea) {
-    if (busy || (on_ship && !at_sea)) return HDM_ALL_BUTTONS;
+    (void)at_sea;
+    if (busy) return HDM_ALL_BUTTONS;
     return on_ship ? 0x0800u | 0x0400u : 0;
 }
 
@@ -225,10 +226,27 @@ static inline int hdm_next_sea_view(int view, int charts) {
     if (view == 2 && !charts) view = 0;
     return view;
 }
-/* the view on boarding: aboard, the view button shows and hides the map, so a map hidden on foot starts
- * as the compasses alone; otherwise the last view with a map */
-static inline int hdm_boarding_view(int hidden, int view) {
-    return hidden ? 0 : (view ? view : 1);
+/* View preferences are independent of temporary eligibility and riding state.
+ * Behaviour adapted from Minimap HD 1.3, Copyright (c) 2026 Chironeyes, MIT; see NOTICE.md. */
+typedef struct { int hidden, expanded, zoom; } hdm_choice;
+static inline void hdm_cycle_dungeon(hdm_choice* v) {
+    if (v->hidden) { v->hidden = 0; v->expanded = 0; }
+    else if (!v->expanded) v->expanded = 1;
+    else v->hidden = 1;
+}
+static inline int hdm_floor_valid(int floor) { return floor >= 0x78 && floor <= 0x88; }
+/* Probe at height +/-32: only cross a boundary once both probes agree. Applies
+ * throughout flight/glide; never reads the native menu's landing-held floor. */
+static inline int hdm_stable_floor(int previous, int candidate, int below, int above) {
+    if (!hdm_floor_valid(candidate)) return hdm_floor_valid(previous) ? previous : candidate;
+    if (!hdm_floor_valid(previous) || (below == candidate && above == candidate)) return candidate;
+    return previous;
+}
+/* Native MenuMap::setTreTitle message ranges, adapted from Minimap HD 1.3 (MIT).
+ * Input is the zero-based native chart index, not the displayed chart number. */
+static inline unsigned int hdm_chart_message(int index) {
+    if (index < 0 || index >= 49) return 0;
+    return (unsigned int)index + (index < 3 ? 0x31D8 : index < 36 ? 0x31DD : index < 44 ? 0x36F1 : 0x36FD);
 }
 
 /* ---- the map's icons beside the HUD's D-pad (Minimap HD's shortcut icons): left shows and hides the
@@ -240,8 +258,9 @@ typedef struct { int left, right, down; } hdm_icons;
  * island art. Aboard at sea, left and right are the boat's; aboard elsewhere (the Tower of the Gods) no icon. */
 static inline hdm_icons hdm_dpad_icons(int sea, int dungeon, int on_ship, int hidden, int expanded, int discovered, int covered) {
     hdm_icons d = {HDM_ICON_NONE, HDM_ICON_NONE, HDM_ICON_NONE};
+    if (dungeon && on_ship) { d.down = HDM_ICON_VIEW; return d; }
     if (sea && on_ship) {
-        d.down = !discovered ? HDM_ICON_UNKNOWN : covered ? HDM_ICON_VIEW : HDM_ICON_NONE;
+        d.down = !covered ? HDM_ICON_NONE : !discovered ? HDM_ICON_UNKNOWN : HDM_ICON_VIEW;
         return d;
     }
     if ((!sea && !dungeon) || on_ship) return d;

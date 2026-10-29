@@ -27,6 +27,7 @@ WWHD_GAME_FUNC(0x0258DBF4, u8, room_floor, (s32 room, f32 y));                  
 WWHD_GAME_FUNC(0x0257DACC, u32, wind_angle, (void));                                   /* dKyw_get_wind_angle */
 WWHD_GAME_FUNC(0x025C11DC, u8*, room_data, (u32 control, s32 room));
 WWHD_GAME_FUNC(0x025C4734, u8*, stage_treasures, (void));
+WWHD_GAME_FUNC(0x02656970, fopAc_ac_c*, map_companion, (void));
 WWHD_GAME_FUNC(0x025C4740, u8*, stage_doors, (void));
 
 /* play (dComIfGp) and save offsets used here */
@@ -75,13 +76,26 @@ static struct {
     int dmap, turned;  /* turned: Forsaken Fortress after the first visit */
     int outdoor;       /* its outside: the sea's room 1 drawn as the plan's outdoor picture */
     int searchlights_stopped;  /* its searchlights that no longer search, one bit each */
+    int role;
     int point_count;
     struct { float x, z; } points[MAX_POINTS];
     char stage[9];
 } snap;
 
 /* player choices */
-static struct { int hidden, expanded, zoom, sea_view, chart, feedback, aboard; float feedback_time; } ui = {0, 0, 0, 1, 0, 0, 0, 0};
+static struct { int hidden, expanded, zoom, sea_view, chart, feedback; float feedback_time; } ui = {0, 0, 0, 1, 0, 0, 0};
+static hdm_choice foot_choice, dungeon_choice;
+static int choice_family; /* 0 island, 1 dungeon; marine preferences remain separate */
+static int floor_history = -1, floor_dungeon = -1, floor_role = -1;
+static char floor_stage[9];
+static float wind_phase;
+static void select_choice(int dungeon) {
+    hdm_choice* old = choice_family ? &dungeon_choice : &foot_choice;
+    *old = (hdm_choice){ui.hidden, ui.expanded, ui.zoom};
+    hdm_choice* next = dungeon ? &dungeon_choice : &foot_choice;
+    ui.hidden = next->hidden; ui.expanded = next->expanded; ui.zoom = next->zoom;
+    choice_family = dungeon;
+}
 enum { FEEDBACK_NONE, FEEDBACK_HIDDEN, FEEDBACK_EXPANDED, FEEDBACK_COMPACT };
 static u32 img_feedback[4];
 static const char* const feedback_art[4] = {0, "assets/hide.png", "assets/zoom.png", "assets/reduce.png"};
@@ -164,6 +178,7 @@ static void configure(void) {
     opt.key_view = key_option("key_view", "down");
     opt.key_chart = key_option("key_chart", "l3");
     ui.expanded = wwhd_config_bool("start_expanded", 0);
+    foot_choice.expanded = dungeon_choice.expanded = ui.expanded;
     initialized = 1;
 }
 
@@ -368,7 +383,7 @@ static void frame(u32 list, float x, float y, float side, float a) {
 static void draw_sea(u32 list, float x, float y, float side, float a) {
     float inset = side * 6.0f / 256.0f, inner = side - 2 * inset;
     if (!snap.discovered || !snap.covered) {
-        if (snap.discovered) return;  /* outside the island art: the game's compasses only */
+        if (!snap.covered || snap.discovered) return;  /* outside the island art: the game's compasses only */
         /* undiscovered sector: the hint only, like the game's "?" */
         if (!img_unknown) img_unknown = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/unknown.png");
         float s = side * .32f;
@@ -569,15 +584,21 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         }
     }
     if (snap.companion) {
-        u32* img = snap.dungeon == 4 ? &img_medli : &img_makar;
+        u32* img = snap.role ? &img_face : snap.dungeon == 4 ? &img_medli : &img_makar;
         if (!*img) *img = game_image(snap.dungeon == 4 ? "DungeonMapMedley_00/MapMedleyS_00^q" : "DungeonMapMakore_00/MapMakoreS_00^q");
         float lx, ly, px, py;
         world_to_layout(snap.cx, snap.cz, &lx, &ly);
         place(lx, ly, &px, &py);
-        marker(list, *img, ox + px, oy + py, side * .1f, 0, a);
+        heading_marker(list, *img, side * .1f, ox + px, oy + py, side, hdm_heading_on_turned(hdm_plan_heading(snap.cyaw, snap.turned), dturn != 0 ? up : 0x8000), a);
     }
     if (dturn != 0) heading = hdm_heading_on_turned(heading, up);  /* relative to the turned plan's up */
-    heading_marker(list, img_face, 0, ox + dlink_px, oy + dlink_py, side, heading, a);
+    u32 focus_image = img_face;
+    if (snap.role) {
+        u32* img = snap.dungeon == 4 ? &img_medli : &img_makar;
+        if (!*img) *img = game_image(snap.dungeon == 4 ? "DungeonMapMedley_00/MapMedleyS_00^q" : "DungeonMapMakore_00/MapMakoreS_00^q");
+        focus_image = *img;
+    }
+    heading_marker(list, focus_image, 0, ox + dlink_px, oy + dlink_py, side, heading, a);
     clip(list, 0, 0, 0, 0, 0);
     frame(list, x, y, side, a);
 }
@@ -697,7 +718,7 @@ static void capture_chests(u32 membit, const u8* records, s32 count, int filter_
         if (number == 15 || number == 16) continue;
         if (filter_room && (int)(rooms & 63) != snap.room) continue;
         int opened = (type == 7 || type == 8) ? stage_chest_open(stage_kind, (s32)number) : chest_open(membit, (s32)number);
-        if (opened || room_floor((s32)(rooms & 63), y) != snap.floor) continue;
+        if (opened || (!snap.outdoor && room_floor((s32)(rooms & 63), y) != snap.floor)) continue;
         snap.points[snap.point_count].x = x; snap.points[snap.point_count].z = z; ++snap.point_count;
     }
 }
@@ -780,24 +801,32 @@ static void handle_input(u32 blocked, int sailing) {
     wwhd_input_read(&in);
     u32 b = in.buttons, now = b & ~blocked;
     if (ui.feedback_time > 0) ui.feedback_time -= (float)wwhd_logic_dt();
-    if (!sailing && hdm_pressed(now, previous_buttons, opt.key_toggle)) {
+    int dungeon_boat = snap.on_ship && snap.mode == MODE_DUNGEON;
+    if (!sailing && !dungeon_boat && hdm_pressed(now, previous_buttons, opt.key_toggle)) {
         ui.hidden = !ui.hidden;
         ui.feedback = ui.hidden ? FEEDBACK_HIDDEN : (ui.expanded ? FEEDBACK_EXPANDED : FEEDBACK_COMPACT);
         ui.feedback_time = ui.hidden ? 1.5f : 0;
     }
-    if (!ui.hidden || sailing) {
-        if (hdm_pressed(now, previous_buttons, opt.key_size) && !sailing) {
+    if (!ui.hidden || sailing || dungeon_boat) {
+        if (hdm_pressed(now, previous_buttons, opt.key_size) && !sailing && !dungeon_boat) {
             ui.expanded = !ui.expanded;
             ui.feedback = ui.expanded ? FEEDBACK_EXPANDED : FEEDBACK_COMPACT;
             ui.feedback_time = 1.0f;
         }
         if (hdm_pressed(now, previous_buttons, opt.key_view)) {
-            if (sailing) ui.sea_view = hdm_next_sea_view(ui.sea_view, snap.chart_count);
+            if (dungeon_boat) {
+                hdm_choice v = {ui.hidden, ui.expanded, ui.zoom};
+                hdm_cycle_dungeon(&v);
+                ui.hidden = v.hidden; ui.expanded = v.expanded;
+            } else if (sailing) ui.sea_view = hdm_next_sea_view(ui.sea_view, snap.chart_count);
             else if (snap.mode == MODE_DUNGEON) ui.zoom = !ui.zoom;
         }
+        if (dungeon_boat && !ui.hidden && hdm_pressed(now, previous_buttons, opt.key_chart)) ui.zoom = !ui.zoom;
         if (hdm_pressed(now, previous_buttons, opt.key_chart) && sailing && ui.sea_view == 2 && snap.chart_count)
             ui.chart = (ui.chart + 1) % snap.chart_count;
     }
+    wind_phase += (float)wwhd_logic_dt();
+    if (wind_phase > 60) wind_phase -= 60;
     previous_buttons = b;
     hdm_fade_step(&fade, hdm_moving(in.lx, in.ly, in.rx, in.ry), (float)wwhd_logic_dt());
 }
@@ -827,6 +856,11 @@ static void forsaken_outside(u8* play, u32 save) {
         for (int i = 0; i < HDM_SEARCHLIGHTS; ++i) wwhd_log_int("outdoor.searchlight_found", searchlights[i].found);
         wwhd_log_hex("outdoor.searchlight_image0", img_searchlight[0]); wwhd_log_hex("outdoor.searchlight_image1", img_searchlight[1]);
     }
+    if (snap.has_compass) {
+        u8* room = room_data((u32)play + 0x51cc, HDM_OUTDOOR_SECTOR);
+        u8* t = room ? *(u8**)(room + 0x40) : 0;
+        if (t) capture_chests(save + SAVE_MEMBIT, *(u8**)(t + 4), *(s32*)t, 1, 2);
+    }
     read_camera(play);
     snap.visible = 1;
 }
@@ -835,9 +869,9 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     if (!initialized) configure();
     wwhd_hud_register(draw, WWHD_HUD_TV);
     u8* play = wwhd_play_get();
-    if (!play || !actor || (u32)actor != *(u32*)(play + WWHD_PLAY_PLAYER_OFFSET)) return;
+    if (!play || !actor || (u32)actor != *(u32*)(play + 0x5B34)) return;
     captured_step = wwhd_logic_step();
-    snap.visible = 0; snap.outdoor = 0;
+    snap.visible = 0; snap.outdoor = 0; snap.role = 0;
     u32 status0 = *(u32*)(play + PLAY_STATUS0), status1 = *(u32*)(play + PLAY_STATUS1);
     for (int i = 0, ended = 0; i < 8; ++i) {
         char ch = ended ? 0 : (char)play[WWHD_PLAY_START_STAGE_NAME_OFFSET + i];
@@ -847,15 +881,34 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     snap.stage[8] = 0;
     int at_sea = hdm_same(snap.stage, "sea"), busy = play[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET] || play[WWHD_PLAY_EVENT_RUNNING_OFFSET];
     snap.on_ship = (status0 & STTS0_SHIP) != 0;
-    if (snap.on_ship && !ui.aboard && at_sea) ui.sea_view = hdm_boarding_view(ui.hidden, ui.sea_view);
-    ui.aboard = snap.on_ship;
-    handle_input(hdm_blocked_buttons(busy, snap.on_ship, at_sea), snap.on_ship && at_sea);
-    if (busy || (status0 & STTS0_HIDE) || (status1 & STTS1_CONDUCT)) return;
+    /* Resolve current family before applying edges, including direct dungeon boat loads. */
+    snap.mode = at_sea ? MODE_SEA : hdm_dungeon_of(snap.stage) >= 0 && opt.dungeons ? MODE_DUNGEON : MODE_NONE;
+    if (busy || (status0 & STTS0_HIDE) || (status1 & STTS1_CONDUCT)) {
+        handle_input(HDM_ALL_BUTTONS, 0);
+        return;
+    }
     u32 save = *(u32*)&WWHD_GAME_DATA(WWHD_ADDR_dComIfG_save_info_pointer, u8);
     if (!save) return;
     snap.x = actor->current.pos.x; snap.y = actor->current.pos.y; snap.z = actor->current.pos.z;
     snap.yaw = actor->shape_angle.y;
-    snap.room = actor->current.roomNo;
+    int role = 0;
+    /* Verified identity only; Minimap HD 1.3 sage focus (Chironeyes, MIT).
+     * The hook remains attached to stable Link, independent of the controlled actor. */
+    if (hdm_same(snap.stage, "M_Dai") || hdm_same(snap.stage, "kaze")) {
+        fopAc_ac_c* partner = map_companion();
+        u32 controlled = *(u32*)(play + 0x5B2C);
+        if (partner && heap_pointer((u32)partner) && (u32)partner == controlled && partner != actor) {
+            snap.x = partner->current.pos.x; snap.y = partner->current.pos.y; snap.z = partner->current.pos.z;
+            snap.yaw = partner->shape_angle.y;
+            role = 1;
+        }
+    }
+    snap.role = role;
+    snap.room = role ? map_companion()->current.roomNo : actor->current.roomNo;
+    if (!at_sea) {
+        select_choice(snap.mode == MODE_DUNGEON);
+        handle_input(hdm_blocked_buttons(0, snap.on_ship, at_sea), 0);
+    }
     if (at_sea) {
         snap.mode = MODE_SEA;
         snap.sector = hdm_sea_room(snap.x, snap.z);
@@ -870,12 +923,16 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
             snap.covered = hdm_inside(u, v);
         }
         if (opt.dungeons && hdm_forsaken_outside(snap.sector, snap.on_ship, snap.covered) && stage_map(2)) {
+            select_choice(1);
+            handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), 0);
             forsaken_outside(play, save);
             return;
         }
+        select_choice(0);
         snap.wind = wind_angle();
         snap.chart_set = *(u8*)(save + SAVE_CHART_SET) & 3;
         read_charts(save);
+        handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), snap.on_ship);
         snap.visible = 1;
         return;
     }
@@ -900,7 +957,12 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
         if (dmap_obj) { f32 w = *(f32*)(dmap_obj + 0x3AC); if (hdm_finite(w) && w > .1f && w < 10) snap.map_width = w; }
     }
     if (!snap.dmap) { snap.mode = MODE_NONE; return; }
-    snap.floor = stage_floor(0, snap.y + floor_offset(play));
+    float height = snap.y + floor_offset(play);
+    if (floor_dungeon != snap.dungeon || floor_role != role || !hdm_same(floor_stage, snap.stage)) floor_history = -1;
+    floor_dungeon = snap.dungeon; floor_role = role;
+    for (int i = 0; i < 9; ++i) floor_stage[i] = snap.stage[i];
+    snap.floor = hdm_stable_floor(floor_history, stage_floor(0, height), stage_floor(0, height - 32), stage_floor(0, height + 32));
+    floor_history = snap.floor;
     snap.visited = 0;
     {
         int count = 0;
@@ -920,7 +982,7 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     }
     snap.companion = 0;
     if (snap.dungeon == 4 || snap.dungeon == 5) {
-        fopAc_ac_c* partner = *(fopAc_ac_c**)(play + PLAY_PARTNER);
+        fopAc_ac_c* partner = role ? actor : map_companion();
         if (partner && partner != actor) {
             snap.cx = partner->current.pos.x; snap.cz = partner->current.pos.z; snap.cyaw = partner->shape_angle.y;
             snap.companion = room_floor(partner->current.roomNo, partner->current.pos.y + floor_offset(play)) == snap.floor;
