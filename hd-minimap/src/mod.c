@@ -163,7 +163,8 @@ static struct { int found; float x, y, w, h; } searchlights[HDM_SEARCHLIGHTS];
 /* The last actually displayed payload is retained only for a closing panel.
  * No native UI/actor pointers are retained. */
 static __typeof__(snap) panel_snap, chart_snap, previous_floor_snap;
-static hdm_tween panel_slide, chart_slide, panel_size, panel_bottom, floor_slide;
+static hdm_tween panel_slide, chart_slide, panel_size, panel_bottom;
+static hdm_tween floor_slide = {1, 1, 1, 0, 0};
 static int chart_tail_index, have_panel, have_chart, floor_direction;
 static unsigned long long presentation_step = ~0ull;
 static int presentation_dungeon = -1, presentation_floor = -1;
@@ -322,7 +323,7 @@ static void floor_rooms(int dungeon, int floor) {
         int table_floor = 0, table_room = -1, count = 0;
         const unsigned int* table = plan_table(dungeon, &count);
         if (hdm_plan_room(table, count, p, &table_floor, &table_room)) {
-            if (table_floor != floor) continue;
+            if (!hdm_room_on_floor(table_floor, floor, pane.texture, tag)) continue;
         } else if (!hdm_texture_on_floor(pane.texture, tag)) {
             continue;
         }
@@ -788,6 +789,13 @@ static void draw(u32 list) {
     float rest = opt.opacity, a = opt.fade ? hdm_fade_opacity(&fade, rest, opt.faded) : rest;
     if (a <= 0) return;
     static_images();
+    /* Release the outgoing floor after its last presented step. With the SDK's
+     * 32-image budget, retaining an inactive floor indefinitely can starve rooms. */
+    if (snap.mode == MODE_DUNGEON && floor_slide.value >= 1) {
+        floor_rooms(snap.dungeon, snap.floor);
+        for (int i = 0; i < spare_rooms.count; ++i) drop(&spare_rooms.items[i].image);
+        spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
+    }
     float side = panel_size.value;
     float x = opt.x - (1 - panel_slide.value) * (side + opt.x + 8);
     float y = 720 - side - panel_bottom.value;
@@ -1119,7 +1127,7 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     snap.companion = 0;
     if (snap.dungeon == 4 || snap.dungeon == 5) {
         fopAc_ac_c* partner = role ? actor : map_companion();
-        if (partner && partner != actor) {
+        if (partner && heap_pointer((u32)partner) && (role || partner != actor)) {
             snap.cx = partner->current.pos.x; snap.cz = partner->current.pos.z; snap.cyaw = partner->shape_angle.y;
             snap.companion = room_floor(partner->current.roomNo, partner->current.pos.y + floor_offset(play)) == snap.floor;
         }

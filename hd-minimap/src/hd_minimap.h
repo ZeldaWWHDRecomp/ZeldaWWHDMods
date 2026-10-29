@@ -98,6 +98,12 @@ static inline int hdm_texture_on_floor(const char* texture, const char* tag) {
     return 0;
 }
 
+/* A plan pane may span several floors (notably Tower of the Gods).
+ * The room-colour table's primary floor must not suppress its other artwork. */
+static inline int hdm_room_on_floor(int primary, int floor, const char* texture, const char* tag) {
+    return primary == floor || hdm_texture_on_floor(texture, tag);
+}
+
 /* stage name -> dungeon layout (0 Forsaken Fortress, 1 Dragon Roost Cavern, 2 Forbidden Woods,
  * 3 Tower of the Gods, 4 Earth Temple, 5 Wind Temple), -1 none */
 static inline int hdm_same(const char* a, const char* b) {

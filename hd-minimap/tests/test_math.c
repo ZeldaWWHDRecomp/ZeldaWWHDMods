@@ -66,6 +66,8 @@ static void names(void) {
     assert(hdm_texture_on_floor("MapKazeB1_03^t", "B1"));
     assert(hdm_texture_on_floor("MapKami1F_03_2F_04^t", "1F") && hdm_texture_on_floor("MapKami1F_03_2F_04^t", "2F"));
     assert(!hdm_texture_on_floor("MapKami1F_03_2F_04^t", "3F"));
+    assert(hdm_room_on_floor(0x80, 0x81, "MapKami1F_03_2F_04^t", "2F"));
+    assert(!hdm_room_on_floor(0x80, 0x82, "MapKami1F_03_2F_04^t", "3F"));
     assert(!hdm_texture_on_floor("MapMajyuOD_00^t", "1F"));
     assert(hdm_dungeon_of("kaze") == 5 && hdm_dungeon_of("M_Dai") == 4 && hdm_dungeon_of("Siren") == 3);
     assert(hdm_dungeon_of("kindan") == 2 && hdm_dungeon_of("M_NewD2") == 1 && hdm_dungeon_of("majroom") == 0);
