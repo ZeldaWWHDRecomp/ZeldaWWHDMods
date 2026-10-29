@@ -33,6 +33,8 @@ WWHD_GAME_FUNC(0x025C4740, u8*, stage_doors, (void));
 /* Native text path: hdTextUnit::putMessage -> MsgResMgr::getMessage.
  * Identified in QoL picto_subjects.c and verified against MenuMap's numbered
  * caption at 02699094. See NATIVE-CALLS.md for source paths and build guards. */
+WWHD_GAME_FUNC(0x02687A64, const u8*, native_chart_entry, (u32 coordinator, u32 index));
+WWHD_GAME_FUNC(0x025B8308, s32, chart_deciphered, (u32 player_map, s32 index));
 WWHD_GAME_FUNC(0x025F65F4, u32, chart_msg_construct, (void* message));
 WWHD_GAME_FUNC(0x025F50E8, void, chart_msg_load, (u32 manager, void* message, void* set_name, void* label));
 WWHD_GAME_FUNC(0x0273A2E8, u32, chart_msg_text, (u32 data, u32 index));
@@ -932,17 +934,20 @@ static float floor_offset(u8* play) {
 }
 static void read_charts(u32 save) {
     snap.chart_count = 0;
-    u32 table = *(u32*)&WWHD_GAME_DATA(CHART_TABLE, u8);
-    if (!table) return;
-    s32 count = *(s32*)table;
-    if (count <= 0 || count > 64) return;
-    for (s32 i = 0; i < count && snap.chart_count < MAX_CHARTS; ++i) {
-        const u8* e = (const u8*)(table + 4 + 0x26 * i);
+    u32 scene = WWHD_GAME_DATA(UI_SCENE, u32);
+    u32 coordinator = heap_pointer(scene) ? *(u32*)(scene + 0x218) : 0;
+    if (!heap_pointer(coordinator)) return;
+    /* Native initialization remaps chart numbers and types. Raw cmapdat order
+     * is not MenuMap order; ask the same lookup as its chart inventory. */
+    for (s32 i = 0; i < 49 && snap.chart_count < MAX_CHARTS; ++i) {
+        const u8* e = native_chart_entry(coordinator, (u32)i);
+        if (!e || !heap_pointer((u32)e)) continue;
         s8 sea = (s8)e[0], save_no = (s8)e[1];
         u8 type = e[3];
-        if (sea < 1 || sea > 49 || save_no < 1) continue;          /* sector charts only: no overview charts */
-        if (!chart_owned(save + SAVE_PLAYER_MAP, save_no - 1)) continue;
-        if (type == 0 && !chart_open(save + SAVE_PLAYER_MAP, save_no - 1)) continue;  /* Triforce charts once deciphered */
+        if (sea < 1 || sea > 49 || save_no < 1) continue;
+        if (type > 8 || !((1u << type) & 0x167u)) continue;
+        if (!chart_owned(save + SAVE_PLAYER_MAP, save_no - 1) || !chart_open(save + SAVE_PLAYER_MAP, save_no - 1)) continue;
+        if (type == 0 && !chart_deciphered(save + SAVE_PLAYER_MAP, save_no - 1)) continue;
         snap.charts[snap.chart_count].sea = sea; snap.charts[snap.chart_count].save = save_no;
         snap.charts[snap.chart_count].number = (s8)e[2];
         snap.charts[snap.chart_count].index = (s8)i;

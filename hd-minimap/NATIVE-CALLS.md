@@ -15,6 +15,8 @@ The implementation follows `qol/src/picto_subjects.c` on the mods repository's
 
 | Canonical address | Call | Identification |
 | --- | --- | --- |
+| `0x02687A64` | Coordinator `findChart(index)` | Same inventory lookup used by the GamePad and Minimap HD's `_boatChartScan`; native initialization rewrites raw chart numbers/types before lookup |
+| `0x025B8308` | `dSv_player_map_c::isTriforce` | Coordinator decoding predicate at `0x0268A6B4`; only native type 0 requires the deciphered flag |
 | `0x025F65F4` | Construct private `HdMsgText` | QoL `picto_msg_construct`, used before the numbered-message loader |
 | `0x025F50E8` | `MsgResMgr::getMessage(manager, out, set, label)` | QoL `picto_msg_load`; native `hdTextUnit::putMessage` numbered-message path |
 | `0x0273A2E8` | Read UTF-16 message text by label index | QoL `picto_msg_text`; checks the loaded set and its entry count first |
@@ -22,7 +24,10 @@ The implementation follows `qol/src/picto_subjects.c` on the mods repository's
 
 Native chart indices 0–2 use `index + 0x31D8`; 3–35 use `index + 0x31DD`;
 36–43 use `index + 0x36F1`; 44–48 use `index + 0x36FD`. These are native indices,
-not displayed chart numbers or sectors. The label is five decimal digits (`%05d`).
+not displayed chart numbers, sectors or raw archive positions. The native coordinator
+remaps the original Triforce chart numbers into three Triforce charts, forty-one
+treasure charts and five additional treasure charts. The mod now reads its live
+remapped entries, with native type filtering, opened-chart and deciphering gates. The label is five decimal digits (`%05d`).
 An empty set selector delegates to the game's `message*` set search in the player's
 installed language, exactly as QoL does. No guessed English set or names are shipped.
 The manager is at `0x101F4AE8`, SafeString vtable at `0x100E0F90` (both declared
