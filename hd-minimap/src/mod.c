@@ -94,7 +94,7 @@ static struct {
 } snap;
 
 /* player choices */
-static struct { int hidden, expanded, zoom, sea_view, chart, feedback; float feedback_time; } ui = {0, 0, 0, 1, 0, 0, 0};
+static struct { int hidden, expanded, zoom, sea_view, chart, feedback, marine_initialized; float feedback_time; } ui = {0, 0, 0, 1, 0, 0, 0, 0};
 static hdm_choice foot_choice, dungeon_choice;
 static int selected_chart = -1;
 static int choice_family; /* 0 island, 1 dungeon; marine preferences remain separate */
@@ -1166,6 +1166,10 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
             handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), 0);
             forsaken_outside(play, save);
             return;
+        }
+        if (snap.on_ship) {
+            ui.sea_view = hdm_initial_marine_view(ui.marine_initialized, ui.hidden, ui.sea_view);
+            ui.marine_initialized = 1;
         }
         select_choice(0);
         snap.wind = wind_angle();

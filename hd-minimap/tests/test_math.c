@@ -102,6 +102,10 @@ static void controls(void) {
     assert(hdm_blocked_buttons(1, 0, 1) == HDM_ALL_BUTTONS);            /* an event or a stage change */
     assert(!hdm_pressed(0x0800 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0800));
     assert(hdm_pressed(0x0100 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0100));
+    assert(hdm_initial_marine_view(0, 1, 2) == 0);
+    assert(hdm_initial_marine_view(0, 0, 0) == 1);
+    assert(hdm_initial_marine_view(1, 1, 2) == 2);
+    assert(hdm_initial_marine_view(1, 0, 0) == 0);
     hdm_choice v = {0, 0, 1};
     hdm_cycle_dungeon(&v); assert(!v.hidden && v.expanded && v.zoom);
     hdm_cycle_dungeon(&v); assert(v.hidden && v.expanded && v.zoom);

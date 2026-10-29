@@ -235,6 +235,11 @@ static inline int hdm_next_sea_view(int view, int charts) {
     if (view == 2 && !charts) view = 0;
     return view;
 }
+/* Only the first marine use inherits foot visibility. Later boarding must
+ * restore the remembered marine request, including deliberately chosen compasses. */
+static inline int hdm_initial_marine_view(int initialized, int hidden, int remembered) {
+    return initialized ? remembered : hidden ? 0 : 1;
+}
 /* View preferences are independent of temporary eligibility and riding state.
  * Behaviour adapted from Minimap HD 1.3, Copyright (c) 2026 Chironeyes, MIT; see NOTICE.md. */
 typedef struct { int hidden, expanded, zoom; } hdm_choice;
