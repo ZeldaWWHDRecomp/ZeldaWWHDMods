@@ -20,7 +20,7 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 
 ## Needs
 
-- The port with the Mod SDK's live options, input filters and touches (the QoL track's SDK addition); the
+- The port with the Mod SDK's live options, input filters and touches; the
   minigames by touch also need its world points on the picture and pinches (`wwhd_screen_point`, `WWHD_TOUCH_PINCH`).
 - Code-mod support (Mods → More → Code-mod support → Use code mods; on Android also the setup app's
   **Code mods** switch): turning it on rebuilds the game code once. On Android that takes about as long as

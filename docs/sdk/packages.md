@@ -65,7 +65,7 @@ A minimal guest manifest:
 | `guest` | `api_version` `1`, `elf` `"mod.elf"`, optional `heap_size` (bytes; default 256 KiB, at most 8 MiB) |
 | `author`, `description` | shown in the Mods tab; `author` must match the catalogue entry's `authors` |
 | `experimental` | `true` for an untested mod, or one that can break the game or a save: hidden unless the player shows experimental mods; enabling it backs up the saves first. Must match the catalogue entry |
-| `options` | typed options the player can change: `{"id", "type", "name", "default"}` with `type` `bool`, `number` (`min`, `max`, optional `step`), `string` or `enum` (`choices`). Read them with `wwhd_config_*` |
+| `options` | typed options the player can change: `{"id", "type", "name", "default"}` with `type` `bool`, `number` (`min`, `max`, optional `step`), `string` or `enum` (`choices`). Read them with `wwhd_config_*`. Optional `"live": true` (the player can change it while playing) and, on a bool, `"permission": "microphone"`: both need `"minimum_manager_version": "1.6.0"`, see [the C API](c-api.md#live-options-input-filters-and-touches) |
 | `dependencies` | `[{"id": "story-notebook", "minimum_version": "0.6.0"}]`: packages that must be installed and on. Must match the catalogue entry's `requires` |
 | `conflicts` | IDs of packages that can't be used together with this one |
 | `setup` | the steps the port runs when installing: `build_guest_mod` (always, last), and for mods that need game data `game_path` and `run_tool` (see [Creating a mod](../creating-a-mod.md#mods-that-need-game-data)) |
