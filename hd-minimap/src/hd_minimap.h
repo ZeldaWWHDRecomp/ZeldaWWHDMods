@@ -279,6 +279,28 @@ static inline int hdm_turn_heading(int with_camera, int link, int has_camera, in
 /* Link's heading as drawn on the plan turned so that `up` faces up (0x8000 is up on the panel) */
 static inline short hdm_heading_on_turned(int heading, int up) { return (short)(heading - up + 0x8000); }
 
+/* Presentation timings adapted from Minimap HD 1.3 (Chironeyes, MIT).
+ * Retarget from displayed geometry, so reversals never jump. */
+#define HDM_ENTER_SECONDS .200f
+#define HDM_EXIT_SECONDS .250f
+#define HDM_COMPASS_DELAY .200f
+typedef struct { float value, from, target, elapsed, duration; } hdm_tween;
+static inline float hdm_ease(float t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    return t * t * (3 - 2 * t);
+}
+static inline void hdm_tween_target(hdm_tween* t, float target, float duration) {
+    if (t->target == target) return;
+    t->from = t->value; t->target = target; t->elapsed = 0; t->duration = duration;
+}
+static inline void hdm_tween_step(hdm_tween* t, float dt) {
+    if (!hdm_finite(dt) || dt <= 0) return;
+    t->elapsed += dt;
+    float f = t->duration > 0 ? hdm_ease(t->elapsed / t->duration) : 1;
+    t->value = t->from + (t->target - t->from) * f;
+}
+
 /* ---- rectangles: fit a box (cx, cy, w, h in layout units, +y up) into a square panel ---- */
 typedef struct { float scale, cx, cy; } hdm_view;
 static inline hdm_view hdm_fit(float min_x, float min_y, float max_x, float max_y, float side, float padding) {

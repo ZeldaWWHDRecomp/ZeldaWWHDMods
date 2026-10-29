@@ -116,7 +116,8 @@ static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img
 static u32 img_island, img_chart, img_ribbon, img_chart_base, img_mark, img_mark_fill;
 static u32 img_searchlight[2];  /* searching, stopped */
 static int island_room = -1, island_full = -1, chart_key = -1;
-static struct { int pane, room; float x, y, w, h; u32 image; } rooms[MAX_ROOMS];
+typedef struct { int pane, room; float x, y, w, h; u32 image; } hdm_room;
+static hdm_room rooms[MAX_ROOMS];
 /* the floor screens' room tables (DungeonMapFloor_00..05): (plan room, floor, room) per plan room; Forsaken
  * Fortress's corridors are in none */
 static const unsigned int* plan_table(int dungeon, int* count) {
@@ -134,6 +135,23 @@ static const unsigned int* plan_table(int dungeon, int* count) {
 }
 static int room_count, rooms_dungeon = -1, rooms_floor = -1;
 static float floor_min_x, floor_min_y, floor_max_x, floor_max_y;
+static struct {
+    hdm_room items[MAX_ROOMS];
+    int count, dungeon, floor;
+    float min_x, min_y, max_x, max_y;
+} spare_rooms = {.dungeon = -1, .floor = -1};
+static void swap_room_cache(void) {
+    for (int i = 0; i < MAX_ROOMS; ++i) {
+        hdm_room r = rooms[i]; rooms[i] = spare_rooms.items[i]; spare_rooms.items[i] = r;
+    }
+#define SWAP_FIELD(a, b, type) do { type tmp = a; a = b; b = tmp; } while (0)
+    SWAP_FIELD(room_count, spare_rooms.count, int);
+    SWAP_FIELD(rooms_dungeon, spare_rooms.dungeon, int);
+    SWAP_FIELD(rooms_floor, spare_rooms.floor, int);
+    SWAP_FIELD(floor_min_x, spare_rooms.min_x, float); SWAP_FIELD(floor_min_y, spare_rooms.min_y, float);
+    SWAP_FIELD(floor_max_x, spare_rooms.max_x, float); SWAP_FIELD(floor_max_y, spare_rooms.max_y, float);
+#undef SWAP_FIELD
+}
 /* the point Forsaken Fortress's later markers turn about (read with its plan) */
 static float forsaken_cx = HDM_FORSAKEN_CENTRE_X, forsaken_cy = HDM_FORSAKEN_CENTRE_Y;
 static float outdoor_cx = HDM_OUTDOOR_CENTRE_X, outdoor_cy = HDM_OUTDOOR_CENTRE_Y;
@@ -141,6 +159,15 @@ static float outdoor_cx = HDM_OUTDOOR_CENTRE_X, outdoor_cy = HDM_OUTDOOR_CENTRE_
 /* the outdoor plan's searchlight parts (L_Searchlight_00..02), read with it */
 static struct { int found; float x, y, w, h; } searchlights[HDM_SEARCHLIGHTS];
 
+/* The last actually displayed payload is retained only for a closing panel.
+ * No native UI/actor pointers are retained. */
+static __typeof__(snap) panel_snap, chart_snap, previous_floor_snap;
+static hdm_tween panel_slide, chart_slide, panel_size, panel_bottom, floor_slide;
+static int chart_tail_index, have_panel, have_chart, floor_direction;
+static unsigned long long presentation_step = ~0ull;
+static int presentation_dungeon = -1, presentation_floor = -1;
+static float floor_shift;
+static int floor_pass;
 static wwhd_hud_element element;
 static char name[96];
 static const float pi = 3.14159265358979323846f;
@@ -179,6 +206,8 @@ static void configure(void) {
     opt.key_chart = key_option("key_chart", "l3");
     ui.expanded = wwhd_config_bool("start_expanded", 0);
     foot_choice.expanded = dungeon_choice.expanded = ui.expanded;
+    panel_size = (hdm_tween){opt.side_compact, opt.side_compact, opt.side_compact, 0, 0};
+    panel_bottom = (hdm_tween){opt.bottom, opt.bottom, opt.bottom, 0, 0};
     initialized = 1;
 }
 
@@ -198,6 +227,10 @@ static void forget_images(void) {
     for (int i = 0; i < HDM_ICON_COUNT; ++i) img_icons[i] = 0;
     for (int i = 0; i < room_count; ++i) rooms[i].image = 0;
     room_count = 0; rooms_dungeon = rooms_floor = -1;
+    for (int i = 0; i < spare_rooms.count; ++i) spare_rooms.items[i].image = 0;
+    spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
+    have_panel = have_chart = floor_direction = 0;
+    panel_slide = (hdm_tween){0}; chart_slide = (hdm_tween){0};
 }
 static void static_images(void) {
     if (!img_frame) img_frame = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/frame.png");
@@ -245,6 +278,8 @@ static void floor_rooms(int dungeon, int floor) {
     static wwhd_game_pane pane;
     static char key[64];
     char tag[3];
+    if (rooms_dungeon == dungeon && rooms_floor == floor) return;
+    swap_room_cache();
     if (rooms_dungeon == dungeon && rooms_floor == floor) return;
     forget_rooms();
     rooms_dungeon = dungeon; rooms_floor = floor;
@@ -414,7 +449,7 @@ static void draw_sea(u32 list, float x, float y, float side, float a) {
         if (!img_wind) img_wind = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/wind.png");
         /* the game's angle points where the wind comes from; the arrow shows where it blows */
         s16 toward = (s16)(u16)(snap.wind + 0x8000u);
-        float s = side * .2f;
+        float s = side * (.2f + .012f * sin_approx(wind_phase * 2 * pi));
         image(list, img_wind, x + side - s - inset * .5f, y + inset * .5f, s, s, yaw_rotation(toward), 0xffffff, a);
     }
 }
@@ -501,12 +536,17 @@ static void draw_chart(u32 list, float x, float y, float side, float a) {
  * the camera option, the camera's, as the GamePad's zoomed map does */
 static hdm_view dview;
 static float dinner, dturn, dlink_px, dlink_py;
+static hdm_view camera_pose;
+static float camera_turn;
+static int pose_ready;
+static char pose_stage[9];
+static unsigned long long pose_step = ~0ull;
 static void place(float lx, float ly, float* px, float* py) {
     hdm_to_panel(&dview, dinner, lx, ly, px, py);
-    if (dturn == 0) return;
+    if (dturn == 0) { *py += floor_shift; return; }
     float c = sin_approx(dturn + pi / 2), s = sin_approx(dturn), dx = *px - dlink_px, dy = *py - dlink_py;
     *px = dlink_px + dx * c - dy * s;
-    *py = dlink_py + dx * s + dy * c;
+    *py = dlink_py + dx * s + dy * c + floor_shift;
 }
 static void draw_dungeon(u32 list, float x, float y, float side, float a) {
     floor_rooms(snap.dungeon, snap.floor);
@@ -516,7 +556,7 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
     world_to_layout(snap.x, snap.z, &link_x, &link_y);
     int here = room_at(link_x, link_y);
     if (ui.zoom) {
-        float span = (floor_max_x - floor_min_x > floor_max_y - floor_min_y ? floor_max_x - floor_min_x : floor_max_y - floor_min_y) * .45f;
+        float span = HDM_PLAN_FRAME * .45f;
         dview = hdm_fit(link_x - span / 2, link_y - span / 2, link_x + span / 2, link_y + span / 2, inner, 0);
     } else {
         dview = hdm_plan_view(inner, .04f);
@@ -526,8 +566,31 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
     s16 heading = hdm_plan_heading(snap.yaw, snap.turned);
     s16 up = (s16)hdm_turn_heading(opt.turn_camera, heading, snap.camera, hdm_plan_heading(snap.camera_yaw, snap.turned));
     if (ui.zoom && opt.zoom_turns) dturn = -yaw_rotation(up);
+    /* Keep a normalized camera pose across floor/character changes. The private
+     * renderer never asks the native menu to reset its zoom (Minimap HD 1.3, MIT). */
+    if (!floor_pass && pose_step != wwhd_logic_step()) {
+        pose_step = wwhd_logic_step();
+        float target_scale = dview.scale / inner;
+        if (!pose_ready || !hdm_same(pose_stage, snap.stage)) {
+            camera_pose = dview; camera_pose.scale = target_scale; camera_turn = dturn;
+            for (int i = 0; i < 9; ++i) pose_stage[i] = snap.stage[i];
+            pose_ready = 1;
+        } else {
+            float f = (float)wwhd_logic_dt() / HDM_ENTER_SECONDS;
+            if (f > 1) f = 1;
+            camera_pose.cx += (dview.cx - camera_pose.cx) * f;
+            camera_pose.cy += (dview.cy - camera_pose.cy) * f;
+            camera_pose.scale += (target_scale - camera_pose.scale) * f;
+            float delta = dturn - camera_turn;
+            while (delta > pi) delta -= 2 * pi;
+            while (delta < -pi) delta += 2 * pi;
+            camera_turn += delta * f;
+        }
+    }
+    dview = camera_pose; dview.scale *= inner; dturn = camera_turn;
+    hdm_to_panel(&dview, inner, link_x, link_y, &dlink_px, &dlink_py);
     float ox = x + inset, oy = y + inset;
-    if (opt.background) rect(list, ox, oy, inner, inner, 0x000000, opt.bg_opacity * a / (opt.opacity > 0 ? opt.opacity : 1));
+    if (!floor_pass && opt.background) rect(list, ox, oy, inner, inner, 0x000000, opt.bg_opacity * a / (opt.opacity > 0 ? opt.opacity : 1));
     clip(list, 1, ox, oy, inner, inner);
     for (int i = 0; i < room_count; ++i) {
         int p = rooms[i].pane;
@@ -589,18 +652,18 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         float lx, ly, px, py;
         world_to_layout(snap.cx, snap.cz, &lx, &ly);
         place(lx, ly, &px, &py);
-        heading_marker(list, *img, side * .1f, ox + px, oy + py, side, hdm_heading_on_turned(hdm_plan_heading(snap.cyaw, snap.turned), dturn != 0 ? up : 0x8000), a);
+        heading_marker(list, *img, side * .1f, ox + px, oy + py, side, (s16)(hdm_plan_heading(snap.cyaw, snap.turned) - (int)(dturn * (65536.0f / (2 * pi)))), a);
     }
-    if (dturn != 0) heading = hdm_heading_on_turned(heading, up);  /* relative to the turned plan's up */
+    if (dturn != 0) heading = (s16)(heading - (int)(dturn * (65536.0f / (2 * pi))));  /* relative to the turned plan's up */
     u32 focus_image = img_face;
     if (snap.role) {
         u32* img = snap.dungeon == 4 ? &img_medli : &img_makar;
         if (!*img) *img = game_image(snap.dungeon == 4 ? "DungeonMapMedley_00/MapMedleyS_00^q" : "DungeonMapMakore_00/MapMakoreS_00^q");
         focus_image = *img;
     }
-    heading_marker(list, focus_image, 0, ox + dlink_px, oy + dlink_py, side, heading, a);
+    heading_marker(list, focus_image, 0, ox + dlink_px, oy + dlink_py + floor_shift, side, heading, a);
     clip(list, 0, 0, 0, 0, 0);
-    frame(list, x, y, side, a);
+    if (!floor_pass) frame(list, x, y, side, a);
 }
 
 /* the shortcut's picture for a moment after a press (Minimap HD's icons), drawn last so that it stays on
@@ -685,25 +748,80 @@ static void draw(u32 list) {
         }
     }
     /* Link's step runs in the logic step before this callback; in menus or while paused it doesn't */
-    if (!snap.visible || game_paused() || wwhd_logic_step() > captured_step + 1) return;
+    if (!snap.visible || game_paused() || wwhd_logic_step() > captured_step + 1) {
+        panel_slide = (hdm_tween){0}; chart_slide = (hdm_tween){0};
+        have_panel = have_chart = floor_direction = 0;
+        presentation_dungeon = presentation_floor = -1;
+        return;
+    }
     dpad_icons(list);
-    /* sailing, the view button hides the map instead (the compasses alone) */
-    if (ui.hidden && !(snap.mode == MODE_SEA && snap.on_ship)) { feedback(list, opt.side_compact); return; }
+    int marine = snap.mode == MODE_SEA && snap.on_ship;
+    int eligible = snap.mode == MODE_DUNGEON || (snap.mode == MODE_SEA && snap.covered && snap.discovered);
+    int requested = eligible && (marine ? ui.sea_view != 0 : !ui.hidden);
+    int chart_requested = requested && marine && ui.sea_view == 2 && snap.chart_count > 0;
+    if (presentation_step != wwhd_logic_step()) {
+        presentation_step = wwhd_logic_step();
+        float dt = (float)wwhd_logic_dt();
+        float side = marine || !ui.expanded ? opt.side_compact : opt.side_expanded;
+        hdm_tween_target(&panel_slide, requested ? 1 : 0, requested ? HDM_ENTER_SECONDS : HDM_EXIT_SECONDS);
+        hdm_tween_target(&chart_slide, chart_requested ? 1 : 0, chart_requested ? HDM_ENTER_SECONDS : HDM_EXIT_SECONDS);
+        hdm_tween_target(&panel_size, side, HDM_ENTER_SECONDS);
+        hdm_tween_target(&panel_bottom, opt.bottom + (marine ? 110 : 0), HDM_ENTER_SECONDS);
+        hdm_tween_step(&panel_slide, dt); hdm_tween_step(&chart_slide, dt);
+        hdm_tween_step(&panel_size, dt); hdm_tween_step(&panel_bottom, dt);
+        if (requested && snap.mode == MODE_DUNGEON && have_panel && panel_snap.mode == MODE_DUNGEON &&
+            snap.dungeon == presentation_dungeon && snap.floor != presentation_floor &&
+            snap.floor != OUTDOOR_FLOOR && presentation_floor != OUTDOOR_FLOOR) {
+            previous_floor_snap = panel_snap;
+            floor_direction = snap.floor > presentation_floor ? 1 : -1;
+            floor_slide = (hdm_tween){0, 0, 1, 0, HDM_ENTER_SECONDS};
+        }
+        hdm_tween_step(&floor_slide, dt);
+        if (requested) {
+            panel_snap = snap; have_panel = 1;
+            presentation_dungeon = snap.mode == MODE_DUNGEON ? snap.dungeon : -1;
+            presentation_floor = snap.floor;
+        }
+        if (chart_requested) { chart_snap = snap; chart_tail_index = ui.chart; have_chart = 1; }
+    }
     float rest = opt.opacity, a = opt.fade ? hdm_fade_opacity(&fade, rest, opt.faded) : rest;
     if (a <= 0) return;
     static_images();
-    if (snap.mode == MODE_SEA) {
-        float side = snap.on_ship ? opt.side_compact : (ui.expanded ? opt.side_expanded : opt.side_compact);
-        if (snap.on_ship && ui.sea_view == 0) return;
-        /* aboard, above the game's compasses (bottom left) */
-        float x = opt.x, y = 720 - side - opt.bottom - (snap.on_ship ? 110 : 0);
-        draw_sea(list, x, y, side, a);
-        if (snap.on_ship && ui.sea_view == 2 && snap.discovered) draw_chart(list, x + side + 8, y, side, a);
-    } else if (snap.mode == MODE_DUNGEON) {
-        float side = ui.expanded ? opt.side_expanded : opt.side_compact;
-        draw_dungeon(list, opt.x, 720 - side - opt.bottom, side, a);
+    float side = panel_size.value;
+    float x = opt.x - (1 - panel_slide.value) * (side + opt.x + 8);
+    float y = 720 - side - panel_bottom.value;
+    static __typeof__(snap) current;
+    current = snap;
+    if (panel_slide.value > 0 && have_panel) {
+        if (!requested) snap = panel_snap;
+        if (snap.mode == MODE_SEA) draw_sea(list, x, y, side, a);
+        else if (snap.mode == MODE_DUNGEON) {
+            int sliding = floor_slide.value < 1 && floor_direction && snap.dungeon == previous_floor_snap.dungeon;
+            floor_shift = sliding ? -floor_direction * (1 - floor_slide.value) * side : 0;
+            draw_dungeon(list, x, y, side, a);
+            if (sliding) {
+                snap = previous_floor_snap;
+                floor_pass = 1; floor_shift = floor_direction * floor_slide.value * side;
+                draw_dungeon(list, x, y, side, a);
+                snap = requested ? current : panel_snap;
+                floor_pass = 0;
+            }
+            floor_shift = 0;
+        }
     }
-    feedback(list, ui.expanded && !(snap.mode == MODE_SEA && snap.on_ship) ? opt.side_expanded : opt.side_compact);
+    snap = current;
+    /* A chart owns its exit independently, even when the foot map is hidden. */
+    if (chart_slide.value > 0 && have_chart) {
+        int chart = ui.chart;
+        snap = chart_snap; ui.chart = chart_tail_index;
+        float cs = opt.side_compact;
+        draw_chart(list, opt.x + cs + 8 - (1 - chart_slide.value) * (2 * cs + opt.x + 16),
+                   720 - cs - opt.bottom - 110, cs, a);
+        ui.chart = chart; snap = current;
+    }
+    if (!snap.discovered && snap.mode == MODE_SEA && snap.covered && (!ui.hidden || marine))
+        draw_sea(list, opt.x, 720 - opt.side_compact - opt.bottom, opt.side_compact, a);
+    feedback(list, side);
 }
 
 /* ---- per-step capture (Link's own step, so it doesn't run in menus or while paused) ---- */

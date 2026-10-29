@@ -208,7 +208,31 @@ static void forsaken_outside(void) {
     assert(HDM_SEARCHLIGHT_SWITCH + HDM_SEARCHLIGHTS - 1 == 103);
 }
 
+static void animation(void) {
+    assert(hdm_ease(-1) == 0 && hdm_ease(2) == 1 && hdm_ease(.5f) == .5f);
+    for (int fps = 30; fps <= 120; fps *= 2) {
+        hdm_tween t = {0};
+        hdm_tween_target(&t, 0, HDM_EXIT_SECONDS); /* hidden to hidden */
+        hdm_tween_step(&t, 1.0f / fps); assert(t.value == 0);
+        hdm_tween_target(&t, 1, HDM_ENTER_SECONDS);
+        for (int i = 0; i < fps / 10; ++i) hdm_tween_step(&t, 1.0f / fps);
+        assert(fabsf(t.value - .5f) < 1e-5f);
+        float before = t.value;
+        hdm_tween_target(&t, 0, HDM_EXIT_SECONDS);
+        assert(t.value == before); /* reversal starts at actual fraction */
+        hdm_tween_step(&t, .125f); assert(fabsf(t.value - before * .5f) < 1e-5f);
+        hdm_tween_step(&t, .125f); assert(t.value == 0);
+        hdm_tween_step(&t, NAN); assert(t.value == 0);
+    }
+    hdm_tween size = {300, 300, 300, 0, 0};
+    hdm_tween_target(&size, 190, HDM_ENTER_SECONDS);
+    hdm_tween_step(&size, .1f); assert(size.value == 245);
+    hdm_tween_target(&size, 300, HDM_ENTER_SECONDS); assert(size.value == 245);
+    hdm_tween_step(&size, .2f); assert(size.value == 300);
+}
+
 int main(void) {
+    animation();
     assert(hdm_stable_floor(0x80, 0x81, 0x80, 0x81) == 0x80);
     assert(hdm_stable_floor(0x80, 0x81, 0x81, 0x81) == 0x81);
     assert(hdm_stable_floor(0x81, 0x80, 0x80, 0x81) == 0x81);
