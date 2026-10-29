@@ -30,6 +30,13 @@ WWHD_GAME_FUNC(0x025C4734, u8*, stage_treasures, (void));
 WWHD_GAME_FUNC(0x02656970, fopAc_ac_c*, map_companion, (void));
 WWHD_GAME_FUNC(0x025C4740, u8*, stage_doors, (void));
 
+/* Native text path: hdTextUnit::putMessage -> MsgResMgr::getMessage.
+ * Identified in QoL picto_subjects.c and verified against MenuMap's numbered
+ * caption at 02699094. See NATIVE-CALLS.md for source paths and build guards. */
+WWHD_GAME_FUNC(0x025F65F4, u32, chart_msg_construct, (void* message));
+WWHD_GAME_FUNC(0x025F50E8, void, chart_msg_load, (u32 manager, void* message, void* set_name, void* label));
+WWHD_GAME_FUNC(0x0273A2E8, u32, chart_msg_text, (u32 data, u32 index));
+
 /* play (dComIfGp) and save offsets used here */
 #define PLAY_STAGE 0x5150           /* dStage_stageDt_c: +0x48 stage info, +0x74 DMAP */
 #define PLAY_PARTNER 0x5B38         /* the second player slot: Medli or Makar in their temples */
@@ -57,7 +64,7 @@ enum { MODE_NONE, MODE_SEA, MODE_DUNGEON };
 
 static struct {
     float x, side_compact, side_expanded, bottom, opacity, faded, bg_opacity;
-    int fade, background, wind, dungeons, debug, zoom_turns, turn_camera, parchment, smooth;
+    int fade, background, wind, dungeons, debug, zoom_turns, turn_camera, parchment, smooth, native_build;
     u32 key_toggle, key_size, key_view, key_chart;
 } opt;
 
@@ -67,6 +74,8 @@ static struct {
     s16 yaw, cyaw, camera_yaw;
     u32 wind;
     int chart_set, chart_count;
+    char chart_name[160];
+    u32 chart_name_bytes, chart_name_chars;
     struct { s8 sea, save, number, index; s16 rect[4]; } charts[MAX_CHARTS];
     float origin_x, origin_z, size, map_width;
     unsigned long long visited;
@@ -181,6 +190,11 @@ static u32 key_option(const char* id, const char* fallback) {
     return hdm_button_bit(value);
 }
 static void configure(void) {
+    /* Addresses are USA-v0 declarations, translated and identity-checked by the
+     * installer for EU-v0. Unknown/absent build identity disables native calls. */
+    static char build[8];
+    if (wwhd_setting_get("game.build", WWHD_SETTING_STRING, build, sizeof build))
+        opt.native_build = hdm_known_build(build);
     opt.x = bounded(wwhd_config_float("x", 12), 0, 1200, 12);
     opt.bottom = bounded(wwhd_config_float("y", 20), 0, 650, 20);
     opt.side_compact = bounded(wwhd_config_float("size", 190), 96, 400, 190);
@@ -533,10 +547,15 @@ static void draw_chart(u32 list, float x, float y, float side, float a) {
     if (n < 10) { number[0] = number[1]; number[1] = 0; }
     element = (wwhd_hud_element){0};
     element.kind = WWHD_HUD_TEXT; element.anchor = WWHD_HUD_TOP_LEFT;
-    element.x = rx + rw / 2 - rh * (n < 10 ? .18f : .34f); element.y = ry + rh * .12f; element.size = rh * .7f;
+    u32 chars = snap.chart_name_bytes ? snap.chart_name_chars : n < 10 ? 1 : 2;
+    float text_size = rh * .7f;
+    if (chars && chars * text_size * .6f > rw * .92f) text_size = rw * .92f / (chars * .6f);
+    element.x = rx + (rw - chars * text_size * .5f) / 2;
+    element.y = ry + (rh - text_size) / 2; element.size = text_size;
     element.thickness = 1; element.u1 = element.v1 = 1;
     element.rgba = 0x1c4f8a00u | (u32)(a * 255.0f);
-    element.text = number; element.text_bytes = n < 10 ? 1 : 2;
+    element.text = snap.chart_name_bytes ? snap.chart_name : number;
+    element.text_bytes = snap.chart_name_bytes ? snap.chart_name_bytes : n < 10 ? 1 : 2;
     wwhd_hud_emit(list, &element);
 }
 /* layout point -> panel point; zoomed, the plan can turn about Link so that his heading faces up or, with
@@ -735,6 +754,7 @@ static void dpad_icons(u32 list) {
 }
 static unsigned long long captured_step = ~0ull;
 static void draw(u32 list) {
+    if (!opt.native_build) return;
     unsigned long long epoch = wwhd_hud_epoch();
     if (epoch != image_epoch) { image_epoch = epoch; forget_images(); }
     /* hidden while the game is paused or a menu is open: Link's step did not run for this logic step */
@@ -747,6 +767,7 @@ static void draw(u32 list) {
         wwhd_log_float("sea.island_dx", snap.island_dx); wwhd_log_float("sea.island_dz", snap.island_dz);
         wwhd_log_int("sea.covered", snap.covered); wwhd_log_int("sea.ship", snap.on_ship); wwhd_log_int("sea.charts", snap.chart_count);
         wwhd_log_int("sea.chart_set", snap.chart_set);
+        if (snap.chart_name_bytes) wwhd_log(snap.chart_name);
         wwhd_log_float("chart.world", WWHD_GAME_DATA(0x1010855C, f32));
         {
             u8* play = wwhd_play_get();
@@ -941,11 +962,51 @@ static void read_charts(u32 save) {
  * The reverse direction needs a supported chart-select SDK operation. */
 WWHD_HOOK_RETURN(0x02699094, follow_chart_caption, (u32 menu, u32 chart)) {
     (void)menu;
+    if (!opt.native_build) return;
     if (chart < 49) {
         for (int i = 0; i < snap.chart_count; ++i)
             if (snap.charts[i].index == (int)chart) { selected_chart = (int)chart; break; }
     }
 }
+/* Same empty set selector as native hdTextUnit: resolve %05d across the
+ * installed language's message* sets, rather than hardcoding a regional set. */
+static void read_chart_name(void) {
+    static u32 message[0x924 / 4], set_name[2], label_string[2];
+    static char label[8], cached_name[160];
+    static unsigned long long epoch = ~0ull;
+    static int cached = -1;
+    static unsigned short text[256];
+    snap.chart_name[0] = 0; snap.chart_name_bytes = snap.chart_name_chars = 0;
+    if (!opt.native_build || !snap.chart_count) return;
+    int index = snap.charts[ui.chart].index;
+    unsigned long long now = wwhd_hud_epoch();
+    if (cached != index || epoch != now) {
+        cached = -1; cached_name[0] = 0;
+        u32 manager = WWHD_GAME_DATA(0x101F4AE8, u32);
+        if (!heap_pointer(manager)) return;
+        u32 number = hdm_chart_message(index);
+        if (!number) return;
+        for (int i = 4; i >= 0; --i) { label[i] = (char)('0' + number % 10); number /= 10; }
+        label[5] = 0;
+        set_name[0] = (u32)""; set_name[1] = (u32)&WWHD_GAME_DATA(0x100E0F90, u32);
+        label_string[0] = (u32)label; label_string[1] = set_name[1];
+        chart_msg_construct(message);
+        chart_msg_load(manager, message, set_name, label_string);
+        u32 set = *(u32*)((u8*)message + 8), entry = *(u32*)((u8*)message + 0x118);
+        if (!heap_pointer(set) || entry >= *(u32*)(set + 4)) return;
+        u32 data = *(u32*)set;
+        if (!heap_pointer(data)) return;
+        u32 raw = chart_msg_text(data, entry);
+        if (raw < 0x10000000u || raw > 0x50000000u - sizeof text || (raw & 1)) return;
+        for (int i = 0; i < 256; ++i) text[i] = *(const u16*)(raw + 2 * i);
+        if (!hdm_message_name(text, 256, cached_name, sizeof cached_name)) return;
+        cached = index; epoch = now;
+    }
+    snap.chart_name_bytes = (u32)hdm_put(snap.chart_name, 0, cached_name);
+    for (u32 i = 0; i < snap.chart_name_bytes; ++i)
+        if (((u8)snap.chart_name[i] & 0xc0) != 0x80) ++snap.chart_name_chars;
+}
+
 /* read every step, so that a button held through an event is not taken for a press when it ends; blocked
  * buttons belong to the game. Sailing, the view button shows and hides the map (show / hide is on foot). */
 static void handle_input(u32 blocked, int sailing) {
@@ -1024,6 +1085,7 @@ static void forsaken_outside(u8* play, u32 save) {
 
 WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     if (!initialized) configure();
+    if (!opt.native_build) return;
     wwhd_hud_register(draw, WWHD_HUD_TV);
     u8* play = wwhd_play_get();
     if (!play || !actor || (u32)actor != *(u32*)(play + 0x5B34)) return;
@@ -1090,6 +1152,7 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
         snap.chart_set = *(u8*)(save + SAVE_CHART_SET) & 3;
         read_charts(save);
         handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), snap.on_ship);
+        read_chart_name();
         snap.visible = 1;
         return;
     }

@@ -111,6 +111,9 @@ static inline int hdm_same(const char* a, const char* b) {
     for (; a[i] && b[i]; ++i) if (a[i] != b[i]) return 0;
     return a[i] == b[i];
 }
+static inline int hdm_known_build(const char* build) {
+    return build && (hdm_same(build, "USA") || hdm_same(build, "EU"));
+}
 static inline int hdm_dungeon_of(const char* stage) {
     if (hdm_same(stage, "majroom") || hdm_same(stage, "ma2room") || hdm_same(stage, "ma3room") || hdm_same(stage, "MajyuE")) return 0;
     if (hdm_same(stage, "M_NewD2")) return 1;
@@ -217,8 +220,8 @@ static inline unsigned int hdm_button_bit(const char* s) {
     if (hdm_same(s, "r3")) return 0x20000;
     return 0;
 }
-/* buttons left to the game: all of them during an event or a stage change, and aboard outside the
- * Great Sea (the Tower of the Gods); aboard at sea, D-pad left and right (the cannon and the grappling hook) */
+/* Buttons left to the game: all during events/loading; aboard, left/right remain
+ * cannon/crane in both marine and dungeon-map contexts. */
 #define HDM_ALL_BUTTONS 0xffffffffu
 static inline unsigned int hdm_blocked_buttons(int busy, int on_ship, int at_sea) {
     (void)at_sea;
@@ -266,7 +269,7 @@ enum { HDM_ICON_NONE, HDM_ICON_MAP, HDM_ICON_MAP_UNKNOWN, HDM_ICON_EXPAND, HDM_I
        HDM_ICON_VIEW, HDM_ICON_UNKNOWN, HDM_ICON_COUNT };
 typedef struct { int left, right, down; } hdm_icons;
 /* sea / dungeon: where the minimap is; discovered: the sector's map is known; covered: Link is on its
- * island art. Aboard at sea, left and right are the boat's; aboard elsewhere (the Tower of the Gods) no icon. */
+ * island art. Aboard, left/right are native boat tools and only the bottom shortcut is custom. */
 static inline hdm_icons hdm_dpad_icons(int sea, int dungeon, int on_ship, int hidden, int expanded, int discovered, int covered) {
     hdm_icons d = {HDM_ICON_NONE, HDM_ICON_NONE, HDM_ICON_NONE};
     if (dungeon && on_ship) { d.down = HDM_ICON_VIEW; return d; }
@@ -289,6 +292,45 @@ static inline int hdm_turn_heading(int with_camera, int link, int has_camera, in
 }
 /* Link's heading as drawn on the plan turned so that `up` faces up (0x8000 is up on the panel) */
 static inline short hdm_heading_on_turned(int heading, int up) { return (short)(heading - up + 0x8000); }
+
+/* A bounded first-line MSBT caption, UTF-16 -> UTF-8. Native formatting tags
+ * carry a byte size and may contain NULs; never treat tag payload as text. */
+static inline unsigned int hdm_utf8_put(char* out, unsigned int n, unsigned int capacity, unsigned int cp) {
+    if (cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) cp = 0xfffd;
+    unsigned int bytes = cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+    if (n + bytes >= capacity) return n;
+    if (bytes == 1) out[n] = (char)cp;
+    else if (bytes == 2) { out[n] = (char)(0xc0 | (cp >> 6)); out[n+1] = (char)(0x80 | (cp & 63)); }
+    else if (bytes == 3) { out[n] = (char)(0xe0 | (cp >> 12)); out[n+1] = (char)(0x80 | ((cp >> 6) & 63)); out[n+2] = (char)(0x80 | (cp & 63)); }
+    else { out[n] = (char)(0xf0 | (cp >> 18)); out[n+1] = (char)(0x80 | ((cp >> 12) & 63)); out[n+2] = (char)(0x80 | ((cp >> 6) & 63)); out[n+3] = (char)(0x80 | (cp & 63)); }
+    return n + bytes;
+}
+static inline unsigned int hdm_message_name(const unsigned short* text, unsigned int count,
+                                           char* out, unsigned int capacity) {
+    unsigned int bytes = 0;
+    if (!capacity) return 0;
+    out[0] = 0;
+    for (unsigned int i = 0; text && i < count && text[i];) {
+        unsigned int cp = text[i++];
+        if (cp == 0xe) {
+            if (count - i < 3) break;
+            unsigned int payload = (text[i+2] + 1u) / 2;
+            if (payload > count - i - 3) break;
+            i += 3 + payload;
+            continue;
+        }
+        if (cp == 0xf) { if (count - i < 2) break; i += 2; continue; }
+        if (cp == '\n' || cp == '\r') { if (bytes) break; else continue; }
+        if (cp < 0x20) continue;
+        if (cp >= 0xd800 && cp < 0xdc00 && i < count && text[i] >= 0xdc00 && text[i] < 0xe000)
+            cp = 0x10000 + ((cp - 0xd800) << 10) + text[i++] - 0xdc00;
+        unsigned int next = hdm_utf8_put(out, bytes, capacity, cp);
+        if (next == bytes) break;
+        bytes = next;
+    }
+    out[bytes] = 0;
+    return bytes;
+}
 
 /* Presentation timings adapted from Minimap HD 1.3 (Chironeyes, MIT).
  * Retarget from displayed geometry, so reversals never jump. */

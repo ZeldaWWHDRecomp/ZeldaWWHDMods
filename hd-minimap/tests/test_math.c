@@ -239,6 +239,28 @@ static void contexts(void) {
     }
 }
 
+static void captions(void) {
+    assert(hdm_known_build("USA") && hdm_known_build("EU"));
+    assert(!hdm_known_build(0) && !hdm_known_build("") && !hdm_known_build("JP") && !hdm_known_build("USA2"));
+    char out[64];
+    const unsigned short plain[] = {'T','r','e','a','s','u','r','e',' ', 'C','h','a','r','t',' ', '1',0};
+    assert(hdm_message_name(plain, sizeof plain / 2, out, sizeof out) == 16);
+    assert(!strcmp(out, "Treasure Chart 1"));
+    const unsigned short tagged[] = {0xe,0,3,2,0,'C','a','r','t','e',' ',0xe9,0xd83d,0xddfa,0,'x'};
+    assert(hdm_message_name(tagged, sizeof tagged / 2, out, sizeof out) > 0);
+    assert(!strcmp(out, "Carte \xc3\xa9\xf0\x9f\x97\xba"));
+    const unsigned short bad[] = {'A',0xe,0,1,0xffff};
+    assert(hdm_message_name(bad, sizeof bad / 2, out, sizeof out) == 1 && !strcmp(out, "A"));
+    const unsigned short truncated[] = {0xe,0};
+    assert(hdm_message_name(truncated, 2, out, sizeof out) == 0 && !out[0]);
+    const unsigned short lines[] = {'A','\n','B',0};
+    assert(hdm_message_name(lines, 4, out, sizeof out) == 1 && !strcmp(out,"A"));
+    const unsigned short accent[] = {0xe9,0};
+    assert(hdm_message_name(accent, 2, out, 2) == 0 && !out[0]);
+    assert(hdm_message_name(accent, 2, out, 3) == 2 && !strcmp(out,"\xc3\xa9"));
+    assert(hdm_message_name(plain, 1, out, 0) == 0);
+}
+
 static void animation(void) {
     assert(hdm_ease(-1) == 0 && hdm_ease(2) == 1 && hdm_ease(.5f) == .5f);
     for (int fps = 30; fps <= 120; fps *= 2) {
@@ -263,6 +285,7 @@ static void animation(void) {
 }
 
 int main(void) {
+    captions();
     animation();
     contexts();
     assert(hdm_stable_floor(0x80, 0x81, 0x80, 0x81) == 0x80);
