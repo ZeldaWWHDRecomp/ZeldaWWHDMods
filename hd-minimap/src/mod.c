@@ -91,10 +91,9 @@ static int floor_history = -1, floor_dungeon = -1, floor_role = -1;
 static char floor_stage[9];
 static float wind_phase;
 static void select_choice(int dungeon) {
-    hdm_choice* old = choice_family ? &dungeon_choice : &foot_choice;
-    *old = (hdm_choice){ui.hidden, ui.expanded, ui.zoom};
-    hdm_choice* next = dungeon ? &dungeon_choice : &foot_choice;
-    ui.hidden = next->hidden; ui.expanded = next->expanded; ui.zoom = next->zoom;
+    hdm_choice next = hdm_change_context(&foot_choice, &dungeon_choice, choice_family, dungeon,
+                                         (hdm_choice){ui.hidden, ui.expanded, ui.zoom});
+    ui.hidden = next.hidden; ui.expanded = next.expanded; ui.zoom = next.zoom;
     choice_family = dungeon;
 }
 enum { FEEDBACK_NONE, FEEDBACK_HIDDEN, FEEDBACK_EXPANDED, FEEDBACK_COMPACT };
@@ -117,7 +116,7 @@ static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img
 static u32 img_island, img_chart, img_ribbon, img_chart_base, img_mark, img_mark_fill;
 static u32 img_searchlight[2];  /* searching, stopped */
 static int island_room = -1, island_full = -1, chart_key = -1;
-typedef struct { int pane, room; float x, y, w, h; u32 image; } hdm_room;
+typedef struct { int pane, room; float x, y, w, h; u32 image; char texture[96]; } hdm_room;
 static hdm_room rooms[MAX_ROOMS];
 /* the floor screens' room tables (DungeonMapFloor_00..05): (plan room, floor, room) per plan room; Forsaken
  * Fortress's corridors are in none */
@@ -280,7 +279,11 @@ static void floor_rooms(int dungeon, int floor) {
     static wwhd_game_pane pane;
     static char key[64];
     char tag[3];
-    if (rooms_dungeon == dungeon && rooms_floor == floor) return;
+    if (rooms_dungeon == dungeon && rooms_floor == floor) {
+        for (int i = 0; i < room_count; ++i)
+            if (!rooms[i].image) rooms[i].image = game_image(rooms[i].texture);
+        return;
+    }
     swap_room_cache();
     if (rooms_dungeon == dungeon && rooms_floor == floor) return;
     forget_rooms();
@@ -298,6 +301,7 @@ static void floor_rooms(int dungeon, int floor) {
         hdm_put(name, i, "#P_Outdoor_00");
         rooms[0].pane = -1; rooms[0].room = HDM_OUTDOOR_SECTOR;
         rooms[0].x = pane.x; rooms[0].y = pane.y; rooms[0].w = pane.w; rooms[0].h = pane.h;
+        hdm_put(rooms[0].texture, 0, name);
         rooms[0].image = game_image(name);
         floor_min_x = pane.x - pane.w / 2; floor_max_x = pane.x + pane.w / 2;
         floor_min_y = pane.y - pane.h / 2; floor_max_y = pane.y + pane.h / 2;
@@ -333,6 +337,7 @@ static void floor_rooms(int dungeon, int floor) {
         rooms[room_count].w = pane.w; rooms[room_count].h = pane.h;
         /* every room with the plan's room colours (room 1's material: the entrance pane has a dark one) */
         hdm_room_texture(name, dungeon, pane.texture, 1);
+        hdm_put(rooms[room_count].texture, 0, name);
         rooms[room_count].image = game_image(name);
         if (pane.x - pane.w / 2 < floor_min_x) floor_min_x = pane.x - pane.w / 2;
         if (pane.x + pane.w / 2 > floor_max_x) floor_max_x = pane.x + pane.w / 2;
@@ -791,6 +796,12 @@ static void draw(u32 list) {
     static_images();
     /* Release the outgoing floor after its last presented step. With the SDK's
      * 32-image budget, retaining an inactive floor indefinitely can starve rooms. */
+    if (snap.mode == MODE_DUNGEON && chart_slide.value == 0) {
+        drop(&img_island); island_room = island_full = -1;
+        drop(&img_chart); chart_key = -1;
+        drop(&img_ribbon); drop(&img_chart_base); drop(&img_mark); drop(&img_mark_fill);
+        drop(&img_base); drop(&img_wind); drop(&img_ship);
+    }
     if (snap.mode == MODE_DUNGEON && floor_slide.value >= 1) {
         floor_rooms(snap.dungeon, snap.floor);
         for (int i = 0; i < spare_rooms.count; ++i) drop(&spare_rooms.items[i].image);

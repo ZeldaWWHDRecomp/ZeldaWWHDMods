@@ -235,6 +235,11 @@ static inline int hdm_next_sea_view(int view, int charts) {
 /* View preferences are independent of temporary eligibility and riding state.
  * Behaviour adapted from Minimap HD 1.3, Copyright (c) 2026 Chironeyes, MIT; see NOTICE.md. */
 typedef struct { int hidden, expanded, zoom; } hdm_choice;
+static inline hdm_choice hdm_change_context(hdm_choice* foot, hdm_choice* dungeon,
+                                           int previous, int next, hdm_choice displayed) {
+    *(previous ? dungeon : foot) = displayed;
+    return *(next ? dungeon : foot);
+}
 static inline void hdm_cycle_dungeon(hdm_choice* v) {
     if (v->hidden) { v->hidden = 0; v->expanded = 0; }
     else if (!v->expanded) v->expanded = 1;

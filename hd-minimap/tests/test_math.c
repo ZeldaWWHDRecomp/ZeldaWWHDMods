@@ -210,6 +210,35 @@ static void forsaken_outside(void) {
     assert(HDM_SEARCHLIGHT_SWITCH + HDM_SEARCHLIGHTS - 1 == 103);
 }
 
+static void contexts(void) {
+    /* Every Fortress foot/marine handoff: a different context cannot overwrite
+     * the hidden/compact/expanded dungeon choice or its orientation. */
+    for (int foot_state = 0; foot_state < 3; ++foot_state)
+        for (int marine = 0; marine < 3; ++marine)
+            for (int zoom = 0; zoom < 2; ++zoom) {
+                hdm_choice foot = {0, 0, 0}, dungeon = {foot_state == 0, foot_state == 2, zoom};
+                hdm_choice before = dungeon;
+                hdm_choice now = hdm_change_context(&foot, &dungeon, 1, 0, before);
+                now.hidden = marine == 0; /* independent island choice */
+                now = hdm_change_context(&foot, &dungeon, 0, 1, now);
+                assert(now.hidden == before.hidden && now.expanded == before.expanded && now.zoom == before.zoom);
+                /* Boat/foot within the same dungeon preserves everything. */
+                now = hdm_change_context(&foot, &dungeon, 1, 1, now);
+                assert(now.hidden == before.hidden && now.expanded == before.expanded && now.zoom == zoom);
+            }
+    /* Link, Medli and Makar use the same altitude policy, including glide.
+     * Oscillation inside the +/-32 margin cannot change the accepted floor. */
+    for (int role = 0; role < 3; ++role) {
+        int floor = 0x80;
+        for (int i = 0; i < 120; ++i) {
+            floor = hdm_stable_floor(floor, i & 1 ? 0x80 : 0x81, 0x80, 0x81);
+            assert(floor == 0x80);
+        }
+        floor = hdm_stable_floor(floor, 0x81, 0x81, 0x81);
+        assert(floor == 0x81);
+    }
+}
+
 static void animation(void) {
     assert(hdm_ease(-1) == 0 && hdm_ease(2) == 1 && hdm_ease(.5f) == .5f);
     for (int fps = 30; fps <= 120; fps *= 2) {
@@ -235,6 +264,7 @@ static void animation(void) {
 
 int main(void) {
     animation();
+    contexts();
     assert(hdm_stable_floor(0x80, 0x81, 0x80, 0x81) == 0x80);
     assert(hdm_stable_floor(0x80, 0x81, 0x81, 0x81) == 0x81);
     assert(hdm_stable_floor(0x81, 0x80, 0x80, 0x81) == 0x81);
