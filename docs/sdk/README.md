@@ -13,7 +13,7 @@ macOS, Windows and Linux, for the USA and European game.
 | [Story mods](story.md) | letters, treasure charts, items, quests, the story notebook, talking to residents, the NPC catalogue |
 | [Art, layouts and licences](art.md) | image and model formats, sizes, the Story Notebook's look, the licence rules for assets |
 | [Testing and submitting](testing.md) | building and installing locally, the repository's checks, the pull request |
-| [Worked examples](examples.md) | the Old map, Call of the Sky and the Story Notebook, explained |
+| [Worked examples](examples.md) | the Old map, Call of the Sky, the Story Notebook and QoL extras, explained |
 
 The port's own reference, with the newest services first, is the
 [SDK v2 guide in the port repository](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/blob/devel/docs/mod-sdk-v2.md).
@@ -31,6 +31,8 @@ The repository's rules are in [CONTRIBUTING.md](../../CONTRIBUTING.md) and
 | Mod items (`"items"`, `wwhd_item_*`): icons in the game's item pictures, the Delivery Bag's extra pages, use on X, Y or R | 0.3.0 |
 | Treasure charts like the game's: the light ring, the crane, the chest with a game item or a mod item, the X at its spot in the chart view | 0.3.0 |
 | Quests shown on the chart before they start (step 1's place) | 0.3.0 |
+| Live options, input filters, touches and pinches, points on the picture, the microphone (mod manager 1.6) | 0.5.0 |
+| The game's own HUD art (`WWHD_HUD_GAME`, `wwhd_game_pane_get`) | 0.5.0 |
 
 Port 0.3.0 is the first release with story mods: everything in [Story mods](story.md) needs it. Set
 your catalogue entry's `port_versions.minimum` to the version that has every feature your mod uses.
