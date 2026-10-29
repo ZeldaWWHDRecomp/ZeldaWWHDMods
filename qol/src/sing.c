@@ -37,9 +37,13 @@ static void sing_close(void) {
 }
 
 static void sing_option_changed(void) {
-    const int was = sing_on;
+    static int started;
+    const int was = sing_on, first = !started;
+    started = 1;
     sing_on = wwhd_config_bool("sing_songs", 0);
-    if (sing_on && !was) {  /* turned on: ask now */
+    /* turned on by the player: ask now (not at the game's start with the switch already on: then the microphone opens
+     * only when Link conducts) */
+    if (sing_on && !was && !first) {
         sing_asked = 1, sing_wait = 0;
         sing_open = 1;
         sing_state = wwhd_mic_open();
