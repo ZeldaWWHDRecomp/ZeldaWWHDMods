@@ -175,7 +175,7 @@ static struct { int found; float x, y, w, h; } searchlights[HDM_SEARCHLIGHTS];
 static __typeof__(snap) panel_snap, chart_snap, previous_floor_snap;
 static hdm_tween panel_slide, chart_slide, panel_size, panel_bottom;
 static hdm_tween floor_slide = {1, 1, 1, 0, 0};
-static int chart_tail_index, have_panel, have_chart, floor_direction;
+static int chart_tail_index, have_panel, have_chart, floor_direction, panel_zoom;
 static unsigned long long presentation_step = ~0ull;
 static int presentation_dungeon = -1, presentation_floor = -1;
 static float floor_shift;
@@ -248,6 +248,22 @@ static void forget_images(void) {
     spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
     have_panel = have_chart = floor_direction = 0;
     panel_slide = (hdm_tween){0}; chart_slide = (hdm_tween){0};
+}
+/* Keep only assets that can still be emitted. The SDK permits 32 images per
+ * mod; inactive floor/icon/marker caches must not consume the current family's
+ * budget. Closing panel/chart payloads retain their resources until off-screen. */
+static void release_dungeon_images(void) {
+    forget_rooms();
+    for (int i = 0; i < spare_rooms.count; ++i) drop(&spare_rooms.items[i].image);
+    spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
+    drop(&img_door); drop(&img_chest); drop(&img_boss); drop(&img_medli); drop(&img_makar);
+    drop(&img_searchlight[0]); drop(&img_searchlight[1]);
+}
+static void release_sea_images(void) {
+    drop(&img_island); island_room = island_full = -1;
+    drop(&img_chart); chart_key = -1;
+    drop(&img_ribbon); drop(&img_chart_base); drop(&img_mark); drop(&img_mark_fill);
+    drop(&img_base); drop(&img_wind); drop(&img_ship); drop(&img_unknown);
 }
 static void static_images(void) {
     if (!img_frame) img_frame = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/frame.png");
@@ -698,7 +714,9 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
 /* the shortcut's picture for a moment after a press (Minimap HD's icons), drawn last so that it stays on
  * top of the map, at the panel's top-right corner */
 static void feedback(u32 list, float side) {
-    if (dpad.found || !ui.feedback || ui.feedback_time <= 0) return;  /* the D-pad's icons say it instead */
+    int active = !dpad.found && ui.feedback_time > 0 ? ui.feedback : FEEDBACK_NONE;
+    for (int i = 1; i < 4; ++i) if (i != active) drop(&img_feedback[i]);
+    if (!active) return;  /* the D-pad's icons say it instead */
     if (!img_feedback[ui.feedback]) img_feedback[ui.feedback] = wwhd_hud_texture(WWHD_HUD_PACKAGE, feedback_art[ui.feedback]);
     float t = ui.feedback_time > .3f ? 1 : ui.feedback_time / .3f, size = 56;
     float x = opt.x + side - size * .75f, y = 720 - opt.bottom - side - size * .25f;
@@ -741,13 +759,18 @@ static void dpad_icons(u32 list) {
         wwhd_log_int("dpad.found", dpad.found); wwhd_log_float("dpad.x", dpad.x); wwhd_log_float("dpad.y", dpad.y);
         wwhd_log_float("dpad.scale", dpad.scale); wwhd_log_float("dpad.alpha", dpad.alpha);
     }
-    if (!dpad.found || dpad.alpha <= 0) return;
+    if (!dpad.found || dpad.alpha <= 0) {
+        for (int i = 1; i < HDM_ICON_COUNT; ++i) drop(&img_icons[i]);
+        return;
+    }
     hdm_icons icons = hdm_dpad_icons(snap.mode == MODE_SEA, snap.mode == MODE_DUNGEON, snap.on_ship, ui.hidden, ui.expanded,
                                      snap.discovered, snap.covered);
     /* only on the D-pad buttons that do it */
     if (opt.key_toggle != hdm_button_bit("left")) icons.left = HDM_ICON_NONE;
     if (opt.key_size != hdm_button_bit("right")) icons.right = HDM_ICON_NONE;
     if (opt.key_view != hdm_button_bit("down")) icons.down = HDM_ICON_NONE;
+    for (int i = 1; i < HDM_ICON_COUNT; ++i)
+        if (i != icons.left && i != icons.right && i != icons.down) drop(&img_icons[i]);
     /* the places and sizes of Minimap HD's icons: 68-unit pictures at 0.8 with a half-transparent shadow,
      * the compass 136-unit at 0.5 */
     dpad_icon(list, icons.left, -23, -9, 54.4f, 3, -2, .5f);
@@ -812,7 +835,7 @@ static void draw(u32 list) {
         }
         hdm_tween_step(&floor_slide, dt);
         if (requested) {
-            panel_snap = snap; have_panel = 1;
+            panel_snap = snap; panel_zoom = ui.zoom; have_panel = 1;
             presentation_dungeon = snap.mode == MODE_DUNGEON ? snap.dungeon : -1;
             presentation_floor = snap.floor;
         }
@@ -821,26 +844,30 @@ static void draw(u32 list) {
     float rest = opt.opacity, a = opt.fade ? hdm_fade_opacity(&fade, rest, opt.faded) : rest;
     if (a <= 0) return;
     static_images();
-    /* Release the outgoing floor after its last presented step. With the SDK's
-     * 32-image budget, retaining an inactive floor indefinitely can starve rooms. */
-    if (snap.mode == MODE_DUNGEON && chart_slide.value == 0) {
-        drop(&img_island); island_room = island_full = -1;
-        drop(&img_chart); chart_key = -1;
-        drop(&img_ribbon); drop(&img_chart_base); drop(&img_mark); drop(&img_mark_fill);
-        drop(&img_base); drop(&img_wind); drop(&img_ship);
+    const __typeof__(snap)* payload = !requested && have_panel ? &panel_snap : &snap;
+    int dungeon_payload = have_panel && panel_slide.value > 0 && payload->mode == MODE_DUNGEON;
+    int sea_payload = (have_panel && panel_slide.value > 0 && payload->mode == MODE_SEA) || chart_slide.value > 0 ||
+                      (snap.mode == MODE_SEA && !snap.discovered && snap.covered && (!ui.hidden || marine));
+    if (!dungeon_payload) release_dungeon_images();
+    else {
+        if (!payload->outdoor) { drop(&img_searchlight[0]); drop(&img_searchlight[1]); }
+        if (payload->dungeon != 4) drop(&img_medli);
+        if (payload->dungeon != 5) drop(&img_makar);
+        if (floor_slide.value >= 1) {
+            floor_rooms(payload->dungeon, payload->floor);
+            for (int i = 0; i < spare_rooms.count; ++i) drop(&spare_rooms.items[i].image);
+            spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
+        }
     }
-    if (snap.mode == MODE_DUNGEON && floor_slide.value >= 1) {
-        floor_rooms(snap.dungeon, snap.floor);
-        for (int i = 0; i < spare_rooms.count; ++i) drop(&spare_rooms.items[i].image);
-        spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
-    }
+    if (!sea_payload) release_sea_images();
     float side = panel_size.value;
     float x = opt.x - (1 - panel_slide.value) * (side + opt.x + 8);
     float y = 720 - side - panel_bottom.value;
     static __typeof__(snap) current;
     current = snap;
+    int current_zoom = ui.zoom;
     if (panel_slide.value > 0 && have_panel) {
-        if (!requested) snap = panel_snap;
+        if (!requested) { snap = panel_snap; ui.zoom = panel_zoom; }
         if (snap.mode == MODE_SEA) draw_sea(list, x, y, side, a);
         else if (snap.mode == MODE_DUNGEON) {
             int sliding = floor_slide.value < 1 && floor_direction && snap.dungeon == previous_floor_snap.dungeon;
@@ -856,7 +883,7 @@ static void draw(u32 list) {
             floor_shift = 0;
         }
     }
-    snap = current;
+    snap = current; ui.zoom = current_zoom;
     /* A chart owns its exit independently, even when the foot map is hidden. */
     if (chart_slide.value > 0 && have_chart) {
         int chart = ui.chart;
