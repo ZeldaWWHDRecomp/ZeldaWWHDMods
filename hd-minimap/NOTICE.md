@@ -1,10 +1,12 @@
 # Notice
 
 HD minimap is based on **Minimap HD** by [@Chironeyes](https://github.com/Chironeyes)
-(<https://github.com/Chironeyes/The.Wind.Waker.HD-Minimap.HD>, version 1.2.1). Its README and
+(<https://github.com/Chironeyes/The.Wind.Waker.HD-Minimap.HD>, version 1.3). Its README and
 documentation served as the specification of this mod's behaviour.
 
-This mod's own code is licensed under MPL-2.0 (see `LICENSE`). Its patch code was not used. The
+This mod's own code is licensed under MPL-2.0 (see `LICENSE`). Its assembly is not transplanted.
+Context preferences, transition timings, controlled-sage identity checks, floor hysteresis and
+chart-message ranges are adapted from the MIT-licensed 1.3 behaviour and source. The
 following files are Chironeyes' artwork, rasterised to PNG from the SVG sources in that repository's
 `assets/` folder, and are used under the MIT licence below:
 

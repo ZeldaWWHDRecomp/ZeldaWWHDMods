@@ -15,10 +15,10 @@ its own implementation for the port; it does not use the pack's patches.
 | Great Sea, discovered sector, near its island | The sector's island map on the see-through (lightly darkened) panel, with Link (or the boat) and the wind direction |
 | Undiscovered sector | No map; a faded map with a question mark |
 | Out at sea, away from the island | Nothing; the game's own compasses |
-| Sailing, with an owned treasure chart | Optionally the chart beside the minimap: the chart art centred on the treasure's X, as the game's chart screen shows it, with its number (Triforce charts once deciphered) |
-| Dungeon with the Map | The plan of Link's current floor with its doors; Link's room bright, unvisited rooms dimmed |
+| Sailing, with an owned treasure chart | Optionally the chart beside the minimap: the chart art centred on the treasure's X, as the game's chart screen shows it, with its name in the game's language (Triforce charts once deciphered) |
+| Dungeon with the Map | The plan of the controlled character's current floor with its doors; Link's room bright, unvisited rooms dimmed |
 | Dungeon with the Compass | Unopened chests on this floor and the boss icon at the boss door (until the boss is beaten) |
-| Earth / Wind Temple | Medli or Makar when they are on Link's floor |
+| Earth / Wind Temple | The controlled character; the other character when on the same floor |
 | Dungeon without the Map, other places | No minimap |
 | Pause menu, menus, first person, aiming, conducting, cutscenes, loading | Hidden |
 
@@ -29,22 +29,30 @@ options:
 
 | Input | Action |
 | --- | --- |
-| D-pad left | Show or hide the minimap (on foot) |
-| D-pad right | Compact or expanded (on foot) |
-| D-pad down | In a dungeon: zoom on Link, turned with Link or with the camera like the GamePad's zoomed map (options). Sailing: compasses only → minimap → minimap and chart |
-| L stick click | Sailing chart view: next owned chart |
+| On foot: D-pad left | Show or hide the current map family |
+| On foot: D-pad right | Compact or expanded |
+| Dungeon on foot: D-pad down | Toggle zoom and camera-relative orientation (configurable) |
+| Dungeon aboard: D-pad down | Compact → expanded → hidden → compact |
+| Dungeon aboard: L stick click | Toggle zoom/orientation while visible |
+| Marine sailing: D-pad down | Compasses → minimap → minimap and chart |
+| Marine chart view: L stick click | Next eligible owned chart |
 
-Aboard the boat, D-pad left and right stay the boat's own (cannon and grappling hook) and D-pad down
-shows and hides the minimap: boarding with the minimap hidden starts with the compasses alone. On the
-boat in the Tower of the Gods, every button is left to the game. A button held through a cutscene or
-dialogue does nothing when it ends.
+Aboard, D-pad left/right remain the game's cannon/crane controls. Dungeon visibility,
+size and zoom are shared across foot, swimming and boat travel. Island and dungeon
+choices are separate; marine view and chart choices persist independently of foot
+visibility and temporary coverage loss. Maps require local coverage on foot, while
+swimming and aboard. Menus and cutscenes take priority.
 
-Minimap HD's icons beside the HUD's D-pad (under the hearts) show what it does. On foot: the folded map
-on the left (faded in an undiscovered sector) and, while the minimap is shown, expand or reduce on the
-right and, in a dungeon, the game's compass on down (the zoom). Sailing, only down: the open map while
-the island is in view, the question mark in an undiscovered sector. They move and fade with the HUD's
-D-pad, and an icon is drawn only while its D-pad button keeps that action in the options. If the HUD's
-D-pad cannot be read, the minimap's corner shows the icon briefly instead.
+The dungeon plan follows Link, or Medli/Makar while controlled through Command Melody,
+with altitude-based floor updates and a small boundary margin to avoid flicker.
+Panels enter/resize over 200 ms and leave over 250 ms. Floors slide vertically inside
+a fixed frame; the wind arrow gently pulses on island maps.
+
+The shortcut icons beside the HUD's D-pad move and fade with it. On foot, left
+shows the map toggle; right shows expand/reduce while visible; down shows dungeon
+zoom. Aboard, only the bottom map shortcut is custom. An icon appears only while
+its D-pad button retains that action in the options. If the HUD's D-pad cannot be
+read, the corner feedback icon is used.
 
 ## Settings
 
@@ -62,17 +70,24 @@ restart, like every code mod option.
 - The map pictures are not in this package. The port reads them from your installed game while it
   runs, in your game's language. The mod only names the game's layouts, textures and panes.
 
-## Known limits (0.1.2)
+## Known limits (0.2.0)
 
-- The treasure chart's ribbon shows the chart's number, not its name (the names are game text).
-- Link's position is not drawn on the treasure chart (as in Minimap HD).
-- D-pad left shows the same folded map whether the minimap is shown or hidden.
+- The treasure ribbon uses native localized names, with a numeric fallback if the
+  message cannot be read. Eligible GamePad selections are followed; synchronization
+  back to the GamePad remains open after investigating its native selection path.
+- The sailing map stays above the game's compasses. Native compass replacement and
+  its return delay await the port lead's decision; see [SDK proposal](SDK-PROPOSAL.md).
+- Link and boat markers are never drawn on treasure charts.
+- Command Melody, airborne companions, boat controls and chart handoffs need further
+  gameplay validation. The possible Tower room omission is not confirmed resolved.
+- This version is a parity follow-up, not a claim of complete Minimap HD 1.3 equivalence.
 
 ## Checked in the game
 
-USA and European game builds; Metal and Vulkan; 30 fps, interpolated 60 fps and true 60 fps. Places checked:
-Outset; sailing aboard the boat with treasure charts; Forsaken Fortress; Dragon Roost Cavern; Forbidden
-Woods; Tower of the Gods; Earth Temple; Wind Temple (with and without the Map and Compass).
+Earlier 0.1.x testing covered USA/EU, Metal/Vulkan and multiple frame rates. That
+coverage does not validate these new changes. The 0.2.0 campaign uses an isolated,
+newly created USA quest, native stage warps and test-only Map/Compass flags. See
+[parity report](PARITY.md) for exact scenes, evidence and remaining gaps.
 
 ## Tests
 
@@ -81,7 +96,22 @@ Woods; Tower of the Gods; Earth Temple; Wind Temple (with and without the Map an
 buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and framing,
 the Forsaken Fortress plan turn, its outside and searchlights, and the dungeon zoom's turn. No game data is included.
 
+## Credits and licensing
+
+Based on [Minimap HD 1.3](https://github.com/Chironeyes/The.Wind.Waker.HD-Minimap.HD)
+by Chironeyes. Context rules, timings, controlled-character identity checks, floor
+hysteresis and chart-message ranges were translated from its MIT-licensed source;
+no assembly or game assets are shipped. Copyright (c) 2026 Chironeyes. The complete
+MIT copyright and permission notice is retained in [NOTICE.md](NOTICE.md), including
+attribution for the frame, wind arrow and shortcut artwork. This mod's code remains
+MPL-2.0; adapted portions retain that MIT notice.
+
 ## Changes
+
+- **0.2.0:** independent remembered contexts, dungeon boat controls, controlled-character
+  focus, stabilized altitude floors, animated presentation and wind, Fortress outdoor
+  chest capture, multi-floor room eligibility, native localized chart names and
+  read-only GamePad chart following.
 
 - **0.1.2:**
   - Aboard the boat, D-pad left and right stay the cannon and grappling hook (D-pad left no longer also
