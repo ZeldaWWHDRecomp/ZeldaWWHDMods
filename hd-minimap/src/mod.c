@@ -1012,6 +1012,8 @@ static void forsaken_outside(u8* play, u32 save) {
         wwhd_log_hex("outdoor.searchlight_image0", img_searchlight[0]); wwhd_log_hex("outdoor.searchlight_image1", img_searchlight[1]);
     }
     if (snap.has_compass) {
+        u8* list = stage_treasures();
+        if (list) capture_chests(save + SAVE_MEMBIT, list + 4, *(s32*)list, 1, 2);
         u8* room = room_data((u32)play + 0x51cc, HDM_OUTDOOR_SECTOR);
         u8* t = room ? *(u8**)(room + 0x40) : 0;
         if (t) capture_chests(save + SAVE_MEMBIT, *(u8**)(t + 4), *(s32*)t, 1, 2);
