@@ -78,8 +78,8 @@ restart, like every code mod option.
 - The sailing map stays above the game's compasses. Native compass replacement and
   its return delay await the port lead's decision; see [SDK proposal](SDK-PROPOSAL.md).
 - Link and boat markers are never drawn on treasure charts.
-- Command Melody, airborne companions, boat controls and chart handoffs need further
-  gameplay validation. The possible Tower room omission is not confirmed resolved.
+- Tower boat controls and boat-to-swimming state retention were checked. Command
+  Melody, airborne companions and sea chart handoffs need further gameplay validation. The possible Tower room omission is not confirmed resolved.
 - This version is a parity follow-up, not a claim of complete Minimap HD 1.3 equivalence.
 
 ## Checked in the game

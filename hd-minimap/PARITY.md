@@ -18,8 +18,8 @@ stated separately; headless checks do not establish companion or boat gameplay.
 
 | # | Requested behavior | Status and evidence |
 | --- | --- | --- |
-| 1 | Tower boat Down: compact/expanded/hidden; L3 zoom | **Done — `41f6830`**. Boat left/right stay native. Cycle and hidden-to-visible L3 rules checked headlessly; Tower swimming reached, actual Tower boat not reached. |
-| 2 | Shared dungeon state on foot/boat | **Done — `41f6830`, `1ba6c41`**. One dungeon choice survives riding changes; context matrix checks hidden/compact/expanded and both orientations. |
+| 1 | Tower boat Down: compact/expanded/hidden; L3 zoom | **Done — `41f6830`**. Boat left/right stay native. `tower-boat-17` verifies native riding, compact/expanded/hidden cycling and L3 zoom; cycle/hidden rules also pass headlessly. |
+| 2 | Shared dungeon state on foot/boat | **Done — `41f6830`, `1ba6c41`**. `boat-handoffs-18/frame_10800_present.png` verifies expanded/zoom survives native disembark into Tower swimming. One dungeon choice survives riding changes; context matrix checks hidden/compact/expanded and both orientations. |
 | 3 | Independent remembered marine view/chart | **Done — `41f6830`, `103b5d4`, `6a7e010`, `583d9b8`**. First marine use inherits the last foot choice; subsequent boarding preserves the marine request; chart identity uses native remapped indices, not eligible-list positions. |
 | 4 | Follow controlled Medli/Makar: facing/floor/center, return to Link | **Done — `41f6830`, `14d8da2`**. Native companion identity must match current control, exact temple stage and a valid pointer. Stable Link drives capture. Actual Command Melody was not reached; source/identity/floor rules reviewed and headlessly checked. |
 | 5 | Continuous zoom/camera across role/floor changes | **Done — `a96de49`**. Retained normalized camera pose and shortest-angle interpolation; a fixed zoom span avoids per-floor resets. DRC zoom checked; companion handoff remains unplayed. |
@@ -46,14 +46,14 @@ Source: [upstream CHANGELOG.md](https://github.com/Chironeyes/The.Wind.Waker.HD-
 | Fix 2: independent views/chart, temporary coverage loss, no hidden-to-hidden flash | **Done — `41f6830`, `103b5d4`, `a96de49`, `1ba6c41`**. Context matrix and zero-to-zero tween checks pass. |
 | Fix 3: animated family resize; treasure finishes leaving into hidden foot map | **Done — `a96de49`**. Size tween persists across family changes; chart tail has its own captured data and fraction. Foot resize verified; boat tail gameplay unverified. |
 | Fix 4: no compass return jump or flash behind entering maps | **Open: needs an SDK addition**, part of gap 13. Native compasses are not modified. |
-| Fix 5: Tower boat plan/controls/frame on direct load and after marine charts | **Done — `41f6830`, `a96de49`** in guest logic. Current family resolves before input; no boarding-time dungeon reset. Actual Tower boat/direct boat load unplayed. |
+| Fix 5: Tower boat plan/controls/frame on direct load and after marine charts | **Done — `41f6830`, `a96de49`** in guest logic. Current family resolves before input; no boarding-time dungeon reset. A native portable restart into the Tower boat is verified; handoff from marine charts is not yet exercised. |
 | Fix 6: aligned resources avoid shifted frame/left-edge strip | **Not applicable to our port**: Cemu image-buffer alignment/patch layout is not used. The port's HUD texture handles and one fixed frame rectangle are retained; DRC/Tower/Fortress captures inspected. |
 | Fix 7: camera-oriented continuity across character/floor changes | **Done — `a96de49`**; retained pose/zoom. Companion handoff gameplay remains unplayed. |
 | QoL 1: controlled Medli/Makar and restoration of Link | **Done — `41f6830`, `14d8da2`**, with the explicit gameplay limit in gap 4. |
 | QoL 2: Link/Makar/Medli airborne floor updates, including glide | **Done — `41f6830`, `1ba6c41`**, with source/table review and synthetic checks; actual companion flight unplayed. |
 | QoL 3: floors/markers slide vertically, fixed frame, correct direction | **Done — `a96de49`**. Ascending sends old plan downward/new plan in from above; descending reverses it. A scripted Link height change captured the floor update and slide; natural stair/flight traversal and companions remain unplayed. |
 | QoL 4: preserve dungeon visibility/size/orientation across foot/swim/boat and Tower re-entry | **Done — `41f6830`, `1ba6c41`**. Shared state and context tests; Tower swimming plan reached. |
-| QoL 5: boat dungeon Down/L3; native left/right; only bottom custom shortcut | **Done — `41f6830`**. Headless input/icon checks; no actual boat fixture. |
+| QoL 5: boat dungeon Down/L3; native left/right; only bottom custom shortcut | **Done — `41f6830`**. Headless input/icon checks plus native Tower boat cycle/zoom captures in `tower-boat-17`. |
 | QoL 6: 250 ms exits, 200 ms compass-return delay, reversals | **Done for private panel exits/reversals — `a96de49`**; **open: needs an SDK addition** for native compass delay/continuous presentation. |
 | Validation paragraph 1: Cemu 2.6 Pro Controller regional campaign | **Not applicable as port validation**. Upstream's campaign is not inherited by this follow-up; local evidence is listed below. |
 | Validation paragraph 2: 1,242 synthetic checks, instruction/hook/buffer counts and ending observer | **Not applicable to the guest renderer**. No claim that those PPC checks test this C mod. Local C tests and USA/EU module builds are separate evidence. |
@@ -68,7 +68,7 @@ Source: [upstream CHANGELOG.md](https://github.com/Chironeyes/The.Wind.Waker.HD-
   250 ms exits, chart-message ranges, UTF-16 tags/surrogates/truncation and build gates.
 - Strict PowerPC compile passes with `-Wall -Wextra -Werror`. Final relocatable ELF
   translates and compiles into native modules for both USA and EU. Release ELF SHA-256:
-  `689da8b68c2158cbea0da21855dcd0d1f011f2e8f1e1ff9d56a973802f7094fa`.
+  `bb477dae8a45fbe22e367994bc4d321cf4a0f0a6c67c1150b998f78561fbe4fd`.
 - UndefinedBehaviorSanitizer host tests pass. AddressSanitizer could not start:
   the macOS sanitizer runtime deadlocked during shadow-memory initialization before
   `main` (sample retained). Its own process was stopped; no ASan pass is claimed.
@@ -79,12 +79,31 @@ Source: [upstream CHANGELOG.md](https://github.com/Chironeyes/The.Wind.Waker.HD-
   progression/playthrough claim.
 - DRC on foot, Tower entrance while swimming, Fortress exterior, and Outset island
   were reached. DRC show/hide/resize/zoom and contextual plans were captured. Command
-  Melody, companion flight/glide, actual boating and the unspecified missing Tower
-  room were not reached. No lead-approved scene saves were supplied.
+  Melody, companion flight/glide and the unspecified missing Tower room were not reached.
+  Tower boat controls were subsequently checked using the authored native restart fixture. No lead-approved scene saves were supplied.
 - English/French chart previews use a private derivative with **only** an extra draw
   call showing the chart on foot. They verify the native message/inventory path,
   artwork and caption layout; they do not verify boat controls or chart handoff.
   The preview source/ELF is outside the repository; no preview condition is shipped.
+- Additional audit: `52769d2` fixes Fortress exterior Down handling before its mode
+  was changed to dungeon, and clears altitude history when leaving a dungeon or
+  starting a stage transition. `fortress-zoom-13` captures confirm Down now zooms.
+- Native boat fixture: `tower-portable-15` captures this task's own new Quest Log.
+  `tower-boat-17` derives a portable restart with `has_ship/on_ship` metadata and
+  event bit 0x0F80, the creation prerequisite checked by `daShip_c::create` at
+  0x0247C358. The native restart creates a real boat; logs show its actor position
+  and riding status. No live HUD/riding-status flag is overridden by the mod.
+  This is authored fixture setup, not natural story progression.
+- Resource audit: `b417ade` releases inactive image families, icons and markers within
+  the SDK limit of 32 images, retaining outgoing chart/panel resources until off-screen.
+  Native two-floor artwork counts peak at 21 in Tower; stale unrelated caches could
+  otherwise starve room loads. This mitigation does not establish gap 12 resolved.
+  The closing panel also retains its own zoom choice across a context change.
+  `boat-handoffs-18/19` exercised the cleanup before that final zoom snapshot refinement;
+  the final ELF has compile/translation and host checks, not another gameplay run.
+- Sea handoff attempts `boat-handoffs-18/19` finish cleanly but enter native story
+  dialogue at Outset. Their sea chart cycle/exit captures are inconclusive; no
+  gameplay pass is claimed for marine memory, treasure exit, or hidden-to-hidden handoff.
 - Single-translation-unit guest builds ran serially; no port build was required.
   The runner now checks load immediately before launch and refuses above 90. One
   earlier preview pair started before the tool's load result (93.28) was inspected;
@@ -103,6 +122,9 @@ Each run retains its exact `environment.json`, isolated saves, package and logs.
 | DRC entering | `release-scenes-11/frame_8754_present.png`, `frame_8800_present.png` |
 | Resize intermediate/end | `release-scenes-11/frame_9004_present.png`, `frame_9010_present.png` |
 | Camera zoom | `release-scenes-11/frame_9500_present.png` |
+| Fortress exterior Down overview/zoom regression | `fortress-zoom-13/frame_8800_present.png`, `frame_9200_present.png` |
+| Tower native boat cycle/zoom | `tower-boat-17/frame_9200_present.png` (compact), `frame_9360_present.png` (expanded), `frame_9460_present.png` (zoom), `frame_9660_present.png` (hidden), `frame_9960_present.png` (compact restored) |
+| Tower boat → swimming retains expanded zoom | `boat-handoffs-18/frame_10260_present.png`, `frame_10800_present.png` |
 | Tower entrance plan while swimming | `release-scenes-11/frame_10600_present.png`, `frame_11000_present.png` |
 | Fortress exterior / opened-chest check | `release-scenes-11/frame_12400_present.png`, `frame_12800_present.png`; `log-retry` |
 | Scripted Link height/floor transition | `airborne-floor-12/frame_9240_present.png`, `frame_9254_present.png`, `frame_9258_present.png`; `log-retry`: floor 128 → 130 → 128. Link is deliberately moved above the room ceiling, so the world camera can show black; this is not a natural traversal test. |
@@ -122,7 +144,7 @@ chart lifecycle and why compass Wait reopens. [SDK-PROPOSAL.md](SDK-PROPOSAL.md)
 defines supported calls, ownership, failure behavior and automatic undo.
 
 No cleanup is performed without approval. Retention candidates are the private proof
-folder (about 1.5 GiB including self-created states/saves/builds), reference clone
+folder (including self-created states/saves/builds; exact size in the inventory), reference clone
 (about 66 MiB), and research/object files with the `hd-minimap-` prefix in the parent
 work folder. Exact paths and sizes are listed in the private proof folder's
 `retained-paths.json`. The local mods checkout (about 15 MiB) is the deliverable,
