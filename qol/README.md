@@ -9,13 +9,13 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 | **Link's clothes** | Link | The Hero's clothes or the casual clothes (the lobster shirt) at any time. "As in the story" gives Link the clothes the story gave him. |
 | **Replay conducted songs** | Songs | After you conduct a song, Link plays it back before its effect, as on the GameCube (the HD version skips the replay for songs you played before). |
 | **Songs by touch** | Songs | While Link holds up the Wind Waker: a button for each song he knows (a tap plays it, as if conducted; a scene that waits for one song shows only that one) and four note pads to conduct by touch. |
+| **Sing the songs** (experimental) | Songs | While Link holds up the Wind Waker, sing, hum or whistle a song's notes into the microphone and he plays it, as if conducted (any key, any octave, any tempo; only songs he knows). A line at the top shows what is heard. |
 | **One-hit kills** | Combat | Every enemy goes down with any hit. Bosses that count their hits are not changed. |
 | **Minigames by touch** | Minigames | Sploosh Kaboom: tap a square to aim there and fire. The Cabana's picture puzzles: tap a piece in the gap's row or column, or drag it towards the gap, and it slides there (with the pieces between). Mail sorting at the Rito post: tap a slot to throw the letter there. Spectacle Island's cannon game: drag to turn the cannon (sideways: left and right; up and down: farther and nearer), tap to fire. The auction: tap anywhere to press A (each tap raises your gauge; the bid's number is entered with the port's **Talks, answers and shops by touch**). The Nintendo Gallery: while you look at a figurine, keep a finger on the picture and move it to turn the figurine, pinch to zoom (the mouse wheel on a computer). |
 | **Picto subjects** | Picto Box | In the Picto Box album, a label over the picto says whether it is good for a Nintendo Gallery figurine, and if not, why: black and white, turned away or out of view, partly hidden, or no figurine subject. |
 | **Album pages** | Picto Box | More pages of 12 pictos in the Picto Box album. In the album, **L** turns to the next page and **ZL** back (or tap the arrows at the top of the album). Turning past the last page starts a new, empty page; an empty page at the end goes again when you leave it. |
 | **Mail pictos at postboxes** | Picto Box | Stand in front of a postbox of the Island Postal Service and use the Picto Box (its item button): choose a picto, and the postbox takes the figurine order Carlov would take at the Nintendo Gallery (the same checks: a colour picto of a gallery subject not made or ordered yet, face and body seen; up to 12 orders). The picto leaves your album, as when you give it to Carlov. The figurine is ready the next day: Carlov hands it over at the gallery as usual. While this is on, the Picto Box can't take pictures while you face a postbox. |
 
-More extras will join this package (singing the songs); each one is a switch of its own.
 
 ## Needs
 
@@ -32,6 +32,12 @@ More extras will join this package (singing the songs); each one is a switch of 
   On Android they take the finger with the on-screen controls shown or hidden; on the GamePad picture
   (picture-in-picture, or the phone showing the GamePad) the game's own touch keeps it.
 - Android: built and run the same way as on a computer, not yet tested on a phone.
+- Sing the songs and the microphone: off by default. Nothing asks for the microphone at install or start. When you
+  turn **Sing the songs** on, the system asks you then (Android's microphone permission, the macOS prompt); if you
+  decline, the switch goes back off with a short note, and you can allow the microphone later in the system settings.
+  After the question the microphone is closed again and opens only while Link holds up the Wind Waker; turning the
+  switch off closes it at once. The sound is only analysed for its pitch by the game while you play: it is never
+  stored, written, logged or sent anywhere, and this package never gets the sound itself, only the pitch.
 - Album pages: page 1 is always the game's own album, the only page the game saves. The other pages are files of
   this package in its own data folder (Mods data, `qol`), one set per save file; they are written when you turn a
   page and when the game saves. When the game saves while another page is shown, page 1 is put back for the save, so

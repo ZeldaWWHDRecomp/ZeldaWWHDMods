@@ -2,9 +2,9 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "game_id": "wwhd",
-  "minimum_manager_version": "1.5.0",
+  "minimum_manager_version": "1.6.0",
   "kind": "guest",
   "experimental": true,
   "guest": {
@@ -13,7 +13,7 @@
     "heap_size": 1048576
   },
   "author": "ZeldaWWHDRecomp contributors",
-  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, songs by touch, one-hit kills, minigames by touch.",
+  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, songs by touch, singing the songs, one-hit kills, minigames by touch.",
   "options": [
     {
       "id": "clothes",
@@ -79,6 +79,17 @@
       "live": true,
       "section": "Songs",
       "description": "While Link holds up the Wind Waker: a button for each song he knows plays it, and four note pads conduct by touch."
+    },
+    {
+      "id": "sing_songs",
+      "type": "bool",
+      "name": "Sing the songs (experimental)",
+      "default": false,
+      "menu": true,
+      "live": true,
+      "section": "Songs",
+      "permission": "microphone",
+      "description": "While Link holds up the Wind Waker, sing, hum or whistle a song's notes into the microphone and he plays it. Turning this on asks for the microphone; the sound is only analysed for its pitch, never stored or sent."
     },
     {
       "id": "one_hit_kills",

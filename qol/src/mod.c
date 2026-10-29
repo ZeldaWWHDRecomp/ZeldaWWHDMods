@@ -9,6 +9,7 @@
  *   minigames.c       minigames by touch: the Cabana's puzzles, mail sorting, the cannon game, the auction, figurines
  *   pages.c           album pages: more pages of 12 pictos, kept in this package's files
  *   postbox.c         pictos mailed to Carlov at the postboxes (his own figurine order)
+ *   sing.c            sing the songs into the microphone (experimental)
  * Adding a feature: its file (an <name>_option_changed and its step or hooks), its option in manifest.json and
  * one line in the table below.
  * Ideas from the GreenNaugahyde Android fork (MPL-2.0), reimplemented as a guest mod. */
@@ -22,6 +23,7 @@
 #include "minigames.c"
 #include "pages.c"
 #include "postbox.c"
+#include "sing.c"
 
 static qol_feature features[] = {
     {"clothes", clothes_option_changed, 0},
@@ -33,6 +35,7 @@ static qol_feature features[] = {
     {"minigame_touch", mg_option_changed, 0},
     {"album_pages", pg_option_changed, 0},
     {"postbox_pictos", pb_option_changed, 0},
+    {"sing_songs", sing_option_changed, 0},
 };
 
 /* the live options: a feature reads its option again when its revision changed (also once at start) */
@@ -50,6 +53,7 @@ static void hud(u32 list) {
     picto_draw(list);
     pg_draw(list);
     songs_draw(list);
+    sing_draw(list);
 }
 static void touch(const wwhd_touch_event* e) {
     if (!kaboom_touch(e) && !mg_touch(e) && !pg_touch(e)) songs_touch(e);
@@ -57,6 +61,7 @@ static void touch(const wwhd_touch_event* e) {
 static void filter(wwhd_input_state* s) {
     options();  /* (also while Link doesn't step: a minigame's own camera) */
     songs_filter(s);
+    sing_filter(s);
     kaboom_filter(s);
     mg_filter(s);
     pg_filter(s);

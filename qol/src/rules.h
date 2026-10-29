@@ -126,3 +126,110 @@ static int qol_pg_turn(int cur, int count, int dir, int cur_used) {
     if (to < count) return to;
     return to == count && cur_used > 0 ? to : -1;
 }
+
+/* ---- singing the songs (sing.c): a pitch per step becomes notes, a phrase of notes becomes a song. Notes: a steady
+ * pitch for at least QOL_SING_MIN_NOTE seconds, split where the pitch jumps; a phrase ends after QOL_SING_PAUSE seconds
+ * without a pitch. A phrase is one of the songs when its notes have the song's intervals: any key, octave and tempo.
+ * The songs' notes are the game's (the GameCube decompilation's JAIZelInst tables, the same in HD): each song is a
+ * pattern of baton directions in its beat, each direction a pitch per beat (MIDI note numbers below). */
+#define QOL_SING_MIN_NOTE 0.1f
+#define QOL_SING_PAUSE 0.7f
+#define QOL_SING_JUMP 0.8f      /* semitones from the note's pitch: a new note */
+#define QOL_SING_TOLERANCE 1.0f /* semitones: how far a sung note may be off the song's interval */
+#define QOL_SING_MAX 8
+
+/* log2 for the pitch (no libm in a guest mod): exponent from the float's bits, the mantissa's log by a series */
+static float qol_log2(float x) {
+    union { float f; unsigned u; } v = {x};
+    if (!(x > 0)) return -1000.0f;
+    int e = (int)((v.u >> 23) & 0xFF) - 127;
+    v.u = (v.u & 0x007FFFFFu) | 0x3F800000u;  /* the mantissa, 1..2 */
+    float m = v.f, t = (m - 1.0f) / (m + 1.0f), t2 = t * t;  /* ln m = 2 atanh t */
+    float ln = 2.0f * t * (1.0f + t2 / 3.0f + t2 * t2 / 5.0f + t2 * t2 * t2 / 7.0f + t2 * t2 * t2 * t2 / 9.0f);
+    return (float)e + ln * 1.44269504f;
+}
+static float qol_midi(float hz) { return hz > 0 ? 69.0f + 12.0f * qol_log2(hz / 440.0f) : 0; }
+
+/* the songs (melody numbers of the game) and their forms: the notes, and the same with repeated notes run together */
+#define QOL_SONGS 6
+static const int qol_song_beat[QOL_SONGS] = {3, 4, 4, 6, 6, 3};
+enum { QOL_C, QOL_U, QOL_R, QOL_D, QOL_L };
+static const signed char qol_song_dirs[QOL_SONGS][7] = {
+    {QOL_U, QOL_L, QOL_R, -1},                      /* Wind's Requiem */
+    {QOL_D, QOL_R, QOL_L, QOL_U, -1},               /* Ballad of Gales */
+    {QOL_L, QOL_C, QOL_R, QOL_C, -1},               /* Command Melody */
+    {QOL_D, QOL_D, QOL_C, QOL_R, QOL_L, QOL_C, -1}, /* Earth God's Lyric */
+    {QOL_U, QOL_U, QOL_D, QOL_R, QOL_L, QOL_R, -1}, /* Wind God's Aria */
+    {QOL_R, QOL_L, QOL_D, -1},                      /* Song of Passing */
+};
+static const unsigned char qol_beat3[5] = {48, 60, 57, 62, 53}, qol_beat4[5] = {59, 60, 57, 62, 53},
+                           qol_beat61[5] = {62, 69, 66, 57, 64}, qol_beat62[5] = {62, 69, 67, 57, 64};
+/* song s's notes (MIDI) into out; merged: repeated notes run together; aria_level: the Aria's low note an octave up */
+static int qol_song_notes(int s, int merged, int aria_level, float* out) {
+    const signed char* d = qol_song_dirs[s];
+    const unsigned char* t = qol_song_beat[s] == 3 ? qol_beat3 : qol_song_beat[s] == 4 ? qol_beat4 : d[0] == QOL_U ? qol_beat62 : qol_beat61;
+    int n = 0;
+    for (int i = 0; d[i] >= 0; i++) {
+        float note = t[d[i]] + (aria_level && s == 4 && i == 2 ? 12.0f : 0.0f);
+        if (merged && n && out[n - 1] == note) continue;
+        out[n++] = note;
+    }
+    return n;
+}
+/* the song the notes are (-1 none): the best of all songs' forms with the same count of notes, each note within
+ * QOL_SING_TOLERANCE of the form's interval from the common key */
+static int qol_sing_match(const float* notes, int n, float* best_err) {
+    int best = -1;
+    float be = 1e9f;
+    for (int s = 0; s < QOL_SONGS; s++)
+        for (int form = 0; form < 4; form++) {
+            float f[8];
+            int m = qol_song_notes(s, form & 1, form >> 1, f);
+            if (m != n || (form >> 1 && s != 4)) continue;
+            float off = 0;
+            for (int i = 0; i < n; i++) off += notes[i] - f[i];
+            off /= (float)n;
+            float err = 0;
+            for (int i = 0; i < n; i++) {
+                float e = notes[i] - f[i] - off;
+                if (e < 0) e = -e;
+                if (e > err) err = e;
+            }
+            if (err <= QOL_SING_TOLERANCE && err < be) be = err, best = s;
+        }
+    if (best_err) *best_err = be;
+    return best;
+}
+
+/* notes from the pitch of each step */
+typedef struct {
+    float notes[QOL_SING_MAX];
+    int count;
+    float cur_sum, cur_time;  /* the note being sung: its pitch (sum over its steps) and length */
+    int cur_steps;
+    float quiet;              /* seconds without a pitch */
+} qol_singer;
+static void qol_sing_reset(qol_singer* g) {
+    g->count = 0, g->cur_sum = 0, g->cur_time = 0, g->cur_steps = 0, g->quiet = 0;
+}
+static void qol_sing_close_note(qol_singer* g) {
+    if (g->cur_steps && g->cur_time >= QOL_SING_MIN_NOTE && g->count < QOL_SING_MAX) g->notes[g->count++] = g->cur_sum / (float)g->cur_steps;
+    g->cur_sum = 0, g->cur_time = 0, g->cur_steps = 0;
+}
+/* one step of dt seconds with this pitch (MIDI; 0 none). Returns the song when a phrase just ended as one, -1 else
+ * (a phrase that is no song is dropped) */
+static int qol_sing_step(qol_singer* g, float midi, float dt) {
+    if (midi > 0) {
+        g->quiet = 0;
+        if (g->cur_steps && (midi - g->cur_sum / (float)g->cur_steps > QOL_SING_JUMP || g->cur_sum / (float)g->cur_steps - midi > QOL_SING_JUMP))
+            qol_sing_close_note(g);
+        g->cur_sum += midi, g->cur_time += dt, g->cur_steps++;
+        return -1;
+    }
+    qol_sing_close_note(g);
+    g->quiet += dt;
+    if (g->quiet < QOL_SING_PAUSE || !g->count) return -1;
+    int song = g->count >= 3 ? qol_sing_match(g->notes, g->count, 0) : -1;
+    g->count = 0;
+    return song;
+}

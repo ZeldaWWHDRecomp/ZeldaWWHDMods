@@ -26,6 +26,7 @@
 static const char* const songs_names[SONGS_COUNT] = {"Wind's Requiem", "Ballad of Gales", "Command Melody",
                                                       "Earth God's Lyric", "Wind God's Aria", "Song of Passing"};
 static int songs_on, songs_shown, songs_wait = -1;
+static int songs_conducting;         /* Link holds up the Wind Waker (any feature may play a song then: sing.c) */
 static u32 songs_known;
 static int songs_pending = -1;       /* a tapped song: the judge's next answer */
 static int songs_poke;               /* reads left of the note that makes the judge run (HD asks it only on a note) */
@@ -53,7 +54,9 @@ static void songs_step(u32 link) {
     u32 info = WWHD_GAME_DATA(WWHD_ADDR_dComIfG_save_info_pointer, u32);
     songs_known = qol_guest_ptr(info) ? *(volatile u8*)(info + 0x20 + SONGS_KNOWN) : 0;
     songs_wait = l->mProcVar6 >= 0 && l->mProcVar6 < SONGS_COUNT ? l->mProcVar6 : -1;
-    const int show = songs_on && l->mCurProc == SONGS_TACT_WAIT;
+    songs_conducting = l->mCurProc == SONGS_TACT_WAIT;
+    if (!songs_conducting) songs_pending = -1, songs_poke = 0;
+    const int show = songs_on && songs_conducting;
     if (show != songs_shown || (show && songs_claimed != songs_known + (u32)(songs_wait + 1) * 256)) {
         songs_shown = show;
         songs_claimed = songs_known + (u32)(songs_wait + 1) * 256;
@@ -67,8 +70,16 @@ static void songs_step(u32 link) {
         }
         if (show) wwhd_touch_claim(1, SONGS_PAD_X - SONGS_PAD_R, SONGS_PAD_Y - SONGS_PAD_R, SONGS_PAD_X + SONGS_PAD_R, SONGS_PAD_Y + SONGS_PAD_R);
         else wwhd_touch_claim(1, 0, 0, 0, 0);
-        if (!show) songs_pending = -1, songs_pad = -1, songs_finger = 0, songs_poke = 0;
+        if (!show) songs_pad = -1, songs_finger = 0;
     }
+}
+
+/* plays song m (melody number) while Link conducts, if he knows it and the scene takes it: the judge's next answer */
+static int songs_play(int m) {
+    if (!songs_conducting || m < 0 || m >= SONGS_COUNT || !songs_available(m)) return 0;
+    songs_pending = m;
+    songs_poke = 4;
+    return 1;
 }
 
 /* a finger in one of the claims */
@@ -98,7 +109,7 @@ static void songs_touch(const wwhd_touch_event* e) {
 
 /* the pads' finger as the right stick (the game conducts with it) */
 static void songs_filter(wwhd_input_state* s) {
-    if (songs_shown && songs_poke > 0 && songs_pad < 0) {  /* a tapped song: one note up, so the judge runs */
+    if (songs_conducting && songs_poke > 0 && songs_pad < 0) {  /* a song to play: one note up, so the judge runs */
         songs_poke--;
         s->rx = 0;
         s->ry = 1;
@@ -114,7 +125,7 @@ static void songs_filter(wwhd_input_state* s) {
 WWHD_GAME_ORIGINAL(WWHD_ADDR_judge_0202A3B4, s32, songs_judge_original, (u32 self, s32 now_beat, s32 c_pos));
 WWHD_REPLACE(WWHD_ADDR_judge_0202A3B4, s32, songs_judge, (u32 self, s32 now_beat, s32 c_pos)) {
     const s32 answer = songs_judge_original(self, now_beat, c_pos);
-    if (songs_pending < 0 || !songs_on) return answer;
+    if (songs_pending < 0) return answer;  /* (set only by a feature that is on: the buttons, singing) */
     const int m = songs_pending;
     songs_pending = -1;
     if (!songs_available(m)) return answer;

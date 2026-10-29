@@ -71,5 +71,49 @@ int main(void) {
     assert(qol_pg_turn(0, 1, 1, 0) == -1);   /* not after an empty one */
     assert(qol_pg_turn(1, 3, 1, 0) == 2 && qol_pg_turn(2, 3, -1, 0) == 1);
     assert(qol_pg_turn(2, 3, 1, 12) == 3 && qol_pg_turn(2, 3, 2, 12) == -1);
+
+    /* singing: log2 and MIDI */
+    for (float x = 0.01f; x < 5000.0f; x *= 1.37f) assert(fabsf(qol_log2(x) - log2f(x)) < 1e-4f);
+    assert(fabsf(qol_midi(440.0f) - 69.0f) < 1e-3f && fabsf(qol_midi(261.63f) - 60.0f) < 1e-2f);
+    /* every song in any key / octave, merged form too; small errors pass, big ones don't */
+    for (int s = 0; s < QOL_SONGS; s++) {
+        float f[8], g[8];
+        int n = qol_song_notes(s, 0, 0, f);
+        for (int i = 0; i < n; i++) g[i] = f[i] - 7.0f + (i % 2 ? 0.4f : -0.3f);  /* a fifth lower, a little off */
+        assert(qol_sing_match(g, n, 0) == s);
+        n = qol_song_notes(s, 1, 0, f);
+        for (int i = 0; i < n; i++) g[i] = f[i] + 12.0f;
+        assert(qol_sing_match(g, n, 0) == s);
+    }
+    {
+        float f[8];
+        int n = qol_song_notes(0, 0, 0, f);
+        f[1] += 2.5f;  /* one note a whole tone off */
+        assert(qol_sing_match(f, n, 0) == -1);
+    }
+    /* the Aria sung with its low note an octave up */
+    {
+        float f[8];
+        int n = qol_song_notes(4, 0, 1, f);
+        assert(qol_sing_match(f, n, 0) == 4);
+    }
+    /* the singer: Wind's Requiem sung at 30 steps per second, 0.3 s per note, a little vibrato, then a pause */
+    {
+        qol_singer g;
+        qol_sing_reset(&g);
+        float f[8];
+        int n = qol_song_notes(0, 0, 0, f), song = -1;
+        for (int i = 0; i < n; i++)
+            for (int k = 0; k < 9; k++) song = qol_sing_step(&g, f[i] + 3.0f + (k % 3 - 1) * 0.15f, 1.0f / 30);
+        assert(song == -1);
+        for (int k = 0; k < 25 && song < 0; k++) song = qol_sing_step(&g, 0, 1.0f / 30);
+        assert(song == 0);
+        /* too short notes and a lone note: nothing */
+        qol_sing_reset(&g);
+        song = -1;
+        for (int k = 0; k < 2; k++) song = qol_sing_step(&g, 60, 1.0f / 30);
+        for (int k = 0; k < 30; k++) if (song < 0) song = qol_sing_step(&g, 0, 1.0f / 30);
+        assert(song == -1 && g.count == 0);
+    }
     return 0;
 }
