@@ -67,7 +67,7 @@ static struct {
     s16 yaw, cyaw, camera_yaw;
     u32 wind;
     int chart_set, chart_count;
-    struct { s8 sea, save, number; s16 rect[4]; } charts[MAX_CHARTS];
+    struct { s8 sea, save, number, index; s16 rect[4]; } charts[MAX_CHARTS];
     float origin_x, origin_z, size, map_width;
     unsigned long long visited;
     int door_count, boss_visible;
@@ -85,6 +85,7 @@ static struct {
 /* player choices */
 static struct { int hidden, expanded, zoom, sea_view, chart, feedback; float feedback_time; } ui = {0, 0, 0, 1, 0, 0, 0};
 static hdm_choice foot_choice, dungeon_choice;
+static int selected_chart = -1;
 static int choice_family; /* 0 island, 1 dungeon; marine preferences remain separate */
 static int floor_history = -1, floor_dungeon = -1, floor_role = -1;
 static char floor_stage[9];
@@ -904,12 +905,26 @@ static void read_charts(u32 save) {
         if (type == 0 && !chart_open(save + SAVE_PLAYER_MAP, save_no - 1)) continue;  /* Triforce charts once deciphered */
         snap.charts[snap.chart_count].sea = sea; snap.charts[snap.chart_count].save = save_no;
         snap.charts[snap.chart_count].number = (s8)e[2];
+        snap.charts[snap.chart_count].index = (s8)i;
         /* the chart set's rectangle: the treasure's spot (the chart's centre) and the art's centre, sector-local */
         for (int k = 0; k < 4; ++k) {
             const u8* r = e + 6 + 2 * (4 * snap.chart_set + k);
             snap.charts[snap.chart_count].rect[k] = (s16)(((u16)r[0] << 8) | r[1]);
         }
         ++snap.chart_count;
+    }
+    ui.chart = 0;
+    for (int i = 0; i < snap.chart_count; ++i)
+        if (snap.charts[i].index == selected_chart) { ui.chart = i; break; }
+    if (snap.chart_count) selected_chart = snap.charts[ui.chart].index;
+}
+/* Follow menu selection without retaining a native pane or modifying its HUD.
+ * The reverse direction needs a supported chart-select SDK operation. */
+WWHD_HOOK_RETURN(0x02699094, follow_chart_caption, (u32 menu, u32 chart)) {
+    (void)menu;
+    if (chart < 49) {
+        for (int i = 0; i < snap.chart_count; ++i)
+            if (snap.charts[i].index == (int)chart) { selected_chart = (int)chart; break; }
     }
 }
 /* read every step, so that a button held through an event is not taken for a press when it ends; blocked
@@ -941,7 +956,10 @@ static void handle_input(u32 blocked, int sailing) {
         }
         if (dungeon_boat && !ui.hidden && hdm_pressed(now, previous_buttons, opt.key_chart)) ui.zoom = !ui.zoom;
         if (hdm_pressed(now, previous_buttons, opt.key_chart) && sailing && ui.sea_view == 2 && snap.chart_count)
+        {
             ui.chart = (ui.chart + 1) % snap.chart_count;
+            selected_chart = snap.charts[ui.chart].index;
+        }
     }
     wind_phase += (float)wwhd_logic_dt();
     if (wind_phase > 60) wind_phase -= 60;
