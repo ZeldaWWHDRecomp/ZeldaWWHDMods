@@ -115,5 +115,37 @@ int main(void) {
         for (int k = 0; k < 30; k++) if (song < 0) song = qol_sing_step(&g, 0, 1.0f / 30);
         assert(song == -1 && g.count == 0);
     }
+
+    /* figurine names: the first line after its colour tag, the player's name and capital tags, UTF-8 */
+    {
+        /* <colour 1>Aryll\n<colour ffff><colour 0>Birthplace... */
+        const unsigned short aryll[] = {0x0E, 0, 3, 2, 1, 'A', 'r', 'y', 'l', 'l', '\n', 0x0E, 0, 3, 2, 0xFFFF, 'B', 'i', 0};
+        char out[64];
+        assert(qol_figure_name(aryll, 64, 0, 0, out, sizeof out) == 5 && !strcmp(out, "Aryll"));
+        /* <colour 1><capital><player>'s Grandma<colour ffff> */
+        const unsigned short grandma[] = {0x0E, 0, 3, 2, 1, 0x0E, 1, 11, 0, 0x0E, 2, 0, 0, '\'', 's', ' ', 'G', 'r', 'a', 'n', 'd', 'm', 'a',
+                                          0x0E, 0, 3, 2, 0xFFFF, '\n', 'x', 0};
+        const unsigned short link[] = {'l', 'i', 'n', 'k', 0};
+        assert(qol_figure_name(grandma, 64, link, 5, out, sizeof out) > 0 && !strcmp(out, "Link's Grandma"));
+        const unsigned short empty_player[] = {0};
+        assert(qol_figure_name(grandma, 64, empty_player, 1, out, sizeof out) && !strcmp(out, "'s Grandma"));
+        /* accents (UTF-8), an end tag, a trailing space, a 3-byte character */
+        const unsigned short fr[] = {0x0E, 0, 3, 2, 1, 'F', 0xE9, 'e', 0x0F, 0, 3, ' ', 0x2014, ' ', '\n', 0};
+        assert(qol_figure_name(fr, 64, 0, 0, out, sizeof out) == 8 && !strcmp(out, "F\xC3\xA9" "e \xE2\x80\x94"));
+        /* capital on an accented letter */
+        const unsigned short cap[] = {0x0E, 1, 11, 0, 0xE9, 't', 0};
+        assert(qol_figure_name(cap, 64, 0, 0, out, sizeof out) && !strcmp(out, "\xC3\x89t"));
+        /* a short buffer: whole characters only */
+        assert(qol_figure_name(fr, 64, 0, 0, out, 4) == 3 && !strcmp(out, "F\xC3\xA9"));
+        assert(qol_figure_name(fr, 64, 0, 0, out, 3) == 1 && !strcmp(out, "F"));
+        /* nothing: an empty message, only tags, a broken tag at the end, no buffer */
+        const unsigned short none[] = {0x0E, 0, 3, 2, 1, '\n', 0}, broken[] = {0x0E, 0, 3};
+        assert(qol_figure_name(none, 64, 0, 0, out, sizeof out) == 0 && out[0] == 0);
+        assert(qol_figure_name(broken, 3, 0, 0, out, sizeof out) == 0);
+        assert(qol_figure_name(aryll, 64, 0, 0, out, 0) == 0);
+        /* the scan stops at n units */
+        assert(qol_figure_name(aryll, 7, 0, 0, out, sizeof out) == 2 && !strcmp(out, "Ar"));
+    }
+
     return 0;
 }

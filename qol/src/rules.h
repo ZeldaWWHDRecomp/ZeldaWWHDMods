@@ -233,3 +233,80 @@ static int qol_sing_step(qol_singer* g, float midi, float dt) {
     g->count = 0;
     return song;
 }
+
+/* ---- figurine names (picto_subjects.c): the name at the top of a figurine's Nintendo Gallery message, as the game
+ * keeps it (UTF-16 code units; a tag is 0x0E, its group, its type, its parameters' size in bytes and the parameters;
+ * 0x0F, group, type ends one). The name is the first line's text after its leading tags, up to the line's end or the
+ * next colour tag (group 0, type 3); the player's name tag (group 2, type 0) becomes `player`, a capital tag (group
+ * 1, type 11) capitalises the next letter, other tags are left out. Written as UTF-8 into out (at most cap - 1 bytes
+ * and a terminating 0; when it doesn't fit, the characters that do); returns its bytes, 0 when there is no name. */
+#define QOL_NAME_SCAN 256u
+static unsigned qol_utf8_put(char* out, unsigned at, unsigned cap, unsigned c) {
+    unsigned n = c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
+    if (at + n >= cap) return at;
+    if (n == 1) out[at] = (char)c;
+    else if (n == 2) out[at] = (char)(0xC0 | c >> 6), out[at + 1] = (char)(0x80 | (c & 0x3F));
+    else if (n == 3) out[at] = (char)(0xE0 | c >> 12), out[at + 1] = (char)(0x80 | (c >> 6 & 0x3F)), out[at + 2] = (char)(0x80 | (c & 0x3F));
+    else out[at] = (char)(0xF0 | c >> 18), out[at + 1] = (char)(0x80 | (c >> 12 & 0x3F)), out[at + 2] = (char)(0x80 | (c >> 6 & 0x3F)), out[at + 3] = (char)(0x80 | (c & 0x3F));
+    return at + n;
+}
+static unsigned qol_capital(unsigned c) {
+    if (c >= 'a' && c <= 'z') return c - 0x20;
+    if (c >= 0xE0 && c <= 0xFE && c != 0xF7) return c - 0x20;  /* (Latin-1 letters) */
+    return c;
+}
+/* one character of the name: a surrogate pair is joined; capital: capitalise it (cleared) */
+static unsigned qol_name_char(const unsigned short* t, unsigned n, unsigned* i, int* capital) {
+    unsigned c = t[(*i)++];
+    if (c >= 0xD800 && c < 0xDC00 && *i < n && t[*i] >= 0xDC00 && t[*i] < 0xE000) c = 0x10000 + ((c - 0xD800) << 10) + (t[(*i)++] - 0xDC00);
+    if (*capital) c = qol_capital(c), *capital = 0;
+    return c;
+}
+static unsigned qol_figure_name(const unsigned short* t, unsigned n, const unsigned short* player, unsigned player_n,
+                                char* out, unsigned cap) {
+    unsigned len = 0, i = 0, last = 0;  /* last: the bytes up to the last character that is not a space */
+    int started = 0, capital = 0;
+    if (!cap) return 0;
+    if (n > QOL_NAME_SCAN) n = QOL_NAME_SCAN;
+    while (i < n && t[i]) {
+        unsigned c = t[i];
+        if (c == 0x0E) {  /* a tag */
+            if (i + 4 > n) break;
+            unsigned group = t[i + 1], type = t[i + 2], size = t[i + 3];
+            i += 4 + (size + 1) / 2;
+            if (group == 0 && type == 3) {
+                if (started) break;
+            } else if (group == 1 && type == 11) {
+                capital = 1;
+            } else if (group == 2 && type == 0) {
+                for (unsigned k = 0; k < player_n && player[k];) {
+                    unsigned next = qol_utf8_put(out, len, cap, qol_name_char(player, player_n, &k, &capital));
+                    if (next == len) goto full;
+                    len = next;
+                }
+                started = 1, last = len;
+            }
+            continue;
+        }
+        if (c == 0x0F) {  /* the end of a tag */
+            i += 3;
+            continue;
+        }
+        if (c == '\n' || c == '\r') {
+            if (started) break;
+            i++;
+            continue;
+        }
+        if (!started && c == ' ') {
+            i++;
+            continue;
+        }
+        unsigned next = qol_utf8_put(out, len, cap, qol_name_char(t, n, &i, &capital));
+        if (next == len) break;  /* (full: no cut name) */
+        len = next, started = 1;
+        if (c != ' ') last = len;
+    }
+full:
+    out[last] = 0;
+    return last;
+}

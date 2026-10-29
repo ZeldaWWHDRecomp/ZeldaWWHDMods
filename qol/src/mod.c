@@ -60,6 +60,7 @@ static void touch(const wwhd_touch_event* e) {
 }
 static void filter(wwhd_input_state* s) {
     options();  /* (also while Link doesn't step: a minigame's own camera) */
+    picto_step();
     songs_filter(s);
     sing_filter(s);
     kaboom_filter(s);

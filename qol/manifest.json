@@ -48,7 +48,7 @@
       "menu": true,
       "live": true,
       "section": "Picto Box",
-      "description": "In the album, a label says whether the picto is good for a figurine, or why not."
+      "description": "In the album, a label says whether the picto is good for a figurine, or why not, and names the figurine's subject in the game's language."
     },
     {
       "id": "album_pages",

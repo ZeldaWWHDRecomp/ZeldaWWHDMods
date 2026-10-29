@@ -31,16 +31,6 @@
 #define PB_MSG_REFUSED 0xCE9
 #define PB_MSG_THANKS 0xCF2
 
-WWHD_GAME_FUNC(0x022A1F1C, u32, pb_change_photo_no, (u32 photo));
-WWHD_GAME_FUNC(0x025BD600, u32, pb_photo_figure, (u32 photo));
-WWHD_GAME_FUNC(0x0229FE28, u32, pb_is_made, (void* carlov, u32 figure));
-WWHD_GAME_FUNC(0x022A1F64, u32, pb_has_order, (void* carlov, u32 figure));
-WWHD_GAME_FUNC(0x022A037C, u32, pb_order_count, (void* carlov));
-WWHD_GAME_FUNC(0x022A2008, void, pb_submit, (void* carlov, u32 figure));
-WWHD_GAME_FUNC(0x0229FF54, void, pb_clear_orders, (void* carlov));
-WWHD_GAME_FUNC(0x025B8B94, u32, pb_ev_is, (u32 events, u32 bit));
-WWHD_GAME_FUNC(0x025B8B68, void, pb_ev_on, (u32 events, u32 bit));
-WWHD_GAME_FUNC(0x025B8B7C, void, pb_ev_off, (u32 events, u32 bit));
 WWHD_GAME_ORIGINAL(WWHD_ADDR_daObjTpost_c__getMsg_023A5570, u32, pb_get_msg_original, (void* box));
 WWHD_GAME_ORIGINAL(WWHD_ADDR_daObjTpost_c__nextMsg_023A55BC, u16, pb_next_original, (void* box, u32* message));
 
@@ -50,40 +40,35 @@ static int pb_taken;     /* its picto was taken (erased at the talk's end) */
 
 static void pb_option_changed(void) { pb_on = wwhd_config_bool("postbox_pictos", 0); }
 
-static u32 pb_events(void) {
-    u32 info = WWHD_GAME_DATA(WWHD_ADDR_dComIfG_save_info_pointer, u32);
-    return qol_guest_ptr(info) ? info + 0x644 : 0;  /* dSv_info_c: mSavedata (+0x20) .mEvent (+0x624) */
-}
-
-/* Carlov's checks and order for the picto handed over (daNpcMt_c::getMsg; his helpers work on the save, not on his
- * actor). Returns 1 when ordered. */
+/* Carlov's checks and order for the picto handed over (daNpcMt_c::getMsg). Returns 1 when ordered. */
 static int pb_take(void) {
     u8* p = qol_play();
-    u32 ev = pb_events();
+    u32 ev = qol_events();
     if (!p || !ev) return 0;
-    u32 photo = pb_change_photo_no(p[PB_SUBJECT]), figure = 0xFF;
-    if (photo - 0x49 < 0x86) figure = pb_photo_figure(photo) & 0xFF;
+    const u32 figure = qol_figure_of(p[PB_SUBJECT]);
+    /* (his list is emptied before a new order once the last figurines are handed over, event 4080) */
+    const int full = (qol_mt_order_count(0) & 0xFF) >= 12 && !qol_ev_is(ev, 0x4080);
     const char* why = 0;
     if (!p[PB_COLOUR]) why = "not a colour picto";
-    else if (figure == 0xFF) why = "no figurine subject";
-    else if (pb_is_made(0, figure)) why = "the figurine is made already";
-    else if (pb_has_order(0, figure)) why = "the figurine is on order already";
+    else if (figure == QOL_NO_FIGURE) why = "no figurine subject";
+    else if (qol_mt_is_made(0, figure)) why = "the figurine is made already";
+    else if (qol_mt_has_order(0, figure)) why = "the figurine is on order already";
     else if (p[PB_FLAWS] & 1) why = "the face is not seen";
     else if (p[PB_FLAWS] & 2) why = "the body is not seen";
-    else if ((pb_order_count(0) & 0xFF) >= 12) why = "Carlov has 12 orders";
+    else if (full) why = "Carlov has 12 orders";
     if (why) {
         wwhd_log(why);
         wwhd_log_int("postbox: picto refused, its subject", p[PB_SUBJECT]);
         return 0;
     }
-    if (pb_ev_is(ev, 0x4080)) {  /* the last figurines handed over and not talked about since: as Carlov does */
-        pb_ev_off(ev, 0x3080), pb_ev_off(ev, 0x4080), pb_ev_off(ev, 0x3F01), pb_ev_off(ev, 0x4040);
-        pb_clear_orders(0);
+    if (qol_ev_is(ev, 0x4080)) {  /* the last figurines handed over and not talked about since: as Carlov does */
+        qol_ev_off(ev, 0x3080), qol_ev_off(ev, 0x4080), qol_ev_off(ev, 0x3F01), qol_ev_off(ev, 0x4040);
+        qol_mt_clear_orders(0);
     }
-    pb_submit(0, figure);
-    pb_ev_on(ev, 0x2F01);
-    pb_ev_on(ev, 0x3401);
+    qol_mt_submit(0, figure);
     wwhd_log_int("postbox: figurine ordered", (int)figure);
+    qol_ev_on(ev, 0x2F01);
+    qol_ev_on(ev, 0x3401);
     return 1;
 }
 
