@@ -8,6 +8,7 @@
 #include "wwhd/data.h"
 #include "wwhd/actor.h"
 #include "wwhd/link.h"
+#include "rules.h"
 
 /* the game's state (dComIfGp: the accessor's object; offsets in the port's play_context.h) */
 #define QOL_EVENT_MODE 0x5292     /* dEvt_control_c mode: 0 no event */
