@@ -94,6 +94,43 @@ static void controls(void) {
     assert(hdm_pressed(0x0800, 0, 0x0800) && !hdm_pressed(0x0800, 0x0800, 0x0800) && !hdm_pressed(0x0800, 0, 0));
     assert(hdm_next_sea_view(0, 3) == 1 && hdm_next_sea_view(1, 3) == 2 && hdm_next_sea_view(2, 3) == 0);
     assert(hdm_next_sea_view(1, 0) == 0);      /* no chart: never the chart view */
+    assert(hdm_blocked_buttons(0, 0, 1) == 0);                          /* on foot */
+    assert(hdm_blocked_buttons(0, 1, 1) == (0x0800 | 0x0400));          /* sailing: the cannon and the hook */
+    assert(hdm_blocked_buttons(0, 1, 0) == HDM_ALL_BUTTONS);            /* the boat in the Tower of the Gods */
+    assert(hdm_blocked_buttons(1, 0, 1) == HDM_ALL_BUTTONS);            /* an event or a stage change */
+    assert(!hdm_pressed(0x0800 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0800));
+    assert(hdm_pressed(0x0100 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0100));
+    assert(hdm_boarding_view(1, 2) == 0);      /* hidden on foot: the compasses alone */
+    assert(hdm_boarding_view(0, 0) == 1 && hdm_boarding_view(0, 2) == 2);
+}
+
+static void dpad_icons(void) {
+    /* sea, dungeon, on_ship, hidden, expanded, discovered, covered */
+    hdm_icons d = hdm_dpad_icons(1, 0, 0, 0, 0, 1, 1);            /* on foot, island: map, expand */
+    assert(d.left == HDM_ICON_MAP && d.right == HDM_ICON_EXPAND && d.down == HDM_ICON_NONE);
+    d = hdm_dpad_icons(1, 0, 0, 1, 0, 1, 1);                       /* hidden: only the map at left */
+    assert(d.left == HDM_ICON_MAP && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
+    d = hdm_dpad_icons(0, 1, 0, 0, 1, 0, 0);                       /* dungeon, expanded: reduce, the compass */
+    assert(d.left == HDM_ICON_MAP && d.right == HDM_ICON_REDUCE && d.down == HDM_ICON_COMPASS);
+    d = hdm_dpad_icons(1, 0, 0, 0, 0, 0, 0);                       /* undiscovered on foot */
+    assert(d.left == HDM_ICON_MAP_UNKNOWN);
+    d = hdm_dpad_icons(1, 0, 1, 1, 1, 1, 1);                       /* sailing: only the view, even hidden on foot */
+    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_VIEW);
+    assert(hdm_dpad_icons(1, 0, 1, 0, 0, 0, 0).down == HDM_ICON_UNKNOWN);
+    assert(hdm_dpad_icons(1, 0, 1, 0, 0, 1, 0).down == HDM_ICON_NONE);   /* out at sea: the compasses */
+    d = hdm_dpad_icons(0, 1, 1, 0, 0, 0, 0);                       /* the boat in the Tower of the Gods */
+    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
+    d = hdm_dpad_icons(0, 0, 0, 0, 0, 0, 0);                       /* no minimap here */
+    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
+}
+
+static void turning(void) {
+    assert(hdm_turn_heading(0, 0x1000, 1, 0x4000) == 0x1000);      /* turned with Link */
+    assert(hdm_turn_heading(1, 0x1000, 1, 0x4000) == 0x4000);      /* with the camera */
+    assert(hdm_turn_heading(1, 0x1000, 0, 0x4000) == 0x1000);      /* no camera: Link's heading */
+    assert(hdm_heading_on_turned(0x1234, 0x1234) == (short)0x8000);   /* the heading turned up is drawn up */
+    assert(hdm_heading_on_turned(0x4000, 0) == (short)0xC000);
+    assert(hdm_heading_on_turned(0x7000, -0x7000) == 0x6000);         /* wraps around a turn */
 }
 
 static void fitting(void) {
@@ -106,6 +143,15 @@ static void fitting(void) {
     v = hdm_fit(0, 0, 100, 100, 200, .04f);
     hdm_to_panel(&v, 200, 0, 100, &x, &y);
     assert(fabsf(x - 8) < 1e-3f && fabsf(y - 8) < 1e-3f);
+    /* the whole plan: the root is the panel's centre whatever the floor, and the frame's corner lands on the
+     * padding; Forsaken Fortress's 1F (rooms centred 43.5 units up) stays above the centre, as on the GamePad */
+    v = hdm_plan_view(200, .04f);
+    hdm_to_panel(&v, 200, 0, 0, &x, &y);
+    assert(fabsf(x - 100) < 1e-4f && fabsf(y - 100) < 1e-4f);
+    hdm_to_panel(&v, 200, -HDM_PLAN_FRAME / 2, HDM_PLAN_FRAME / 2, &x, &y);
+    assert(fabsf(x - 8) < 1e-3f && fabsf(y - 8) < 1e-3f);
+    hdm_to_panel(&v, 200, -0.6f, 43.5f, &x, &y);
+    assert(y < 100 - 15);
 }
 
 static void plan_rooms(void) {
@@ -120,13 +166,57 @@ static void plan_rooms(void) {
     assert(!hdm_plan_room(bad, 1, 0, &floor, &room));
 }
 
+static void forsaken(void) {
+    assert(hdm_forsaken_turned("ma2room") && hdm_forsaken_turned("ma3room"));
+    assert(!hdm_forsaken_turned("majroom") && !hdm_forsaken_turned("MajyuE") && !hdm_forsaken_turned("ma2roo"));
+    float x, y, cx = HDM_FORSAKEN_CENTRE_X - 34, cy = HDM_FORSAKEN_CENTRE_Y + 4;  /* N_FloorCenter_00 at (-34, 4) */
+    hdm_forsaken_place(cx / HDM_FORSAKEN_SCALE, -cy / HDM_FORSAKEN_SCALE, cx, cy, &x, &y);
+    assert(fabsf(x - cx) < 1e-3f && fabsf(y - cy) < 1e-3f);  /* the centre stays */
+    hdm_forsaken_place((cx + 10) / HDM_FORSAKEN_SCALE, -cy / HDM_FORSAKEN_SCALE, cx, cy, &x, &y);
+    assert(fabsf(x - (cx + 4.227f)) < 1e-2f && fabsf(y - (cy - 9.063f)) < 1e-2f);  /* east turns clockwise */
+    /* ma2room's 1F door between the ring's rooms 1 and 2 (world 2215 / -6117.7, DMAP origin -149 / -311.5) lands
+     * where the panes P_Room_01 (95.55 / -55.25, 117 x 162.5) and P_Room_02 (108.55 / 91.65, 130 x 156) meet */
+    hdm_forsaken_place(2215.0f + 149.0f, -6117.7f + 311.5f, cx, cy, &x, &y);
+    assert(fabsf(x - 95.55f) <= 58.5f && fabsf(y + 55.25f) <= 81.25f);
+    assert(fabsf(x - 108.55f) <= 65.0f && fabsf(y - 91.65f) <= 78.0f);
+    assert(hdm_plan_heading(0x8000, 0) == (short)0x8000 && hdm_plan_heading(0x4000, 1) == 0x4000 - 0x2E38);
+    assert(hdm_plan_heading(-0x7000, 1) == (short)(-0x7000 - 0x2E38 + 0x10000));  /* wraps */
+}
+
+static void forsaken_outside(void) {
+    /* the outdoor plan on foot on the fortress's island in sector 1; the island aboard, off it or elsewhere */
+    assert(hdm_forsaken_outside(1, 0, 1));
+    assert(!hdm_forsaken_outside(1, 1, 1) && !hdm_forsaken_outside(1, 0, 0) && !hdm_forsaken_outside(2, 0, 1));
+    float x, y, cx = HDM_OUTDOOR_CENTRE_X - 24, cy = HDM_OUTDOOR_CENTRE_Y - 15;  /* N_OutdoorCenter_00 at (-24, -15) */
+    hdm_turned_place(cx / HDM_OUTDOOR_SCALE, -cy / HDM_OUTDOOR_SCALE, HDM_OUTDOOR_SCALE, cx, cy, &x, &y);
+    assert(fabsf(x - cx) < 1e-3f && fabsf(y - cy) < 1e-3f);  /* the centre stays */
+    /* the middle of room 1's map box (its 2DMA: -308452 / -307806 to -293546 / -292900) is its origin and lands
+     * near the middle of P_Outdoor_00 (0 / 0, 507 x 507); the box's 14906 units span about its width */
+    hdm_turned_place((-308452.0f - 293546.0f) / 2 - HDM_OUTDOOR_ORIGIN_X, (-307806.0f - 292900.0f) / 2 - HDM_OUTDOOR_ORIGIN_Z,
+                     HDM_OUTDOOR_SCALE, cx, cy, &x, &y);
+    assert(fabsf(x) < 40 && fabsf(y) < 40);
+    assert(fabsf(14906.0f * HDM_OUTDOOR_SCALE - 460.5f) < 1);
+    /* the same turn as the rooms': forsaken_place is turned_place at the first visit's scale */
+    float fx, fy;
+    hdm_forsaken_place(1000, 2000, 3, 4, &fx, &fy);
+    hdm_turned_place(1000, 2000, HDM_FORSAKEN_SCALE, 3, 4, &x, &y);
+    assert(fx == x && fy == y);
+    /* a searchlight stops with its switch (101..103 in room 1) or with the event bit for all three */
+    assert(!hdm_searchlight_stopped(0, 0) && hdm_searchlight_stopped(0, 1) && hdm_searchlight_stopped(1, 0));
+    assert(HDM_SEARCHLIGHT_SWITCH + HDM_SEARCHLIGHTS - 1 == 103);
+}
+
 int main(void) {
     plan_rooms();
+    forsaken();
+    forsaken_outside();
     sectors();
     location_table();
     names();
     fading();
     controls();
+    dpad_icons();
+    turning();
     fitting();
     puts("hd-minimap math: ok");
     return 0;
