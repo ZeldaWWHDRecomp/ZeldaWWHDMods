@@ -8,6 +8,7 @@
  *   kaboom.c          minigames by touch: Sploosh Kaboom
  *   minigames.c       minigames by touch: the Cabana's puzzles, mail sorting, the cannon game, the auction, figurines
  *   pages.c           album pages: more pages of 12 pictos, kept in this package's files
+ *   postbox.c         pictos mailed to Carlov at the postboxes (his own figurine order)
  * Adding a feature: its file (an <name>_option_changed and its step or hooks), its option in manifest.json and
  * one line in the table below.
  * Ideas from the GreenNaugahyde Android fork (MPL-2.0), reimplemented as a guest mod. */
@@ -20,6 +21,7 @@
 #include "kaboom.c"
 #include "minigames.c"
 #include "pages.c"
+#include "postbox.c"
 
 static qol_feature features[] = {
     {"clothes", clothes_option_changed, 0},
@@ -30,6 +32,7 @@ static qol_feature features[] = {
     {"minigame_touch", kaboom_option_changed, 0},
     {"minigame_touch", mg_option_changed, 0},
     {"album_pages", pg_option_changed, 0},
+    {"postbox_pictos", pb_option_changed, 0},
 };
 
 /* the live options: a feature reads its option again when its revision changed (also once at start) */

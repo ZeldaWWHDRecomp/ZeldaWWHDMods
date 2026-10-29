@@ -13,9 +13,9 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 | **Minigames by touch** | Minigames | Sploosh Kaboom: tap a square to aim there and fire. The Cabana's picture puzzles: tap a piece in the gap's row or column, or drag it towards the gap, and it slides there (with the pieces between). Mail sorting at the Rito post: tap a slot to throw the letter there. Spectacle Island's cannon game: drag to turn the cannon (sideways: left and right; up and down: farther and nearer), tap to fire. The auction: tap anywhere to press A (each tap raises your gauge; the bid's number is entered with the port's **Talks, answers and shops by touch**). The Nintendo Gallery: while you look at a figurine, keep a finger on the picture and move it to turn the figurine, pinch to zoom (the mouse wheel on a computer). |
 | **Picto subjects** | Picto Box | In the Picto Box album, a label over the picto says whether it is good for a Nintendo Gallery figurine, and if not, why: black and white, turned away or out of view, partly hidden, or no figurine subject. |
 | **Album pages** | Picto Box | More pages of 12 pictos in the Picto Box album. In the album, **L** turns to the next page and **ZL** back (or tap the arrows at the top of the album). Turning past the last page starts a new, empty page; an empty page at the end goes again when you leave it. |
+| **Mail pictos at postboxes** | Picto Box | Stand in front of a postbox of the Island Postal Service and use the Picto Box (its item button): choose a picto, and the postbox takes the figurine order Carlov would take at the Nintendo Gallery (the same checks: a colour picto of a gallery subject not made or ordered yet, face and body seen; up to 12 orders). The picto leaves your album, as when you give it to Carlov. The figurine is ready the next day: Carlov hands it over at the gallery as usual. While this is on, the Picto Box can't take pictures while you face a postbox. |
 
-More extras will join this package (mailing pictos at postboxes, singing the songs); each one is a switch of its
-own.
+More extras will join this package (singing the songs); each one is a switch of its own.
 
 ## Needs
 
@@ -40,6 +40,8 @@ own.
   the other pages keep their latest contents. If a page's file is lost or damaged, only the pictos in it are lost.
   If a save file's album has nothing in common with the pages made for it (a new or copied save file), it starts
   with new pages; the old ones stay in the folder.
+- Mail pictos at postboxes: an order made at a postbox is exactly Carlov's own order (his checks, his order list,
+  the same flags), so your save holds the same as after giving him the picto; nothing else is saved.
 - Nothing here changes your save file on its own: the clothes change Link's model while you play; the story
   keeps its own choice.
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod.

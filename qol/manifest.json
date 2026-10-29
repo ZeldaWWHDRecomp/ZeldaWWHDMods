@@ -13,7 +13,7 @@
     "heap_size": 1048576
   },
   "author": "ZeldaWWHDRecomp contributors",
-  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, songs by touch, one-hit kills, minigames by touch.",
+  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, songs by touch, one-hit kills, minigames by touch.",
   "options": [
     {
       "id": "clothes",
@@ -59,6 +59,16 @@
       "live": true,
       "section": "Picto Box",
       "description": "More pages of 12 pictos in the Picto Box album: L and ZL (or the arrows at the top) turn the pages. Page 1 is the game's own album; the other pages are kept in this package's files, never in your save."
+    },
+    {
+      "id": "postbox_pictos",
+      "type": "bool",
+      "name": "Mail pictos at postboxes",
+      "default": false,
+      "menu": true,
+      "live": true,
+      "section": "Picto Box",
+      "description": "Show a postbox the Picto Box and choose a picto: the postbox takes the figurine order Carlov would take (his checks, his order list). The figurine is ready the next day at the Nintendo Gallery, as usual."
     },
     {
       "id": "song_touch",
