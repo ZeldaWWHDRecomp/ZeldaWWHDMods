@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
@@ -13,7 +13,7 @@
     "heap_size": 1048576
   },
   "author": "ZeldaWWHDRecomp contributors",
-  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, songs by touch, singing the songs, one-hit kills, minigames by touch.",
+  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch.",
   "options": [
     {
       "id": "clothes",
@@ -69,6 +69,16 @@
       "live": true,
       "section": "Picto Box",
       "description": "Show a postbox the Picto Box and choose a picto: the postbox takes the figurine order Carlov would take (his checks, his order list). The figurine is ready the next day at the Nintendo Gallery, as usual."
+    },
+    {
+      "id": "more_figurine_orders",
+      "type": "bool",
+      "name": "More figurine orders",
+      "default": false,
+      "menu": true,
+      "live": true,
+      "section": "Picto Box",
+      "description": "Carlov takes more than 12 figurine orders. Orders beyond his 12 wait in this package's files (never in your save) and go to him when a day passes and he has room; they are ready that day. Turned off, waiting orders stay and go on when you turn it on again."
     },
     {
       "id": "song_touch",

@@ -8,6 +8,7 @@
  *   kaboom.c          minigames by touch: Sploosh Kaboom
  *   minigames.c       minigames by touch: the Cabana's puzzles, mail sorting, the cannon game, the auction, figurines
  *   pages.c           album pages: more pages of 12 pictos, kept in this package's files
+ *   orders.c          more figurine orders: beyond Carlov's 12 they wait in this package's files
  *   postbox.c         pictos mailed to Carlov at the postboxes (his own figurine order)
  *   sing.c            sing the songs into the microphone (experimental)
  * Adding a feature: its file (an <name>_option_changed and its step or hooks), its option in manifest.json and
@@ -22,6 +23,7 @@
 #include "kaboom.c"
 #include "minigames.c"
 #include "pages.c"
+#include "orders.c"
 #include "postbox.c"
 #include "sing.c"
 
@@ -35,6 +37,7 @@ static qol_feature features[] = {
     {"minigame_touch", mg_option_changed, 0},
     {"album_pages", pg_option_changed, 0},
     {"postbox_pictos", pb_option_changed, 0},
+    {"more_figurine_orders", fo_option_changed, 0},
     {"sing_songs", sing_option_changed, 0},
 };
 

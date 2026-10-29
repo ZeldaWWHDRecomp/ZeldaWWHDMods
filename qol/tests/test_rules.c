@@ -147,5 +147,46 @@ int main(void) {
         assert(qol_figure_name(aryll, 7, 0, 0, out, sizeof out) == 2 && !strcmp(out, "Ar"));
     }
 
+    /* more figurine orders: the waiting list */
+    {
+        qol_fo_list w = {0}, r;
+        assert(qol_fo_add(&w, 5) && qol_fo_add(&w, 0) && qol_fo_add(&w, 133));
+        assert(!qol_fo_add(&w, 5) && !qol_fo_add(&w, 134) && w.count == 3 && qol_fo_has(&w, 0) && !qol_fo_has(&w, 1));
+        w.stamp = 0xABCD1234u;
+        unsigned char rec[16 + 8 + QOL_FO_MAX];
+        unsigned bytes = qol_fo_write(rec, &w);
+        assert(bytes == 16 + 8 + 3);
+        assert(qol_fo_read(rec, (int)bytes, &r) && r.stamp == 0xABCD1234u && r.count == 3 && r.figure[2] == 133);
+        assert(!qol_fo_read(rec, (int)bytes - 1, &r));
+        rec[16 + 8] = 0;  /* a doubled figure (0 twice): not good; the seal is checked first, so seal again */
+        qol_record_seal(rec, QOL_FO_MAGIC, 8 + 3);
+        assert(!qol_fo_read(rec, (int)bytes, &r));
+        rec[16 + 8] = 200;  /* not a figure */
+        qol_record_seal(rec, QOL_FO_MAGIC, 8 + 3);
+        assert(!qol_fo_read(rec, (int)bytes, &r));
+        qol_fo_list empty = {7, 0, {0}};
+        bytes = qol_fo_write(rec, &empty);
+        assert(qol_fo_read(rec, (int)bytes, &r) && r.count == 0 && r.stamp == 7);
+        /* a full list */
+        qol_fo_list full = {0};
+        for (unsigned f = 0; f < QOL_FO_MAX; f++) assert(qol_fo_add(&full, QOL_FO_MAX - 1 - f));
+        assert(!qol_fo_add(&full, 3) && full.count == QOL_FO_MAX);
+
+        /* to Carlov's list: oldest first while it has room; made or ordered ones are dropped */
+        unsigned char made[QOL_FO_MAX] = {0}, out[12], queued[12];
+        qol_fo_list t = {0};
+        for (unsigned f = 20; f < 40; f++) qol_fo_add(&t, f);  /* 20 waiting */
+        made[21] = 1;                                             /* made meanwhile */
+        queued[0] = 22;                                           /* on his list meanwhile */
+        unsigned n = qol_fo_take(&t, queued, 1, made, out);
+        assert(n == 11 && out[0] == 20 && out[1] == 23 && out[10] == 32);
+        assert(t.count == 7 && t.figure[0] == 33 && t.figure[6] == 39);
+        /* his list full: nothing goes, nothing is dropped */
+        for (unsigned k = 0; k < 12; k++) queued[k] = (unsigned char)(100 + k);
+        assert(qol_fo_take(&t, queued, 12, made, out) == 0 && t.count == 7);
+        /* an empty list of his: up to 12 */
+        assert(qol_fo_take(&t, queued, 0, made, out) == 7 && t.count == 0 && out[6] == 39);
+        assert(qol_fo_take(&t, queued, 0, made, out) == 0);
+    }
     return 0;
 }

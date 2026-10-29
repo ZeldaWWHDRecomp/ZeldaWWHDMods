@@ -15,6 +15,7 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 | **Picto subjects** | Picto Box | In the Picto Box album, a label over the picto says whether it is good for a Nintendo Gallery figurine, and if not, why: black and white, turned away or out of view, partly hidden, or no figurine subject. A figurine subject is named ("Good for a figurine: Sturgeon"), in the language your game shows: the name comes from the game's own text for that figurine. |
 | **Album pages** | Picto Box | More pages of 12 pictos in the Picto Box album. In the album, **L** turns to the next page and **ZL** back (or tap the arrows at the top of the album). Turning past the last page starts a new, empty page; an empty page at the end goes again when you leave it. |
 | **Mail pictos at postboxes** | Picto Box | Stand in front of a postbox of the Island Postal Service and use the Picto Box (its item button): choose a picto, and the postbox takes the figurine order Carlov would take at the Nintendo Gallery (the same checks: a colour picto of a gallery subject not made or ordered yet, face and body seen; up to 12 orders). The picto leaves your album, as when you give it to Carlov. The figurine is ready the next day: Carlov hands it over at the gallery as usual. While this is on, the Picto Box can't take pictures while you face a postbox. |
+| **More figurine orders** | Picto Box | Carlov takes more than 12 figurine orders at a time. Orders beyond his 12 wait in a list of this package and go to him when a day passes and he has room again; they are ready that day. Works at the Nintendo Gallery and, with **Mail pictos at postboxes**, at the postboxes. |
 
 
 ## Needs
@@ -48,7 +49,16 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
   with new pages; the old ones stay in the folder.
 - Mail pictos at postboxes: an order made at a postbox is exactly Carlov's own order (his checks, his order list,
   the same flags), so your save holds the same as after giving him the picto; nothing else is saved.
+- More figurine orders: the game itself keeps at most 12 orders, and your save file never holds more. Carlov
+  checks every picto as usual (a picto of a figurine that waits counts as on order) and takes it from your album as
+  usual; with his 12 orders taken, the new one waits in this package's data folder (Mods data, `qol`, one list per
+  Quest Log). When a day passes and he has room (after you picked up his figurines), waiting orders go to his list,
+  oldest first, up to 12; they are ready that day. The list follows your saves: it is written when the game saves
+  and read when you load that Quest Log, so it always matches your save file. A copied or new Quest Log starts
+  without waiting orders. Turning the option off keeps the waiting orders in the list (and in the file): they go on
+  when you turn it on again. While it is off, Carlov takes 12 orders as in the game, and a waiting figurine you
+  order from him directly leaves the list.
 - Nothing here changes your save file on its own: the clothes change Link's model while you play; the story
   keeps its own choice.
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod. The figurine's
-  name on the Picto subjects label is an idea from @gogokfen (issue #276); thanks!
+  name on the Picto subjects label and More figurine orders are ideas from @gogokfen (issue #276); thanks!

@@ -310,3 +310,65 @@ full:
     out[last] = 0;
     return last;
 }
+
+/* ---- more figurine orders (orders.c): orders beyond Carlov's 12 wait in a list of the package, one per save file,
+ * and go to his list when a day passes and it has room. The figures are his (0..133). The list's file is a record
+ * (above): the save's stamp, the count, the figures in order (oldest first). */
+#define QOL_FO_MAX 134u
+#define QOL_FO_CARLOV 12u
+#define QOL_FO_MAGIC 0x51464F31u  /* "QFO1" */
+typedef struct {
+    unsigned stamp;  /* the save these orders belong to (orders.c) */
+    unsigned count;
+    unsigned char figure[QOL_FO_MAX];
+} qol_fo_list;
+static int qol_fo_has(const qol_fo_list* w, unsigned figure) {
+    for (unsigned i = 0; i < w->count; i++)
+        if (w->figure[i] == figure) return 1;
+    return 0;
+}
+/* a new waiting order; 0 when it is not a figure, waits already or the list is full */
+static int qol_fo_add(qol_fo_list* w, unsigned figure) {
+    if (figure >= QOL_FO_MAX || w->count >= QOL_FO_MAX || qol_fo_has(w, figure)) return 0;
+    w->figure[w->count++] = (unsigned char)figure;
+    return 1;
+}
+#define QOL_FO_LEN(n) (8u + (n))
+static unsigned qol_fo_write(unsigned char* rec, const qol_fo_list* w) {
+    unsigned char* d = rec + QOL_PG_HEAD;
+    qol_put32(d, w->stamp), qol_put32(d + 4, w->count);
+    for (unsigned i = 0; i < w->count; i++) d[8 + i] = w->figure[i];
+    qol_record_seal(rec, QOL_FO_MAGIC, QOL_FO_LEN(w->count));
+    return QOL_PG_HEAD + QOL_FO_LEN(w->count);
+}
+/* 1 when rec (got bytes) is a good list (a bad or doubled figure: not good) */
+static int qol_fo_read(const unsigned char* rec, int got, qol_fo_list* w) {
+    int len = qol_record_check(rec, got, QOL_FO_MAGIC, QOL_FO_LEN(QOL_FO_MAX));
+    if (len < (int)QOL_FO_LEN(0)) return 0;
+    const unsigned char* d = rec + QOL_PG_HEAD;
+    qol_fo_list x;
+    x.stamp = qol_get32(d), x.count = 0;
+    unsigned n = qol_get32(d + 4);
+    if (n > QOL_FO_MAX || (unsigned)len != QOL_FO_LEN(n)) return 0;
+    for (unsigned i = 0; i < n; i++)
+        if (!qol_fo_add(&x, d[8 + i])) return 0;
+    *w = x;
+    return 1;
+}
+/* the waiting orders that go to Carlov's list now, oldest first, while it has room: his list holds queued[0..queued_n)
+ * (all of them are on order); made[f]: figure f is made. Orders made or on his list meanwhile leave the list without
+ * going. The ones that go are written to out (at most 12) and leave the list; returns how many. */
+static unsigned qol_fo_take(qol_fo_list* w, const unsigned char* queued, unsigned queued_n, const unsigned char* made,
+                            unsigned char* out) {
+    unsigned n = 0, keep = 0;
+    for (unsigned i = 0; i < w->count; i++) {
+        unsigned f = w->figure[i];
+        int on_order = 0;
+        for (unsigned k = 0; k < queued_n; k++) on_order |= queued[k] == f;
+        if (made[f] || on_order) continue;  /* (dropped) */
+        if (queued_n + n < QOL_FO_CARLOV) out[n++] = (unsigned char)f;
+        else w->figure[keep++] = (unsigned char)f;
+    }
+    w->count = keep;
+    return n;
+}

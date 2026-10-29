@@ -3,7 +3,8 @@
  * Nintendo Gallery. Option "postbox_pictos" (Picto Box), off by default.
  *
  * The order is Carlov's own: the same checks with his functions (a colour picto, a gallery subject, not made yet,
- * not on order, face and body seen; HD keeps up to 12 orders), the same order list and event bits, and the picto
+ * not on order, face and body seen; HD keeps up to 12 orders, more with "More figurine orders": orders.c), the same order
+ * list and event bits, and the picto
  * leaves the album as it does when he takes it. So the game's save holds exactly what handing the picto to Carlov
  * gives; nothing of this package is saved anywhere. The figurine is made by the next day, as usual: Carlov hands it
  * over at the gallery.
@@ -40,7 +41,8 @@ static int pb_taken;     /* its picto was taken (erased at the talk's end) */
 
 static void pb_option_changed(void) { pb_on = wwhd_config_bool("postbox_pictos", 0); }
 
-/* Carlov's checks and order for the picto handed over (daNpcMt_c::getMsg). Returns 1 when ordered. */
+/* Carlov's checks and order for the picto handed over (daNpcMt_c::getMsg). With "More figurine orders" on, an order
+ * beyond his 12 waits in that list (orders.c). Returns 1 when ordered. */
 static int pb_take(void) {
     u8* p = qol_play();
     u32 ev = qol_events();
@@ -52,21 +54,25 @@ static int pb_take(void) {
     if (!p[PB_COLOUR]) why = "not a colour picto";
     else if (figure == QOL_NO_FIGURE) why = "no figurine subject";
     else if (qol_mt_is_made(0, figure)) why = "the figurine is made already";
-    else if (qol_mt_has_order(0, figure)) why = "the figurine is on order already";
+    else if (qol_mt_has_order(0, figure) || fo_waiting(figure)) why = "the figurine is on order already";
     else if (p[PB_FLAWS] & 1) why = "the face is not seen";
     else if (p[PB_FLAWS] & 2) why = "the body is not seen";
-    else if (full) why = "Carlov has 12 orders";
+    else if (full && !fo_room()) why = "Carlov has 12 orders";
     if (why) {
         wwhd_log(why);
         wwhd_log_int("postbox: picto refused, its subject", p[PB_SUBJECT]);
         return 0;
     }
-    if (qol_ev_is(ev, 0x4080)) {  /* the last figurines handed over and not talked about since: as Carlov does */
-        qol_ev_off(ev, 0x3080), qol_ev_off(ev, 0x4080), qol_ev_off(ev, 0x3F01), qol_ev_off(ev, 0x4040);
-        qol_mt_clear_orders(0);
+    if (full) {  /* (his list stays as it is; his flags as when he takes one) */
+        fo_hold(figure);
+    } else {
+        if (qol_ev_is(ev, 0x4080)) {  /* the last figurines handed over and not talked about since: as Carlov does */
+            qol_ev_off(ev, 0x3080), qol_ev_off(ev, 0x4080), qol_ev_off(ev, 0x3F01), qol_ev_off(ev, 0x4040);
+            qol_mt_clear_orders(0);
+        }
+        qol_mt_submit(0, figure);
+        wwhd_log_int("postbox: figurine ordered", (int)figure);
     }
-    qol_mt_submit(0, figure);
-    wwhd_log_int("postbox: figurine ordered", (int)figure);
     qol_ev_on(ev, 0x2F01);
     qol_ev_on(ev, 0x3401);
     return 1;
