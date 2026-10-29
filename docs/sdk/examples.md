@@ -1,7 +1,8 @@
 # Worked examples
 
-Three story packages of this repository, from the smallest to the largest. Each folder is a complete
-mod: read its `manifest.json`, `src/mod.c` and README side by side with this page.
+Three story packages of this repository, from the smallest to the largest, and QoL extras for live
+options, touches and the microphone. Each folder is a complete mod: read its `manifest.json`,
+`src/mod.c` and README side by side with this page.
 
 ## The Old map
 
@@ -100,3 +101,38 @@ lives in plain headers that `tests/` compiles for the host and checks with
 
 What to take from it: describe the quest as data, keep the code for what only it can know, and make
 pure logic testable on the host.
+
+## QoL extras
+
+[`qol/`](../../qol/): many small extras in one package, each with its own switch that the player
+changes while playing. It needs port 0.5.0 (`"minimum_manager_version": "1.6.0"`); the services are in
+[Live options, input filters and touches](c-api.md#live-options-input-filters-and-touches).
+
+**One of each per mod.** A mod has one HUD callback, one touch callback and one input filter, so
+`src/mod.c` registers them once from Link's step and hands each feature its part. A touch goes to the
+first feature that says it was its own.
+
+**Live options** (`mod.c`): every option is `"live": true`. A small table pairs each option with the
+feature's "changed" function; `wwhd_config_changed` is checked each step and on each controller read,
+and a feature reads its value again when the revision moved.
+
+**Touches that press buttons** (`src/kaboom.c`): while Sploosh Kaboom's board is played, the mod claims
+the board's rectangle; a tap puts the game's cursor on that square, and the input filter then holds A
+for a moment, so the game fires as if the player pressed it. When the board goes, the claim goes.
+
+**Touch buttons on its own HUD** (`src/songs.c`): while Link holds up the Wind Waker, the song buttons
+and note pads are drawn with the HUD API and claimed in two slots, removed again when he lowers it.
+
+**Points on the picture and pinches** (`src/minigames.c`): the picture puzzles and the mail sorting
+find what the finger is on with `wwhd_screen_point`; at the Nintendo Gallery a drag turns the figurine
+and `WWHD_TOUCH_PINCH` zooms (the mouse wheel on a computer).
+
+**The microphone** (`src/sing.c`): "Sing the songs" is a bool option with `"permission":
+"microphone"`, off by default. The microphone is opened once when the player turns it on, so the
+question comes then and never at the game's start; after the answer it is closed again and opened only
+while Link conducts. Each controller read takes the newest pitch from `wwhd_mic_pitch` when it is loud
+and clear enough, and turns the notes into a song. A declined question turns the switch off, done by
+the port.
+
+What to take from it: keep features off and hooks cheap until their option is on, claim the picture
+only while you show something to touch, and open the microphone only while you listen.
