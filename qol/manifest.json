@@ -9,10 +9,11 @@
   "experimental": true,
   "guest": {
     "api_version": 1,
-    "elf": "mod.elf"
+    "elf": "mod.elf",
+    "heap_size": 1048576
   },
   "author": "ZeldaWWHDRecomp contributors",
-  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, songs by touch, one-hit kills, minigames by touch.",
+  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, songs by touch, one-hit kills, minigames by touch.",
   "options": [
     {
       "id": "clothes",
@@ -48,6 +49,16 @@
       "live": true,
       "section": "Picto Box",
       "description": "In the album, a label says whether the picto is good for a figurine, or why not."
+    },
+    {
+      "id": "album_pages",
+      "type": "bool",
+      "name": "Album pages",
+      "default": false,
+      "menu": true,
+      "live": true,
+      "section": "Picto Box",
+      "description": "More pages of 12 pictos in the Picto Box album: L and ZL (or the arrows at the top) turn the pages. Page 1 is the game's own album; the other pages are kept in this package's files, never in your save."
     },
     {
       "id": "song_touch",
