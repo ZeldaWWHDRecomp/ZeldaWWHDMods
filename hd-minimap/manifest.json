@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "hd-minimap",
   "name": "HD minimap",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "game_id": "wwhd",
   "kind": "guest",
   "guest": {
@@ -120,9 +120,19 @@
     },
     {
       "id": "zoom_turns",
-      "name": "Dungeon zoom turns with Link",
+      "name": "Dungeon zoom turns",
       "type": "bool",
       "default": true
+    },
+    {
+      "id": "zoom_turn_with",
+      "name": "Dungeon zoom turns with",
+      "type": "enum",
+      "default": "camera",
+      "choices": [
+        "link",
+        "camera"
+      ]
     },
     {
       "id": "key_toggle",
@@ -156,7 +166,7 @@
     },
     {
       "id": "key_view",
-      "name": "Dungeon zoom / sailing view",
+      "name": "Dungeon zoom / boat map view",
       "type": "enum",
       "default": "down",
       "choices": [
@@ -171,7 +181,7 @@
     },
     {
       "id": "key_chart",
-      "name": "Next treasure chart",
+      "name": "Next chart / boat dungeon zoom",
       "type": "enum",
       "default": "l3",
       "choices": [
