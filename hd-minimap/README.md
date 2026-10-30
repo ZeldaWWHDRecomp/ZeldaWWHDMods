@@ -70,17 +70,32 @@ restart, like every code mod option.
 - The map pictures are not in this package. The port reads them from your installed game while it
   runs, in your game's language. The mod only names the game's layouts, textures and panes.
 
-## Known limits (0.2.0)
+## Native HUD integration (0.2.1)
 
-- The treasure ribbon uses native localized names, with a numeric fallback if the
-  message cannot be read. Eligible GamePad selections are followed; synchronization
-  back to the GamePad remains open after investigating its native selection path.
-- The sailing map stays above the game's compasses. Native compass replacement and
-  its return delay await the port lead's decision; see [SDK proposal](SDK-PROPOSAL.md).
+On ports with the map/HUD SDK additions, the sailing map replaces the native boat
+compasses. It enters over 200 ms and exits over 250 ms; the compasses return
+200 ms after the exit finishes. Reversing a transition keeps its current position.
+The native HUD keeps control of menus, cutscenes, first person and boat tools.
+Position offsets are applied from the native compass area's left/bottom anchor.
+
+Choosing a treasure chart with L stick click also selects that native chart on
+the GamePad. The game's carousel finishes the change; later GamePad selections
+are followed normally. Leaving chart view cancels any choice not yet committed.
+
+These features are optional. Older ports keep the map above the compasses and
+follow eligible GamePad caption changes in one direction. The package still loads
+with older installers; it does not import mandatory new host functions.
+
+## Known limits (0.2.1)
+
+- Native localized chart names retain a numeric fallback if a message is missing.
 - Link and boat markers are never drawn on treasure charts.
-- Tower boat controls and boat-to-swimming state retention were checked. Command
-  Melody, airborne companions and sea chart handoffs need further gameplay validation. The possible Tower room omission is not confirmed resolved.
-- This version is a parity follow-up, not a claim of complete Minimap HD 1.3 equivalence.
+- A missing native menu or another mod owning the feature can reject a chart
+  request or compass lease; rejected leases keep the existing fallback position.
+- Command Melody and airborne companions still need gameplay validation. The
+  unspecified Tower room omission is not confirmed resolved; a room/floor
+  reproducer is still needed. Those limits are independent of the SDK integration.
+- This remains a bounded parity follow-up, not a full-playthrough equivalence claim.
 
 ## Checked in the game
 
@@ -88,6 +103,9 @@ Earlier 0.1.x testing covered USA/EU, Metal/Vulkan and multiple frame rates. Tha
 coverage does not validate these new changes. The 0.2.0 campaign uses an isolated,
 newly created USA quest, native stage warps and test-only Map/Compass flags. See
 [parity report](PARITY.md) for exact scenes, evidence and remaining gaps.
+
+See [SDK integration validation](SDK-INTEGRATION.md) for the 0.2.1 evidence and
+remaining validation limits.
 
 ## Tests
 
@@ -108,6 +126,8 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
+- **0.2.1:** supported boat-compass replacement and return timing, two-way native
+  chart selection, logic-phase animation updates, and older-port fallback.
 - **0.2.0:** independent remembered contexts, dungeon boat controls, controlled-character
   focus, stabilized altitude floors, animated presentation and wind, Fortress outdoor
   chest capture, multi-floor room eligibility, native localized chart names and

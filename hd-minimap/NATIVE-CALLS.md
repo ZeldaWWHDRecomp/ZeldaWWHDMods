@@ -62,7 +62,7 @@ table with `WWHD_GAME_DATA`, validates coordinates/kind, and uses the existing
 opened predicate (`0x02689DDC`) does. The Compass remains required. No coordinate
 or game artwork is packaged in the mod.
 
-## Chart synchronization back to the GamePad: investigated, open
+## Chart synchronization: native-only investigation
 
 Reviewed the actual GamePad path in `hd_screen_menu_map_states.cpp` and the USA
 instruction-derived `build/gen/code_057.c`:
@@ -83,12 +83,11 @@ instruction-derived `build/gen/code_057.c`:
 - `0x0269BBA4`, `0x0269BDE0` manage the carousel from its existing fields; they are
   not setters. No synthetic global input-queue mutation is made.
 
-There is no verified explicit-index selector in the reviewed path. Keep one-way
-caption following and use the proposed supported selection bridge until the lead
-identifies an additional native entry point. None of these candidate mutators is
-called by this mod.
+There is no verified explicit-index selector in the reviewed path. Version 0.2.1
+uses the supported SDK bridge instead; one-way caption following remains only
+on older ports. None of these candidate mutators is called by the guest.
 
-## Boat compass visibility: investigated, open
+## Boat compass visibility: native-only investigation
 
 Reviewed `hd_screen_hud_main.cpp`, `hd_screen_compass_clock.cpp`, `hd_parts.cpp`,
 `hd_parts_no_control.cpp` and `hd_parts_layout.cpp`:
@@ -105,8 +104,9 @@ Reviewed `hd_screen_hud_main.cpp`, `hd_screen_compass_clock.cpp`, `hd_parts.cpp`
 - Base parts draw (`0x026F8B54`) and child draw (`0x026F9020`) draw the hierarchy;
   no verified paired compass-specific visibility setter exists in these units.
 
-No candidate compass mutator is called. The fallback remains map-above-compasses;
-see [SDK-PROPOSAL.md](SDK-PROPOSAL.md) for scoped replacement and automatic undo.
+No candidate compass mutator is called. Version 0.2.1 uses the SDK compass lease,
+rectangle query and automatic undo. Map-above-compasses remains the older-port
+fallback; see [SDK-INTEGRATION.md](SDK-INTEGRATION.md).
 
 Sources: [QoL message pattern](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/blob/devel/qol/src/picto_subjects.c),
 [MenuMap](https://github.com/ZeldaWWHDDecomp/wwhd/blob/main/wwhd_src/d/hd_screen_menu_map_states.cpp),

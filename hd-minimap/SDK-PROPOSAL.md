@@ -1,14 +1,16 @@
 # Supported map integration proposal
 
-Status: proposal for the port lead; no port or SDK changes are included here.
-The existing guest SDK can draw private TV elements and read layout art. It has no
-supported ownership mechanism for native boat compasses or native chart selection.
+Status: historical proposal, now implemented by port branch `codex-sdk-map-hud`
+(`d034b493`) and consumed by minimap 0.2.1. The original proposal below records
+why native guest calls were insufficient. [SDK-INTEGRATION.md](SDK-INTEGRATION.md)
+describes the implemented calls, capability gates, fallback and validation.
+Older ports still lack these two services; their existing behavior is retained.
 Native alternatives were investigated first; see [NATIVE-CALLS.md](NATIVE-CALLS.md).
 Chart names use the existing native message loader, so no message SDK addition is needed. The guest mod must not write native HUD memory.
 
 ## Boat compass ownership (gap 13)
 
-Proposed call: `s32 wwhd_hud_boat_compasses(u32 replace)`.
+Implemented call: `s32 wwhd_hud_boat_compasses(u32 replace)`.
 
 - `replace = 1` renews a lease for the calling mod for the current logic step.
   The host suppresses the native boat compass draw and reserves its normal position
@@ -31,7 +33,7 @@ HUD replacement, hidden-to-hidden handoff and reversal around both timing bounda
 
 ## Two-way chart synchronization (gap 9)
 
-Proposed calls: `s32 wwhd_map_chart_selected(void)` and
+Implemented calls: `s32 wwhd_map_chart_selected(void)` and
 `s32 wwhd_map_chart_select(u32 native_chart_index)`.
 Return 1 when queued, 0 for an already selected chart, and a negative status for
 unsupported, missing or invalid state. The setter validates ownership, deciphering
@@ -39,8 +41,9 @@ and chart kind, then queues the game's
 normal chart carousel event on its game thread. It must preserve the outgoing,
 selected and processed chart lifecycle; initializing the screen directly is unsafe.
 Reject draw-phase calls and missing/replaced menu instances, and expose no HUD pointers.
-No native selection write is made by this mod. It currently follows eligible menu
-caption changes and remembers chart identity separately from the eligible-list position.
+The guest makes no native selection write. It delegates requests to the host;
+only older ports use the caption observation fallback. Chart identity remains
+separate from the eligible-list position.
 
 An uncommitted request belongs to the calling mod and is canceled on explicit
 `wwhd_map_chart_cancel()`, disable/unload, state load or HUD/stage replacement.
