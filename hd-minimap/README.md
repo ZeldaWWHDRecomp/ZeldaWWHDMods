@@ -72,7 +72,8 @@ restart, like every code mod option.
 
 ## Native HUD integration (0.2.1)
 
-On ports with the map/HUD SDK additions, the sailing map replaces the native boat
+On ports with the map/HUD SDK additions (port devel `fab80fce` and the next port
+release), the sailing map replaces the native boat
 compasses. It enters over 200 ms and exits over 250 ms; the compasses return
 200 ms after the exit finishes. Reversing a transition keeps its current position.
 The native HUD keeps control of menus, cutscenes, first person and boat tools.
@@ -102,10 +103,8 @@ with older installers; it does not import mandatory new host functions.
 Earlier 0.1.x testing covered USA/EU, Metal/Vulkan and multiple frame rates. That
 coverage does not validate these new changes. The 0.2.0 campaign uses an isolated,
 newly created USA quest, native stage warps and test-only Map/Compass flags. See
-[parity report](PARITY.md) for exact scenes, evidence and remaining gaps.
-
-See [SDK integration validation](SDK-INTEGRATION.md) for the 0.2.1 evidence and
-remaining validation limits.
+the [parity report](PARITY.md) for the scenes checked and remaining gaps, and
+[port compatibility](SDK-INTEGRATION.md) for the 0.2.1 checks on newer and older ports.
 
 ## Tests
 
@@ -126,8 +125,17 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
-- **0.2.1:** supported boat-compass replacement and return timing, two-way native
-  chart selection, logic-phase animation updates, and older-port fallback.
+- **0.2.1:** on ports with the new map/HUD services:
+  - While sailing, the minimap takes the place of the boat compasses instead of sitting
+    above them; the compasses come back 200 ms after the map has left.
+  - L stick click on a treasure chart also selects that chart on the GamePad.
+  - On older ports nothing changes: the map stays above the compasses and charts
+    follow the GamePad in one direction. See [port compatibility](SDK-INTEGRATION.md).
+  - The faded question-mark map for an undiscovered sea square now behaves like the
+    island map: it follows show/hide and the boat's sailing view (no longer shown while
+    the map is hidden or the boat view is on compasses), uses the compact/expanded size
+    and slides in and out.
+  - Animations run in game logic, so their timing is the same at every frame rate.
 - **0.2.0:** independent remembered contexts, dungeon boat controls, controlled-character
   focus, stabilized altitude floors, animated presentation and wind, Fortress outdoor
   chest capture, multi-floor room eligibility, native localized chart names and

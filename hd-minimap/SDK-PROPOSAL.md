@@ -1,9 +1,10 @@
 # Supported map integration proposal
 
-Status: historical proposal, now implemented by port branch `codex-sdk-map-hud`
-(`d034b493`) and consumed by minimap 0.2.1. The original proposal below records
-why native guest calls were insufficient. [SDK-INTEGRATION.md](SDK-INTEGRATION.md)
-describes the implemented calls, capability gates, fallback and validation.
+Status: historical proposal, now implemented in the port SDK (devel `fab80fce` /
+next port release; see the port's `docs/mod-sdk-map-hud.md`) and used by minimap
+0.2.1. The original proposal below records why native guest calls were insufficient.
+[Port compatibility](SDK-INTEGRATION.md) describes what 0.2.1 does with and without
+these calls.
 Older ports still lack these two services; their existing behavior is retained.
 Native alternatives were investigated first; see [NATIVE-CALLS.md](NATIVE-CALLS.md).
 Chart names use the existing native message loader, so no message SDK addition is needed. The guest mod must not write native HUD memory.

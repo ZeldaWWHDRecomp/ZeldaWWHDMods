@@ -1,36 +1,34 @@
 # Minimap HD 1.3 parity follow-up — 0.2.1
 
-Local branch: `hd-minimap-sdk-integration` (continuing `hd-minimap-1.3-parity`). Work began on PR #13 head
-`387281b73e221fa9362a16f72c749a1664da7139`, then rebased onto `origin/devel`
-merge `e32095b7` after the lead confirmed #13 was merged on 2026-10-30.
-The contributor's commits and authorship are unchanged. Follow-up commits use
-Lukas S <lukasschaupp@gmail.com>. Nothing was pushed or posted externally.
+This follow-up builds on the contributor's HD minimap work merged in PR #13; the
+contributor's commits and authorship are unchanged.
 
 This is an implementation and bounded validation report, not a full-playthrough
-or complete-equivalence claim. The supported SDK additions are now consumed by version 0.2.1.
-See [SDK-INTEGRATION.md](SDK-INTEGRATION.md) for capability checks, lifecycle and
-new validation. No guest workaround drives GamePad events or resets compass state.
+or complete-equivalence claim. Version 0.2.1 uses the map/HUD services of the port
+SDK (devel `fab80fce` / next port release); see [port compatibility](SDK-INTEGRATION.md)
+for what changes on newer and older ports. No guest workaround drives GamePad events
+or resets compass state.
 
 ## Requested gaps
 
-“Done” below means implemented in the cited local commit. Gameplay limits are
+“Done” below means implemented in the cited commit. Gameplay limits are
 stated separately; headless checks do not establish companion or boat gameplay.
 
 | # | Requested behavior | Status and evidence |
 | --- | --- | --- |
-| 1 | Tower boat Down: compact/expanded/hidden; L3 zoom | **Done — `41f6830`**. Boat left/right stay native. `tower-boat-17` verifies native riding, compact/expanded/hidden cycling and L3 zoom; cycle/hidden rules also pass headlessly. |
-| 2 | Shared dungeon state on foot/boat | **Done — `41f6830`, `1ba6c41`**. `boat-handoffs-18/frame_10800_present.png` verifies expanded/zoom survives native disembark into Tower swimming. One dungeon choice survives riding changes; context matrix checks hidden/compact/expanded and both orientations. |
+| 1 | Tower boat Down: compact/expanded/hidden; L3 zoom | **Done — `41f6830`**. Boat left/right stay native. A native Tower boat check verifies riding, compact/expanded/hidden cycling and L3 zoom; cycle/hidden rules also pass headlessly. |
+| 2 | Shared dungeon state on foot/boat | **Done — `41f6830`, `1ba6c41`**. A capture verifies expanded/zoom survives native disembark into Tower swimming. One dungeon choice survives riding changes; context matrix checks hidden/compact/expanded and both orientations. |
 | 3 | Independent remembered marine view/chart | **Done — `41f6830`, `103b5d4`, `6a7e010`, `583d9b8`**. First marine use inherits the last foot choice; subsequent boarding preserves the marine request; chart identity uses native remapped indices, not eligible-list positions. |
 | 4 | Follow controlled Medli/Makar: facing/floor/center, return to Link | **Done — `41f6830`, `14d8da2`**. Native companion identity must match current control, exact temple stage and a valid pointer. Stable Link drives capture. Actual Command Melody was not reached; source/identity/floor rules reviewed and headlessly checked. |
 | 5 | Continuous zoom/camera across role/floor changes | **Done — `a96de49`**. Retained normalized camera pose and shortest-angle interpolation; a fixed zoom span avoids per-floor resets. DRC zoom checked; companion handoff remains unplayed. |
 | 6 | Airborne/gliding floors without flicker | **Done — `41f6830`, `1ba6c41`**. Height-table queries run every capture, independent of landing; +/-32 probes stabilize the accepted floor. Three-role synthetic boundary sequences pass; a scripted Link height change updates the rendered floor before returning to the ground. Medli glide and Makar flight were not reached. |
 | 7 | Show/hide, resize, family handoff, vertical floor slides | **Done — `a96de49`**. Retarget from current geometry; separate chart exit payload; outgoing/incoming floor caches move markers with plans inside the fixed frame. DRC show/hide/resize sequences captured. Boat treasure exit and role/floor transition gameplay remain unplayed. |
 | 8 | Localized chart names | **Done — `326e49e`, `6a7e010`**. Native numbered messages, correct live chart inventory, bounded UTF-16 conversion, numeric fallback. English/French native lookups and test-only in-game chart previews verified. See NATIVE-CALLS.md. |
-| 9 | Chart synchronized both ways with GamePad | **Done — 0.2.1 on SDK-capable ports.** Observes canonical native selection and queues SDK selection on local input; uncommitted requests are cancelled on exit/replacement. Older ports retain one-way caption following. See SDK-INTEGRATION.md. |
+| 9 | Chart synchronized both ways with GamePad | **Done — 0.2.1 on SDK-capable ports.** Observes canonical native selection and queues SDK selection on local input; uncommitted requests are cancelled on exit/replacement. Older ports retain one-way caption following. See [port compatibility](SDK-INTEGRATION.md). |
 | 10 | Animated wind arrow | **Done — `a96de49`**. Gentle size pulse follows logic time and wind heading; island-only. Visible in Outset chart-preview captures. |
 | 11 | Fortress exterior chests | **Done — `27adf89`**. Reads the game's four initialized map coordinates and stage-2 opened flags, with Compass gating; does not depend on the sea room's TRES list. Final scene campaign confirms four eligible markers become three when chest 0 is opened; before/after captures inspected. |
 | 12 | Possible missing Tower rooms | **Open: needs a reproducible room/floor case.** `14d8da2` fixes primary-floor filtering of multi-floor artwork; `1ba6c41` retries failed image allocations and releases inactive caches. Synthetic multi-floor regression passes; Tower entrance plan rendered. The original unspecified omission is not claimed resolved. |
-| 13 | Map replaces boat compasses | **Done — 0.2.1 on SDK-capable ports.** Logic renews the native compass lease through panel/chart exit, uses the reported rectangle, then releases once for the host’s 200 ms return delay. Older ports retain above-compasses placement. See SDK-INTEGRATION.md. |
+| 13 | Map replaces boat compasses | **Done — 0.2.1 on SDK-capable ports.** Logic renews the native compass lease through panel/chart exit, uses the reported rectangle, then releases once for the host’s 200 ms return delay. Older ports retain above-compasses placement. See [port compatibility](SDK-INTEGRATION.md). |
 
 ## Every 1.3 changelog entry
 
@@ -53,17 +51,17 @@ Source: [upstream CHANGELOG.md](https://github.com/Chironeyes/The.Wind.Waker.HD-
 | QoL 2: Link/Makar/Medli airborne floor updates, including glide | **Done — `41f6830`, `1ba6c41`**, with source/table review and synthetic checks; actual companion flight unplayed. |
 | QoL 3: floors/markers slide vertically, fixed frame, correct direction | **Done — `a96de49`**. Ascending sends old plan downward/new plan in from above; descending reverses it. A scripted Link height change captured the floor update and slide; natural stair/flight traversal and companions remain unplayed. |
 | QoL 4: preserve dungeon visibility/size/orientation across foot/swim/boat and Tower re-entry | **Done — `41f6830`, `1ba6c41`**. Shared state and context tests; Tower swimming plan reached. |
-| QoL 5: boat dungeon Down/L3; native left/right; only bottom custom shortcut | **Done — `41f6830`**. Headless input/icon checks plus native Tower boat cycle/zoom captures in `tower-boat-17`. |
+| QoL 5: boat dungeon Down/L3; native left/right; only bottom custom shortcut | **Done — `41f6830`**. Headless input/icon checks plus native Tower boat cycle/zoom captures. |
 | QoL 6: 250 ms exits, 200 ms compass-return delay, reversals | **Done — `a96de49` plus 0.2.1 SDK integration.** The guest retains ownership through its 250 ms exit and the host delays compass return by 200 ms. |
-| Validation paragraph 1: Cemu 2.6 Pro Controller regional campaign | **Not applicable as port validation**. Upstream's campaign is not inherited by this follow-up; local evidence is listed below. |
-| Validation paragraph 2: 1,242 synthetic checks, instruction/hook/buffer counts and ending observer | **Not applicable to the guest renderer**. No claim that those PPC checks test this C mod. Local C tests and USA/EU module builds are separate evidence. |
+| Validation paragraph 1: Cemu 2.6 Pro Controller regional campaign | **Not applicable as port validation**. Upstream's campaign is not inherited by this follow-up; this port's checks are listed below. |
+| Validation paragraph 2: 1,242 synthetic checks, instruction/hook/buffer counts and ending observer | **Not applicable to the guest renderer**. No claim that those PPC checks test this C mod. This mod's C tests and USA/EU module builds are separate evidence. |
 | Retained behavior: discovery, Map/Compass, opened chests, chart/menu synchronization, ending safety, Fortress distant projection | **Done for existing gates and new native inventory/chest flags — `6a7e010`, `27adf89`**. **Done — 0.2.1 SDK integration** for reverse chart sync on capable ports. Cemu pane-attachment ending fixes are **not applicable**: this mod never reparents native panes. Ending gameplay was not replayed; distant Fortress projection is not claimed corrected. |
 | Installed-game assets; no saves/controller profiles/executable/Xbox pack shipped; bounded validation claim | **Done — existing runtime art service, this report and notices**. No private game/test artifacts are committed. |
 
 ## Validation and limits
 
-The following is the retained **0.2.0** campaign. For the final 0.2.1 ELF hash,
-module builds and SDK scene checks, see [SDK-INTEGRATION.md](SDK-INTEGRATION.md).
+The following is the **0.2.0** campaign. For the 0.2.1 module builds and SDK
+scene checks, see [port compatibility](SDK-INTEGRATION.md).
 
 - Host tests: `python3 -m unittest discover -s hd-minimap/tests` passes. Its C binary
   checks sectors/coverage, floors, multi-floor room eligibility, context handoffs,
@@ -74,25 +72,24 @@ module builds and SDK scene checks, see [SDK-INTEGRATION.md](SDK-INTEGRATION.md)
   `bb477dae8a45fbe22e367994bc4d321cf4a0f0a6c67c1150b998f78561fbe4fd`.
 - UndefinedBehaviorSanitizer host tests pass. AddressSanitizer could not start:
   the macOS sanitizer runtime deadlocked during shadow-memory initialization before
-  `main` (sample retained). Its own process was stopped; no ASan pass is claimed.
-- Runtime: macOS, Metal, USA, port `fa1edf4`; muted, hidden-window runs, at most two
-  own game processes. Fresh empty save folders were created by this task; no user's
-  saves or unapproved existing test saves were read or altered. Native stage warps
+  `main`; no ASan pass is claimed.
+- Runtime: macOS, Metal, USA, port `fa1edf4`. Fresh empty save folders were used;
+  no existing saves were read or altered. Native stage warps
   and test-only inventory/Map/Compass/opened flags are fixture setup, not a normal
   progression/playthrough claim.
 - DRC on foot, Tower entrance while swimming, Fortress exterior, and Outset island
   were reached. DRC show/hide/resize/zoom and contextual plans were captured. Command
   Melody, companion flight/glide and the unspecified missing Tower room were not reached.
-  Tower boat controls were subsequently checked using the authored native restart fixture. No lead-approved scene saves were supplied.
-- English/French chart previews use a private derivative with **only** an extra draw
+  Tower boat controls were subsequently checked using an authored native restart fixture.
+- English/French chart previews use a test-only build with **only** an extra draw
   call showing the chart on foot. They verify the native message/inventory path,
   artwork and caption layout; they do not verify boat controls or chart handoff.
-  The preview source/ELF is outside the repository; no preview condition is shipped.
+  The preview build is not part of the repository; no preview condition is shipped.
 - Additional audit: `52769d2` fixes Fortress exterior Down handling before its mode
   was changed to dungeon, and clears altitude history when leaving a dungeon or
-  starting a stage transition. `fortress-zoom-13` captures confirm Down now zooms.
-- Native boat fixture: `tower-portable-15` captures this task's own new Quest Log.
-  `tower-boat-17` derives a portable restart with `has_ship/on_ship` metadata and
+  starting a stage transition. Captures confirm Down now zooms.
+- Native boat fixture: a new Quest Log created for these checks; a portable restart
+  is derived with `has_ship/on_ship` metadata and
   event bit 0x0F80, the creation prerequisite checked by `daShip_c::create` at
   0x0247C358. The native restart creates a real boat; logs show its actor position
   and riding status. No live HUD/riding-status flag is overridden by the mod.
@@ -102,56 +99,34 @@ module builds and SDK scene checks, see [SDK-INTEGRATION.md](SDK-INTEGRATION.md)
   Native two-floor artwork counts peak at 21 in Tower; stale unrelated caches could
   otherwise starve room loads. This mitigation does not establish gap 12 resolved.
   The closing panel also retains its own zoom choice across a context change.
-  `boat-handoffs-18/19` exercised the cleanup before that final zoom snapshot refinement;
+  Two boat handoff runs exercised the cleanup before that final zoom snapshot refinement;
   the final ELF has compile/translation and host checks, not another gameplay run.
-- Sea handoff attempts `boat-handoffs-18/19` finish cleanly but enter native story
+- The sea handoff attempts finish cleanly but enter native story
   dialogue at Outset. Their sea chart cycle/exit captures are inconclusive; no
   gameplay pass is claimed for marine memory, treasure exit, or hidden-to-hidden handoff.
-- Single-translation-unit guest builds ran serially; no port build was required.
-  The runner now checks load immediately before launch and refuses above 90. One
-  earlier preview pair started before the tool's load result (93.28) was inspected;
-  both own processes were immediately stopped and rerun under the guarded launcher.
 
-## Screenshot and log inventory
+## Scenes captured
 
-Private evidence root (not committed):
-`/Users/lschaupp/projects/zelda_wwhd-work/hd-minimap-parity-proof/`.
-Each run retains its exact `environment.json`, isolated saves, package and logs.
+- DRC on foot: compact, expanded, exiting, fully hidden, entering, resize and camera zoom.
+- Fortress exterior: Down overview/zoom regression and the opened-chest check (four
+  eligible markers become three).
+- Tower of the Gods: native boat compact/expanded/zoom/hidden cycle; boat to swimming
+  retaining expanded zoom; entrance plan while swimming.
+- Scripted Link height change: floor 128 → 130 → 128. Link is deliberately moved above
+  the room ceiling, so the world camera can show black; this is not a natural traversal test.
+- Chart caption previews: English “Treasure Chart 1” (native index 3, 46 eligible charts
+  without decoded Triforce flags) and French “Carte au trésor 1”; English/French
+  Triforce Chart 1 message lookups preceded the final native-inventory refinement.
 
-| Evidence | Paths below that root |
-| --- | --- |
-| DRC compact / expanded | `release-scenes-11/frame_8500_present.png`, `frame_9200_present.png` |
-| DRC exiting / fully hidden | `release-scenes-11/frame_8604_present.png`, `frame_8615_present.png` |
-| DRC entering | `release-scenes-11/frame_8754_present.png`, `frame_8800_present.png` |
-| Resize intermediate/end | `release-scenes-11/frame_9004_present.png`, `frame_9010_present.png` |
-| Camera zoom | `release-scenes-11/frame_9500_present.png` |
-| Fortress exterior Down overview/zoom regression | `fortress-zoom-13/frame_8800_present.png`, `frame_9200_present.png` |
-| Tower native boat cycle/zoom | `tower-boat-17/frame_9200_present.png` (compact), `frame_9360_present.png` (expanded), `frame_9460_present.png` (zoom), `frame_9660_present.png` (hidden), `frame_9960_present.png` (compact restored) |
-| Tower boat → swimming retains expanded zoom | `boat-handoffs-18/frame_10260_present.png`, `frame_10800_present.png` |
-| Tower entrance plan while swimming | `release-scenes-11/frame_10600_present.png`, `frame_11000_present.png` |
-| Fortress exterior / opened-chest check | `release-scenes-11/frame_12400_present.png`, `frame_12800_present.png`; `log-retry` |
-| Scripted Link height/floor transition | `airborne-floor-12/frame_9240_present.png`, `frame_9254_present.png`, `frame_9258_present.png`; `log-retry`: floor 128 → 130 → 128. Link is deliberately moved above the room ceiling, so the world camera can show black; this is not a natural traversal test. |
-| English chart caption preview | `chart-preview-en-09/frame_10800_present.png`; `log-retry-2`: native index 3, “Treasure Chart 1”, 46 eligible charts without decoded Triforce flags |
-| French chart caption preview | `chart-preview-fr-10/frame_10800_present.png`; `log-retry-2`: “Carte au trésor 1” |
-| Earlier Triforce message lookup | `native-names-en-07/log-retry`, `native-names-fr-08/log-retry`: English/French Triforce Chart 1; these precede the final native-inventory refinement |
-| ASan startup diagnostic | `sanitizer-sample.txt` |
+The captures are screenshots, not a finished video recording. No screenshot, state,
+game asset, compiled object or test save is included in the repository.
 
-The captured frame sequences are screenshots, not a finished video recording.
-No screenshot, state, game asset, compiled object or test save is included in commits.
+## SDK decisions
 
-## SDK decisions and retained files
-
-Gaps 9 and 13 now use the supported SDK additions in 0.2.1.
-[SDK-INTEGRATION.md](SDK-INTEGRATION.md) records the new checks; the validation
-campaign above predates this integration unless explicitly noted.
+Gaps 9 and 13 use the port's map/HUD services in 0.2.1 (see
+[port compatibility](SDK-INTEGRATION.md)); the validation campaign above predates
+this integration unless explicitly noted.
 [NATIVE-CALLS.md](NATIVE-CALLS.md) documents addresses, callers, message labels,
 chart lifecycle and why compass Wait reopens. [SDK-PROPOSAL.md](SDK-PROPOSAL.md)
-defines supported calls, ownership, failure behavior and automatic undo.
-
-No cleanup is performed without approval. Retention candidates are the private proof
-folder (including self-created states/saves/builds; exact size in the inventory), reference clone
-(about 66 MiB), and research/object files with the `hd-minimap-` prefix in the parent
-work folder. Exact paths and sizes are listed in the private proof folder's
-`retained-paths.json`. The local mods checkout (about 15 MiB) is the deliverable,
-not a cleanup candidate. `sdk.json`, `index.json` and the port README/CHANGELOG were
-not edited; the shared `task.md` board records questions and SDK decisions.
+records the original proposal for the supported calls, ownership, failure behavior
+and automatic undo.

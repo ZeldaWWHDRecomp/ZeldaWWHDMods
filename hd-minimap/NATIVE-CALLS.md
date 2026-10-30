@@ -106,7 +106,7 @@ Reviewed `hd_screen_hud_main.cpp`, `hd_screen_compass_clock.cpp`, `hd_parts.cpp`
 
 No candidate compass mutator is called. Version 0.2.1 uses the SDK compass lease,
 rectangle query and automatic undo. Map-above-compasses remains the older-port
-fallback; see [SDK-INTEGRATION.md](SDK-INTEGRATION.md).
+fallback; see [port compatibility](SDK-INTEGRATION.md).
 
 Sources: [QoL message pattern](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/blob/devel/qol/src/picto_subjects.c),
 [MenuMap](https://github.com/ZeldaWWHDDecomp/wwhd/blob/main/wwhd_src/d/hd_screen_menu_map_states.cpp),
