@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "hd-minimap",
   "name": "HD minimap",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "game_id": "wwhd",
   "kind": "guest",
   "guest": {
@@ -166,7 +166,7 @@
     },
     {
       "id": "key_view",
-      "name": "Dungeon zoom / sailing view",
+      "name": "Dungeon zoom / boat map view",
       "type": "enum",
       "default": "down",
       "choices": [
@@ -181,7 +181,7 @@
     },
     {
       "id": "key_chart",
-      "name": "Next treasure chart",
+      "name": "Next chart / boat dungeon zoom",
       "type": "enum",
       "default": "l3",
       "choices": [

@@ -66,6 +66,8 @@ static void names(void) {
     assert(hdm_texture_on_floor("MapKazeB1_03^t", "B1"));
     assert(hdm_texture_on_floor("MapKami1F_03_2F_04^t", "1F") && hdm_texture_on_floor("MapKami1F_03_2F_04^t", "2F"));
     assert(!hdm_texture_on_floor("MapKami1F_03_2F_04^t", "3F"));
+    assert(hdm_room_on_floor(0x80, 0x81, "MapKami1F_03_2F_04^t", "2F"));
+    assert(!hdm_room_on_floor(0x80, 0x82, "MapKami1F_03_2F_04^t", "3F"));
     assert(!hdm_texture_on_floor("MapMajyuOD_00^t", "1F"));
     assert(hdm_dungeon_of("kaze") == 5 && hdm_dungeon_of("M_Dai") == 4 && hdm_dungeon_of("Siren") == 3);
     assert(hdm_dungeon_of("kindan") == 2 && hdm_dungeon_of("M_NewD2") == 1 && hdm_dungeon_of("majroom") == 0);
@@ -96,12 +98,18 @@ static void controls(void) {
     assert(hdm_next_sea_view(1, 0) == 0);      /* no chart: never the chart view */
     assert(hdm_blocked_buttons(0, 0, 1) == 0);                          /* on foot */
     assert(hdm_blocked_buttons(0, 1, 1) == (0x0800 | 0x0400));          /* sailing: the cannon and the hook */
-    assert(hdm_blocked_buttons(0, 1, 0) == HDM_ALL_BUTTONS);            /* the boat in the Tower of the Gods */
+    assert(hdm_blocked_buttons(0, 1, 0) == (0x0800 | 0x0400));            /* the boat in the Tower of the Gods */
     assert(hdm_blocked_buttons(1, 0, 1) == HDM_ALL_BUTTONS);            /* an event or a stage change */
     assert(!hdm_pressed(0x0800 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0800));
     assert(hdm_pressed(0x0100 & ~hdm_blocked_buttons(0, 1, 1), 0, 0x0100));
-    assert(hdm_boarding_view(1, 2) == 0);      /* hidden on foot: the compasses alone */
-    assert(hdm_boarding_view(0, 0) == 1 && hdm_boarding_view(0, 2) == 2);
+    assert(hdm_initial_marine_view(0, 1, 2) == 0);
+    assert(hdm_initial_marine_view(0, 0, 0) == 1);
+    assert(hdm_initial_marine_view(1, 1, 2) == 2);
+    assert(hdm_initial_marine_view(1, 0, 0) == 0);
+    hdm_choice v = {0, 0, 1};
+    hdm_cycle_dungeon(&v); assert(!v.hidden && v.expanded && v.zoom);
+    hdm_cycle_dungeon(&v); assert(v.hidden && v.expanded && v.zoom);
+    hdm_cycle_dungeon(&v); assert(!v.hidden && !v.expanded && v.zoom);
 }
 
 static void dpad_icons(void) {
@@ -116,10 +124,10 @@ static void dpad_icons(void) {
     assert(d.left == HDM_ICON_MAP_UNKNOWN);
     d = hdm_dpad_icons(1, 0, 1, 1, 1, 1, 1);                       /* sailing: only the view, even hidden on foot */
     assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_VIEW);
-    assert(hdm_dpad_icons(1, 0, 1, 0, 0, 0, 0).down == HDM_ICON_UNKNOWN);
+    assert(hdm_dpad_icons(1, 0, 1, 0, 0, 0, 1).down == HDM_ICON_UNKNOWN);
     assert(hdm_dpad_icons(1, 0, 1, 0, 0, 1, 0).down == HDM_ICON_NONE);   /* out at sea: the compasses */
     d = hdm_dpad_icons(0, 1, 1, 0, 0, 0, 0);                       /* the boat in the Tower of the Gods */
-    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
+    assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_VIEW);
     d = hdm_dpad_icons(0, 0, 0, 0, 0, 0, 0);                       /* no minimap here */
     assert(d.left == HDM_ICON_NONE && d.right == HDM_ICON_NONE && d.down == HDM_ICON_NONE);
 }
@@ -206,7 +214,132 @@ static void forsaken_outside(void) {
     assert(HDM_SEARCHLIGHT_SWITCH + HDM_SEARCHLIGHTS - 1 == 103);
 }
 
+static void contexts(void) {
+    /* Every Fortress foot/marine handoff: a different context cannot overwrite
+     * the hidden/compact/expanded dungeon choice or its orientation. */
+    for (int foot_state = 0; foot_state < 3; ++foot_state)
+        for (int marine = 0; marine < 3; ++marine)
+            for (int zoom = 0; zoom < 2; ++zoom) {
+                hdm_choice foot = {0, 0, 0}, dungeon = {foot_state == 0, foot_state == 2, zoom};
+                hdm_choice before = dungeon;
+                hdm_choice now = hdm_change_context(&foot, &dungeon, 1, 0, before);
+                now.hidden = marine == 0; /* independent island choice */
+                now = hdm_change_context(&foot, &dungeon, 0, 1, now);
+                assert(now.hidden == before.hidden && now.expanded == before.expanded && now.zoom == before.zoom);
+                /* Boat/foot within the same dungeon preserves everything. */
+                now = hdm_change_context(&foot, &dungeon, 1, 1, now);
+                assert(now.hidden == before.hidden && now.expanded == before.expanded && now.zoom == zoom);
+            }
+    /* Link, Medli and Makar use the same altitude policy, including glide.
+     * Oscillation inside the +/-32 margin cannot change the accepted floor. */
+    for (int role = 0; role < 3; ++role) {
+        int floor = 0x80;
+        for (int i = 0; i < 120; ++i) {
+            floor = hdm_stable_floor(floor, i & 1 ? 0x80 : 0x81, 0x80, 0x81);
+            assert(floor == 0x80);
+        }
+        floor = hdm_stable_floor(floor, 0x81, 0x81, 0x81);
+        assert(floor == 0x81);
+    }
+}
+
+static void captions(void) {
+    assert(hdm_known_build("USA") && hdm_known_build("EU"));
+    assert(!hdm_known_build(0) && !hdm_known_build("") && !hdm_known_build("JP") && !hdm_known_build("USA2"));
+    char out[64];
+    const unsigned short plain[] = {'T','r','e','a','s','u','r','e',' ', 'C','h','a','r','t',' ', '1',0};
+    assert(hdm_message_name(plain, sizeof plain / 2, out, sizeof out) == 16);
+    assert(!strcmp(out, "Treasure Chart 1"));
+    const unsigned short tagged[] = {0xe,0,3,2,0,'C','a','r','t','e',' ',0xe9,0xd83d,0xddfa,0,'x'};
+    assert(hdm_message_name(tagged, sizeof tagged / 2, out, sizeof out) > 0);
+    assert(!strcmp(out, "Carte \xc3\xa9\xf0\x9f\x97\xba"));
+    const unsigned short bad[] = {'A',0xe,0,1,0xffff};
+    assert(hdm_message_name(bad, sizeof bad / 2, out, sizeof out) == 1 && !strcmp(out, "A"));
+    const unsigned short truncated[] = {0xe,0};
+    assert(hdm_message_name(truncated, 2, out, sizeof out) == 0 && !out[0]);
+    const unsigned short lines[] = {'A','\n','B',0};
+    assert(hdm_message_name(lines, 4, out, sizeof out) == 1 && !strcmp(out,"A"));
+    const unsigned short accent[] = {0xe9,0};
+    assert(hdm_message_name(accent, 2, out, 2) == 0 && !out[0]);
+    assert(hdm_message_name(accent, 2, out, 3) == 2 && !strcmp(out,"\xc3\xa9"));
+    assert(hdm_message_name(plain, 1, out, 0) == 0);
+}
+
+static void animation(void) {
+    assert(hdm_ease(-1) == 0 && hdm_ease(2) == 1 && hdm_ease(.5f) == .5f);
+    for (int fps = 30; fps <= 120; fps *= 2) {
+        hdm_tween t = {0};
+        hdm_tween_target(&t, 0, HDM_EXIT_SECONDS); /* hidden to hidden */
+        hdm_tween_step(&t, 1.0f / fps); assert(t.value == 0);
+        hdm_tween_target(&t, 1, HDM_ENTER_SECONDS);
+        for (int i = 0; i < fps / 10; ++i) hdm_tween_step(&t, 1.0f / fps);
+        assert(fabsf(t.value - .5f) < 1e-5f);
+        float before = t.value;
+        hdm_tween_target(&t, 0, HDM_EXIT_SECONDS);
+        assert(t.value == before); /* reversal starts at actual fraction */
+        hdm_tween_step(&t, .125f); assert(fabsf(t.value - before * .5f) < 1e-5f);
+        hdm_tween_step(&t, .125f); assert(t.value == 0);
+        hdm_tween_step(&t, NAN); assert(t.value == 0);
+    }
+    hdm_tween size = {300, 300, 300, 0, 0};
+    hdm_tween_target(&size, 190, HDM_ENTER_SECONDS);
+    hdm_tween_step(&size, .1f); assert(size.value == 245);
+    hdm_tween_target(&size, 300, HDM_ENTER_SECONDS); assert(size.value == 245);
+    hdm_tween_step(&size, .2f); assert(size.value == 300);
+}
+
+static void sdk_integration(void){
+    hdm_chart_sync s={-1,-1};int cancel;
+    assert(hdm_chart_observe(&s,3,&cancel)==3&&!cancel);
+    s.pending=4;assert(hdm_chart_observe(&s,3,&cancel)==-1&&!cancel&&s.pending==4);
+    assert(hdm_chart_observe(&s,4,&cancel)==4&&!cancel&&s.pending==-1);
+    s.pending=6;assert(hdm_chart_observe(&s,5,&cancel)==5&&cancel&&s.pending==-1);
+    s.pending=8;assert(hdm_chart_observe(&s,-2,&cancel)==-1&&cancel&&s.pending==-1);
+    assert(hdm_chart_observe(&s,7,&cancel)==7&&!cancel);
+    s.pending=8;assert(hdm_chart_cancel(&s)&&s.observed==7);assert(!hdm_chart_cancel(&s));
+    assert(hdm_chart_observe(&s,50,&cancel)==-1&&!cancel);
+    assert(hdm_compass_wanted(1,1,.1f,0,1)); // first entry and finishing exit
+    assert(hdm_compass_wanted(1,1,0,.1f,1)); // independent treasure tail
+    assert(!hdm_compass_wanted(1,1,0,0,1)); // release exactly once both finish
+    assert(!hdm_compass_wanted(0,1,1,1,1)); // disembark
+    assert(!hdm_compass_wanted(1,0,1,1,1)); // visibility revoked
+    assert(!hdm_compass_wanted(1,1,1,1,0));
+    assert(!hdm_map_requested(0,1,1,1,0,0)); // hidden boat, including unknown hint
+    assert(hdm_map_requested(0,1,1,1,1,1));
+    assert(!hdm_map_requested(0,1,0,1,1,0)); // coverage loss, keep choice elsewhere
+    assert(!hdm_map_requested(1,0,0,0,1,1));
+    assert(hdm_map_requested(1,0,0,0,0,0));
+    // Renew through the 250ms panel/chart exit; the host owns the next 200ms.
+    for(int hz=30;hz<=120;hz*=2){
+        hdm_tween panel={1,1,1,0,0},chart=panel;
+        hdm_tween_target(&panel,0,HDM_EXIT_SECONDS);hdm_tween_target(&chart,0,HDM_EXIT_SECONDS);
+        float dt=1.f/hz,elapsed=0;int held=1,releases=0;
+        for(int i=0;i<hz;i++){
+            hdm_tween_step(&panel,dt);hdm_tween_step(&chart,dt);elapsed+=dt;
+            int wanted=hdm_compass_wanted(1,1,panel.value,chart.value,1);
+            if(held&&!wanted){releases++;assert(elapsed>=.249f&&elapsed<.251f+dt);}
+            held=wanted;
+        }
+        assert(releases==1);
+    }
+}
+
 int main(void) {
+    captions();
+    animation();
+    contexts();
+    assert(hdm_stable_floor(0x80, 0x81, 0x80, 0x81) == 0x80);
+    assert(hdm_stable_floor(0x80, 0x81, 0x81, 0x81) == 0x81);
+    assert(hdm_stable_floor(0x81, 0x80, 0x80, 0x81) == 0x81);
+    assert(hdm_stable_floor(0x81, 0x80, 0x80, 0x80) == 0x80);
+    assert(hdm_stable_floor(-1, 0x80, 0x7f, 0x80) == 0x80);
+    assert(hdm_stable_floor(0x80, 10, 10, 10) == 0x80);
+    assert(hdm_chart_message(-1) == 0 && hdm_chart_message(49) == 0);
+    assert(hdm_chart_message(0) == 0x31d8 && hdm_chart_message(2) == 0x31da);
+    assert(hdm_chart_message(3) == 0x31e0 && hdm_chart_message(35) == 0x3200);
+    assert(hdm_chart_message(36) == 0x3715 && hdm_chart_message(43) == 0x371c);
+    assert(hdm_chart_message(44) == 0x3729 && hdm_chart_message(48) == 0x372d);
+    sdk_integration();
     plan_rooms();
     forsaken();
     forsaken_outside();
