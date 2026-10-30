@@ -383,4 +383,23 @@ static inline void hdm_to_panel(const hdm_view* v, float side, float x, float y,
     *px = side * 0.5f + (x - v->cx) * v->scale;
     *py = side * 0.5f - (y - v->cy) * v->scale;
 }
+/* Native chart intent stays local until committed; unrelated later GamePad
+ * choices win. Observation never reissues a request or restores an old choice. */
+typedef struct {int observed, pending;} hdm_chart_sync;
+static inline int hdm_chart_observe(hdm_chart_sync* s,int native,int* cancel) {
+    *cancel=0;
+    if(native<0){*cancel=s->pending>=0;s->pending=s->observed=-1;return -1;}
+    int changed=native!=s->observed;s->observed=native;
+    if(s->pending==native)s->pending=-1;
+    else if(s->pending>=0&&changed){s->pending=-1;*cancel=1;}
+    return changed&&s->pending<0&&native<49?native:-1;
+}
+static inline int hdm_chart_cancel(hdm_chart_sync* s){int had=s->pending>=0;s->pending=-1;return had;}
+static inline int hdm_compass_wanted(int boat,int visible,float panel,float chart,float opacity){
+    return boat&&visible&&opacity>0&&(panel>0||chart>0);
+}
+
+static inline int hdm_map_requested(int dungeon,int sea,int covered,int marine,int view,int hidden){
+    return (dungeon||(sea&&covered))&&(marine?view!=0:!hidden);
+}
 #endif

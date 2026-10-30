@@ -288,6 +288,42 @@ static void animation(void) {
     hdm_tween_step(&size, .2f); assert(size.value == 300);
 }
 
+static void sdk_integration(void){
+    hdm_chart_sync s={-1,-1};int cancel;
+    assert(hdm_chart_observe(&s,3,&cancel)==3&&!cancel);
+    s.pending=4;assert(hdm_chart_observe(&s,3,&cancel)==-1&&!cancel&&s.pending==4);
+    assert(hdm_chart_observe(&s,4,&cancel)==4&&!cancel&&s.pending==-1);
+    s.pending=6;assert(hdm_chart_observe(&s,5,&cancel)==5&&cancel&&s.pending==-1);
+    s.pending=8;assert(hdm_chart_observe(&s,-2,&cancel)==-1&&cancel&&s.pending==-1);
+    assert(hdm_chart_observe(&s,7,&cancel)==7&&!cancel);
+    s.pending=8;assert(hdm_chart_cancel(&s)&&s.observed==7);assert(!hdm_chart_cancel(&s));
+    assert(hdm_chart_observe(&s,50,&cancel)==-1&&!cancel);
+    assert(hdm_compass_wanted(1,1,.1f,0,1)); // first entry and finishing exit
+    assert(hdm_compass_wanted(1,1,0,.1f,1)); // independent treasure tail
+    assert(!hdm_compass_wanted(1,1,0,0,1)); // release exactly once both finish
+    assert(!hdm_compass_wanted(0,1,1,1,1)); // disembark
+    assert(!hdm_compass_wanted(1,0,1,1,1)); // visibility revoked
+    assert(!hdm_compass_wanted(1,1,1,1,0));
+    assert(!hdm_map_requested(0,1,1,1,0,0)); // hidden boat, including unknown hint
+    assert(hdm_map_requested(0,1,1,1,1,1));
+    assert(!hdm_map_requested(0,1,0,1,1,0)); // coverage loss, keep choice elsewhere
+    assert(!hdm_map_requested(1,0,0,0,1,1));
+    assert(hdm_map_requested(1,0,0,0,0,0));
+    // Renew through the 250ms panel/chart exit; the host owns the next 200ms.
+    for(int hz=30;hz<=120;hz*=2){
+        hdm_tween panel={1,1,1,0,0},chart=panel;
+        hdm_tween_target(&panel,0,HDM_EXIT_SECONDS);hdm_tween_target(&chart,0,HDM_EXIT_SECONDS);
+        float dt=1.f/hz,elapsed=0;int held=1,releases=0;
+        for(int i=0;i<hz;i++){
+            hdm_tween_step(&panel,dt);hdm_tween_step(&chart,dt);elapsed+=dt;
+            int wanted=hdm_compass_wanted(1,1,panel.value,chart.value,1);
+            if(held&&!wanted){releases++;assert(elapsed>=.249f&&elapsed<.251f+dt);}
+            held=wanted;
+        }
+        assert(releases==1);
+    }
+}
+
 int main(void) {
     captions();
     animation();
@@ -303,6 +339,7 @@ int main(void) {
     assert(hdm_chart_message(3) == 0x31e0 && hdm_chart_message(35) == 0x3200);
     assert(hdm_chart_message(36) == 0x3715 && hdm_chart_message(43) == 0x371c);
     assert(hdm_chart_message(44) == 0x3729 && hdm_chart_message(48) == 0x372d);
+    sdk_integration();
     plan_rooms();
     forsaken();
     forsaken_outside();

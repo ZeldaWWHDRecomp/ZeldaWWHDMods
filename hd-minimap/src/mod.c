@@ -2,7 +2,7 @@
  * The map art (island maps, dungeon floor plans, treasure charts, markers) is read by the port from the
  * player's installed game at run time (WWHD_HUD_GAME); this mod only names layouts, textures and panes.
  * The frame and the wind arrow are Minimap HD artwork by Chironeyes (MIT, see NOTICE.md).
- * Read-only: no writes to game memory. */
+ * The guest never writes game memory; native UI changes use the supported host SDK. */
 #include "wwhd_guest.h"
 #include "wwhd/actor.h"
 #include "wwhd/functions.h"
@@ -97,6 +97,10 @@ static struct {
 static struct { int hidden, expanded, zoom, sea_view, chart, feedback, marine_initialized; float feedback_time; } ui = {0, 0, 0, 1, 0, 0, 0, 0};
 static hdm_choice foot_choice, dungeon_choice;
 static int selected_chart = -1;
+static u32 compass_api, chart_api;
+static int compass_active, compass_recheck;
+static hdm_chart_sync chart_sync = {-1,-1};
+static wwhd_boat_compasses_rect compass_rect = {.size=24,.version=1};
 static int choice_family; /* 0 island, 1 dungeon; marine preferences remain separate */
 static int floor_history = -1, floor_dungeon = -1, floor_role = -1;
 static char floor_stage[9];
@@ -173,10 +177,10 @@ static struct { int found; float x, y, w, h; } searchlights[HDM_SEARCHLIGHTS];
 /* The last actually displayed payload is retained only for a closing panel.
  * No native UI/actor pointers are retained. */
 static __typeof__(snap) panel_snap, chart_snap, previous_floor_snap;
-static hdm_tween panel_slide, chart_slide, panel_size, panel_bottom;
+static hdm_tween panel_slide, chart_slide, panel_size, panel_bottom, panel_left;
+static float chart_origin_x, chart_origin_bottom;
 static hdm_tween floor_slide = {1, 1, 1, 0, 0};
 static int chart_tail_index, have_panel, have_chart, floor_direction, panel_zoom;
-static unsigned long long presentation_step = ~0ull;
 static int presentation_dungeon = -1, presentation_floor = -1;
 static float floor_shift;
 static int floor_pass;
@@ -191,12 +195,18 @@ static u32 key_option(const char* id, const char* fallback) {
     if (!wwhd_config_string(id, value, sizeof value)) { int i = 0; for (; fallback[i] && i < 15; ++i) value[i] = fallback[i]; value[i] = 0; }
     return hdm_button_bit(value);
 }
+static void sdk_capabilities(void){
+    compass_api=chart_api=0;
+    wwhd_setting_get("hud.boat-compasses.version",WWHD_SETTING_U32,&compass_api,4);
+    wwhd_setting_get("map.chart-selection.version",WWHD_SETTING_U32,&chart_api,4);
+}
 static void configure(void) {
     /* Addresses are USA-v0 declarations, translated and identity-checked by the
      * installer for EU-v0. Unknown/absent build identity disables native calls. */
     static char build[8];
     if (wwhd_setting_get("game.build", WWHD_SETTING_STRING, build, sizeof build))
         opt.native_build = hdm_known_build(build);
+    sdk_capabilities();
     opt.x = bounded(wwhd_config_float("x", 12), 0, 1200, 12);
     opt.bottom = bounded(wwhd_config_float("y", 20), 0, 650, 20);
     opt.side_compact = bounded(wwhd_config_float("size", 190), 96, 400, 190);
@@ -779,6 +789,94 @@ static void dpad_icons(u32 list) {
     else dpad_icon(list, icons.down, 16, -55, 54.4f, 3, -2, .5f);
 }
 static unsigned long long captured_step = ~0ull;
+static int map_requested(void){
+    int marine=snap.mode==MODE_SEA&&snap.on_ship;
+    return hdm_map_requested(snap.mode==MODE_DUNGEON,snap.mode==MODE_SEA,snap.covered,marine,ui.sea_view,ui.hidden);
+}
+static void sdk_begin(void){
+    unsigned long long epoch=wwhd_hud_epoch();
+    if(epoch!=image_epoch||compass_recheck){
+        image_epoch=epoch;forget_images();compass_active=compass_recheck=0;sdk_capabilities();
+        if(chart_api&&hdm_chart_cancel(&chart_sync))wwhd_map_chart_cancel();
+        chart_sync.observed=-1;
+    }
+    if(chart_api){
+        int cancel=0,index=hdm_chart_observe(&chart_sync,wwhd_map_chart_selected(),&cancel);
+        if(cancel)wwhd_map_chart_cancel();
+        if(index>=0)selected_chart=index;
+    }
+}
+static void presentation_logic(void){
+    if(!snap.visible||game_paused()){
+        panel_slide=(hdm_tween){0};chart_slide=(hdm_tween){0};
+        have_panel=have_chart=floor_direction=0;presentation_dungeon=presentation_floor=-1;
+        /* Missed renewal revokes immediately when native visibility is lost. */
+        compass_active=0;
+        if(chart_api&&hdm_chart_cancel(&chart_sync))wwhd_map_chart_cancel();
+        return;
+    }
+    int marine=snap.mode==MODE_SEA&&snap.on_ship;
+    int requested=map_requested();
+    if(opt.debug&&(wwhd_logic_step()%30)==0){
+        wwhd_log_int("sdk.compass.version",compass_api);wwhd_log_int("sdk.chart.version",chart_api);
+        wwhd_log_int("sdk.compass.active",compass_active);wwhd_log_int("chart.pending",chart_sync.pending);
+        wwhd_log_int("marine.view",ui.sea_view);
+    }
+    int chart_mode=marine&&ui.sea_view==2&&snap.chart_count>0;
+    int chart_requested=requested&&chart_mode;
+    if(chart_api&&!chart_mode&&hdm_chart_cancel(&chart_sync))wwhd_map_chart_cancel();
+    /* This runs once per Link logic invocation, never per displayed frame.
+     * Renew even when an interpolated/60 Hz pass shares an SDK step stamp. */
+    {
+        float dt = (float)wwhd_logic_dt();
+        int was_visible=panel_slide.value>0||chart_slide.value>0;
+        float side = marine || !ui.expanded ? opt.side_compact : opt.side_expanded;
+        hdm_tween_target(&panel_slide, requested ? 1 : 0, requested ? HDM_ENTER_SECONDS : HDM_EXIT_SECONDS);
+        hdm_tween_target(&chart_slide, chart_requested ? 1 : 0, chart_requested ? HDM_ENTER_SECONDS : HDM_EXIT_SECONDS);
+        hdm_tween_target(&panel_size, side, HDM_ENTER_SECONDS);
+        hdm_tween_step(&panel_slide, dt); hdm_tween_step(&chart_slide, dt);
+        int want_compass=hdm_compass_wanted(snap.on_ship,1,panel_slide.value,chart_slide.value,opt.opacity);
+        int was_active=compass_active;
+        compass_active=compass_api&&want_compass&&wwhd_hud_boat_compasses(1)==1;
+        if(compass_active)compass_active=wwhd_hud_boat_compasses_rect(&compass_rect)==1;
+        if(was_active&&want_compass&&!compass_active){
+            /* Do not tween through the restored native compasses after an
+             * external revocation. Restart safely from the next valid context. */
+            panel_slide=(hdm_tween){0};chart_slide=(hdm_tween){0};
+            have_panel=have_chart=0;compass_recheck=1;return;
+        }
+        if(compass_api&&was_active&&!want_compass)wwhd_hud_boat_compasses(0);
+        float left=compass_active?compass_rect.x+opt.x:opt.x;
+        float bottom=compass_active?720-compass_rect.y-compass_rect.h+opt.bottom:opt.bottom+(marine?110:0);
+        if(!was_visible){
+            panel_left=(hdm_tween){left,left,left,0,0};
+            panel_bottom=(hdm_tween){bottom,bottom,bottom,0,0};
+        }
+        /* Closing payloads keep their last anchor; a new family can retarget it. */
+        if(requested||panel_slide.value<=0){
+            hdm_tween_target(&panel_left,left,HDM_ENTER_SECONDS);
+            hdm_tween_target(&panel_bottom,bottom,HDM_ENTER_SECONDS);
+        }
+        hdm_tween_step(&panel_size, dt);hdm_tween_step(&panel_left,dt);hdm_tween_step(&panel_bottom,dt);
+        if (requested && snap.mode == MODE_DUNGEON && have_panel && panel_snap.mode == MODE_DUNGEON &&
+            snap.dungeon == presentation_dungeon && snap.floor != presentation_floor &&
+            snap.floor != OUTDOOR_FLOOR && presentation_floor != OUTDOOR_FLOOR) {
+            previous_floor_snap = panel_snap;
+            floor_direction = snap.floor > presentation_floor ? 1 : -1;
+            floor_slide = (hdm_tween){0, 0, 1, 0, HDM_ENTER_SECONDS};
+        }
+        hdm_tween_step(&floor_slide, dt);
+        if (requested) {
+            panel_snap = snap; panel_zoom = ui.zoom; have_panel = 1;
+            presentation_dungeon = snap.mode == MODE_DUNGEON ? snap.dungeon : -1;
+            presentation_floor = snap.floor;
+        }
+        if (chart_requested) {
+            chart_snap = snap; chart_tail_index = ui.chart; have_chart = 1;
+            chart_origin_x=panel_left.value;chart_origin_bottom=panel_bottom.value;
+        }
+    }
+}
 static void draw(u32 list) {
     if (!opt.native_build) return;
     unsigned long long epoch = wwhd_hud_epoch();
@@ -812,42 +910,14 @@ static void draw(u32 list) {
         return;
     }
     dpad_icons(list);
-    int marine = snap.mode == MODE_SEA && snap.on_ship;
-    int eligible = snap.mode == MODE_DUNGEON || (snap.mode == MODE_SEA && snap.covered && snap.discovered);
-    int requested = eligible && (marine ? ui.sea_view != 0 : !ui.hidden);
-    int chart_requested = requested && marine && ui.sea_view == 2 && snap.chart_count > 0;
-    if (presentation_step != wwhd_logic_step()) {
-        presentation_step = wwhd_logic_step();
-        float dt = (float)wwhd_logic_dt();
-        float side = marine || !ui.expanded ? opt.side_compact : opt.side_expanded;
-        hdm_tween_target(&panel_slide, requested ? 1 : 0, requested ? HDM_ENTER_SECONDS : HDM_EXIT_SECONDS);
-        hdm_tween_target(&chart_slide, chart_requested ? 1 : 0, chart_requested ? HDM_ENTER_SECONDS : HDM_EXIT_SECONDS);
-        hdm_tween_target(&panel_size, side, HDM_ENTER_SECONDS);
-        hdm_tween_target(&panel_bottom, opt.bottom + (marine ? 110 : 0), HDM_ENTER_SECONDS);
-        hdm_tween_step(&panel_slide, dt); hdm_tween_step(&chart_slide, dt);
-        hdm_tween_step(&panel_size, dt); hdm_tween_step(&panel_bottom, dt);
-        if (requested && snap.mode == MODE_DUNGEON && have_panel && panel_snap.mode == MODE_DUNGEON &&
-            snap.dungeon == presentation_dungeon && snap.floor != presentation_floor &&
-            snap.floor != OUTDOOR_FLOOR && presentation_floor != OUTDOOR_FLOOR) {
-            previous_floor_snap = panel_snap;
-            floor_direction = snap.floor > presentation_floor ? 1 : -1;
-            floor_slide = (hdm_tween){0, 0, 1, 0, HDM_ENTER_SECONDS};
-        }
-        hdm_tween_step(&floor_slide, dt);
-        if (requested) {
-            panel_snap = snap; panel_zoom = ui.zoom; have_panel = 1;
-            presentation_dungeon = snap.mode == MODE_DUNGEON ? snap.dungeon : -1;
-            presentation_floor = snap.floor;
-        }
-        if (chart_requested) { chart_snap = snap; chart_tail_index = ui.chart; have_chart = 1; }
-    }
+    int requested = map_requested();
+    if(compass_active&&wwhd_hud_boat_compasses_rect(&compass_rect)!=1){compass_recheck=1;return;}
     float rest = opt.opacity, a = opt.fade ? hdm_fade_opacity(&fade, rest, opt.faded) : rest;
     if (a <= 0) return;
     static_images();
     const __typeof__(snap)* payload = !requested && have_panel ? &panel_snap : &snap;
     int dungeon_payload = have_panel && panel_slide.value > 0 && payload->mode == MODE_DUNGEON;
-    int sea_payload = (have_panel && panel_slide.value > 0 && payload->mode == MODE_SEA) || chart_slide.value > 0 ||
-                      (snap.mode == MODE_SEA && !snap.discovered && snap.covered && (!ui.hidden || marine));
+    int sea_payload = (have_panel && panel_slide.value > 0 && payload->mode == MODE_SEA) || chart_slide.value > 0;
     if (!dungeon_payload) release_dungeon_images();
     else {
         if (!payload->outdoor) { drop(&img_searchlight[0]); drop(&img_searchlight[1]); }
@@ -861,7 +931,7 @@ static void draw(u32 list) {
     }
     if (!sea_payload) release_sea_images();
     float side = panel_size.value;
-    float x = opt.x - (1 - panel_slide.value) * (side + opt.x + 8);
+    float x = panel_left.value - (1 - panel_slide.value) * (side + panel_left.value + 8);
     float y = 720 - side - panel_bottom.value;
     static __typeof__(snap) current;
     current = snap;
@@ -889,12 +959,10 @@ static void draw(u32 list) {
         int chart = ui.chart;
         snap = chart_snap; ui.chart = chart_tail_index;
         float cs = opt.side_compact;
-        draw_chart(list, opt.x + cs + 8 - (1 - chart_slide.value) * (2 * cs + opt.x + 16),
-                   720 - cs - opt.bottom - 110, cs, a);
+        draw_chart(list, chart_origin_x + cs + 8 - (1 - chart_slide.value) * (2 * cs + chart_origin_x + 16),
+                   720 - cs - chart_origin_bottom, cs, a);
         ui.chart = chart; snap = current;
     }
-    if (!snap.discovered && snap.mode == MODE_SEA && snap.covered && (!ui.hidden || marine))
-        draw_sea(list, opt.x, 720 - opt.side_compact - opt.bottom, opt.side_compact, a);
     feedback(list, side);
 }
 
@@ -994,12 +1062,12 @@ static void read_charts(u32 save) {
         if (snap.charts[i].index == selected_chart) { ui.chart = i; break; }
     if (snap.chart_count) selected_chart = snap.charts[ui.chart].index;
 }
-/* Follow menu selection without retaining a native pane or modifying its HUD.
- * The reverse direction needs a supported chart-select SDK operation. */
+/* Older-port fallback only. SDK-capable ports observe canonical selection in
+ * logic so an outgoing caption cannot overwrite an uncommitted local choice. */
 WWHD_HOOK_RETURN(0x02699094, follow_chart_caption, (u32 menu, u32 chart)) {
     (void)menu;
     if (!opt.native_build) return;
-    if (chart < 49) {
+    if (!chart_api && chart < 49) {
         for (int i = 0; i < snap.chart_count; ++i)
             if (snap.charts[i].index == (int)chart) { selected_chart = (int)chart; break; }
     }
@@ -1075,6 +1143,11 @@ static void handle_input(u32 blocked, int sailing) {
         {
             ui.chart = (ui.chart + 1) % snap.chart_count;
             selected_chart = snap.charts[ui.chart].index;
+            if(chart_api){
+                s32 result=wwhd_map_chart_select((u32)selected_chart);
+                chart_sync.pending=result==1?selected_chart:-1;
+                if(opt.debug)wwhd_log_int("chart.select",result);
+            }
         }
     }
     wind_phase += (float)wwhd_logic_dt();
@@ -1130,7 +1203,7 @@ static void forsaken_outside(u8* play, u32 save) {
     snap.visible = 1;
 }
 
-WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
+static void capture(fopAc_ac_c* actor) {
     if (!initialized) configure();
     if (!opt.native_build) return;
     wwhd_hud_register(draw, WWHD_HUD_TV);
@@ -1320,4 +1393,10 @@ WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture, (fopAc_ac_c* actor)) {
     }
     snap.mode = MODE_DUNGEON;
     snap.visible = 1;
+}
+
+WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Execute, capture_step, (fopAc_ac_c* actor)) {
+    if(!initialized)configure();
+    if(!opt.native_build)return;
+    sdk_begin();snap.visible=0;capture(actor);presentation_logic();
 }
