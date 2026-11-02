@@ -178,6 +178,8 @@ static struct { int found; float x, y, w, h; } searchlights[HDM_SEARCHLIGHTS];
  * No native UI/actor pointers are retained. */
 static __typeof__(snap) panel_snap, chart_snap, previous_floor_snap;
 static hdm_tween panel_slide, chart_slide, panel_size, panel_bottom, panel_left;
+/* the panel's entrance waits for the HUD's (after a load the HUD comes in later than Link's first step) */
+static int hud_waiting = 1;
 static float chart_origin_x, chart_origin_bottom;
 static hdm_tween floor_slide = {1, 1, 1, 0, 0};
 static int chart_tail_index, have_panel, have_chart, floor_direction, panel_zoom;
@@ -270,6 +272,7 @@ static void forget_images(void) {
     spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
     have_panel = have_chart = floor_direction = 0;
     panel_slide = (hdm_tween){0}; chart_slide = (hdm_tween){0};
+    hud_waiting = 1;
 }
 /* Keep only assets that can still be emitted. The SDK permits 32 images per
  * mod; inactive floor/icon/marker caches must not consume the current family's
@@ -744,9 +747,13 @@ static void read_dpad(void) {
     if (!hdm_finite(scale) || !hdm_finite(tx) || !hdm_finite(ty) || scale < .05f || scale > 8 || tx < -1280 || tx > 1280 || ty < -720 || ty > 720) return;
     dpad.found = 1;
     dpad.x = 640 + tx; dpad.y = 360 - ty; dpad.scale = scale;
-    dpad.alpha = *(u8*)(pane + 0x46) / 255.0f;
-    for (u32 p = pane, depth = 0; heap_pointer(p) && depth < 16; p = *(u32*)(p + 0x0C), ++depth)
-        if (!(*(u8*)(p + 0x44) & 1)) dpad.alpha = 0;  /* a hidden parent hides the D-pad */
+    /* the global alpha and flags of the pane and its parents: a hidden or transparent parent hides the D-pad */
+    u8 global[16], flags[16];
+    int depth = 0;
+    for (u32 p = pane; heap_pointer(p) && depth < 16; p = *(u32*)(p + 0x0C), ++depth) {
+        global[depth] = *(u8*)(p + 0x46); flags[depth] = *(u8*)(p + 0x44);
+    }
+    dpad.alpha = hdm_hud_alpha(global, flags, depth);
 }
 /* an icon centred (ox, oy) layout units from the D-pad's pane, size units wide, with the shadow Minimap HD's
  * icons have in the game: black, offset (dx, dy) */
@@ -786,7 +793,7 @@ static void dpad_icons(u32 list) {
 static unsigned long long captured_step = ~0ull;
 static int map_requested(void){
     int marine=snap.mode==MODE_SEA&&snap.on_ship;
-    return hdm_map_requested(snap.mode==MODE_DUNGEON,snap.mode==MODE_SEA,snap.covered,marine,ui.sea_view,ui.hidden);
+    return !hud_waiting&&hdm_map_requested(snap.mode==MODE_DUNGEON,snap.mode==MODE_SEA,snap.covered,marine,ui.sea_view,ui.hidden);
 }
 static void sdk_begin(void){
     unsigned long long epoch=wwhd_hud_epoch();
@@ -795,7 +802,7 @@ static void sdk_begin(void){
          * compass lease keeps them: forgetting live handles would leak them
          * against the SDK's 32-image budget. */
         if(epoch!=image_epoch){image_epoch=epoch;forget_images();}
-        else{panel_slide=(hdm_tween){0};chart_slide=(hdm_tween){0};have_panel=have_chart=floor_direction=0;}
+        else{panel_slide=(hdm_tween){0};chart_slide=(hdm_tween){0};have_panel=have_chart=floor_direction=0;hud_waiting=1;}
         compass_active=compass_recheck=0;sdk_capabilities();
         if(chart_api&&hdm_chart_cancel(&chart_sync))wwhd_map_chart_cancel();
         chart_sync.observed=-1;
@@ -810,12 +817,15 @@ static void presentation_logic(void){
     if(!snap.visible||game_paused()){
         panel_slide=(hdm_tween){0};chart_slide=(hdm_tween){0};
         have_panel=have_chart=floor_direction=0;presentation_dungeon=presentation_floor=-1;
+        hud_waiting=1;
         /* Missed renewal revokes immediately when native visibility is lost. */
         compass_active=0;
         if(chart_api&&hdm_chart_cancel(&chart_sync))wwhd_map_chart_cancel();
         return;
     }
     int marine=snap.mode==MODE_SEA&&snap.on_ship;
+    read_dpad();
+    hud_waiting=hdm_hud_waiting(hud_waiting,dpad.found,dpad.alpha);
     int requested=map_requested();
     if(opt.debug&&(wwhd_logic_step()%30)==0){
         wwhd_log_int("sdk.compass.version",compass_api);wwhd_log_int("sdk.chart.version",chart_api);
@@ -919,6 +929,7 @@ static void draw(u32 list) {
         panel_slide = (hdm_tween){0}; chart_slide = (hdm_tween){0};
         have_panel = have_chart = floor_direction = 0;
         presentation_dungeon = presentation_floor = -1;
+        hud_waiting = 1;
         return;
     }
     dpad_icons(list);

@@ -415,4 +415,20 @@ static inline int hdm_chart_mark(const short rect[4], float side, float world, f
     *dy = (float)(rect[3] - rect[1]) * k;
     return 1;
 }
+/* The HUD's opacity at a pane, from the pane up to the root (global alpha and flags of each, the pane first):
+ * the lowest global alpha, 0 if one is hidden. After a save load the HUD waits with N_All_00 at 0 and its
+ * children keep a stale 255 until it comes in, so the pane's own global alpha is not enough. */
+static inline float hdm_hud_alpha(const unsigned char* global, const unsigned char* flags, int count) {
+    int lowest = 255;
+    for (int i = 0; i < count; ++i) {
+        if (!(flags[i] & 1)) return 0;
+        if (global[i] < lowest) lowest = global[i];
+    }
+    return count > 0 ? lowest / 255.0f : 0;
+}
+/* After the map's panel restarts (a load, a menu, an event), its entrance waits for the HUD's: still waiting
+ * while the HUD's D-pad is found and not shown yet; never held when the HUD can't be read. */
+static inline int hdm_hud_waiting(int waiting, int found, float hud_alpha) {
+    return waiting && found && !(hud_alpha > 0);
+}
 #endif
