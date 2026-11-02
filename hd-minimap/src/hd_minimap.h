@@ -402,4 +402,17 @@ static inline int hdm_compass_wanted(int boat,int visible,float panel,float char
 static inline int hdm_map_requested(int dungeon,int sea,int covered,int marine,int view,int hidden){
     return (dungeon||(sea&&covered))&&(marine?view!=0:!hidden);
 }
+/* Where a treasure chart's X goes, from the chart's centre, as hdTreMapScreen_c::selectChart places
+ * P_TreasureMark_00: the chart set's rectangle is the chart's centre (where its art is centred) then the
+ * treasure's spot, sector-local; the art stays put and only the X moves, by the spot's distance from the
+ * centre at the chart's scale (side / the game's cell world size). Screen y grows down like the sea's z.
+ * Returns 0, with no offset, when the world size can't be trusted. */
+static inline int hdm_chart_mark(const short rect[4], float side, float world, float* dx, float* dy) {
+    *dx = *dy = 0;
+    if (!(world > 1000 && world < 1e6f) || !(side > 0)) return 0;
+    float k = side / world;
+    *dx = (float)(rect[2] - rect[0]) * k;
+    *dy = (float)(rect[3] - rect[1]) * k;
+    return 1;
+}
 #endif

@@ -324,7 +324,23 @@ static void sdk_integration(void){
     }
 }
 
+static void chart_mark(void) {
+    /* the art stays centred; only the X moves by (spot - centre) * side / world, y down like the sea's z */
+    float dx, dy;
+    const short left_below[4] = {1000, -2000, -24000, 25000};
+    assert(hdm_chart_mark(left_below, 470, 100000, &dx, &dy));
+    assert(fabsf(dx - (-25000 * 470 / 100000.0f)) < 1e-3f && dx < 0);
+    assert(fabsf(dy - (27000 * 470 / 100000.0f)) < 1e-3f && dy > 0);
+    const short centred[4] = {-3000, 4000, -3000, 4000};
+    assert(hdm_chart_mark(centred, 470, 100000, &dx, &dy) && dx == 0 && dy == 0);
+    /* an untrusted world size leaves the X in the centre */
+    assert(!hdm_chart_mark(left_below, 470, 0, &dx, &dy) && dx == 0 && dy == 0);
+    assert(!hdm_chart_mark(left_below, 470, 2e6f, &dx, &dy) && dx == 0 && dy == 0);
+    assert(!hdm_chart_mark(left_below, 0, 100000, &dx, &dy) && dx == 0 && dy == 0);
+}
+
 int main(void) {
+    chart_mark();
     captions();
     animation();
     contexts();

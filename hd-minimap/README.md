@@ -15,7 +15,7 @@ its own implementation for the port; it does not use the pack's patches.
 | Great Sea, discovered sector, near its island | The sector's island map on the see-through (lightly darkened) panel, with Link (or the boat) and the wind direction |
 | Undiscovered sector | No map; a faded map with a question mark |
 | Out at sea, away from the island | Nothing; the game's own compasses |
-| Sailing, with an owned treasure chart | Optionally the chart beside the minimap: the chart art centred on the treasure's X, as the game's chart screen shows it, with its name in the game's language (Triforce charts once deciphered) |
+| Sailing, with an owned treasure chart | Optionally the chart beside the minimap: the whole chart art with the treasure's X on its spot, as the game's chart screen shows it, with its name in the game's language (Triforce charts once deciphered) |
 | Dungeon with the Map | The plan of the controlled character's current floor with its doors; Link's room bright, unvisited rooms dimmed |
 | Dungeon with the Compass | Unopened chests on this floor and the boss icon at the boss door (until the boss is beaten) |
 | Earth / Wind Temple | The controlled character; the other character when on the same floor |
@@ -87,7 +87,7 @@ These features are optional. Older ports keep the map above the compasses and
 follow eligible GamePad caption changes in one direction. The package still loads
 with older installers; it does not import mandatory new host functions.
 
-## Known limits (0.2.1)
+## Known limits (0.2.3)
 
 - Native localized chart names retain a numeric fallback if a message is missing.
 - Link and boat markers are never drawn on treasure charts.
@@ -111,7 +111,7 @@ the [parity report](PARITY.md) for the scenes checked and remaining gaps, and
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
 buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and framing,
-the Forsaken Fortress plan turn, its outside and searchlights, and the dungeon zoom's turn. No game data is included.
+the Forsaken Fortress plan turn, its outside and searchlights, the dungeon zoom's turn, and where a treasure chart's X goes. No game data is included.
 
 ## Credits and licensing
 
@@ -125,6 +125,9 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
+- **0.2.3:**
+  - The treasure chart shows its whole art, as the game's chart screen does, with the X where the
+    treasure is; before, the X stayed in the middle and the art was moved off the chart.
 - **0.2.1:** on ports with the new map/HUD services:
   - While sailing, the minimap takes the place of the boat compasses instead of sitting
     above them; the compasses come back 200 ms after the map has left.
