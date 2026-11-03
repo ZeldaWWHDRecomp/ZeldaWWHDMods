@@ -16,8 +16,12 @@ the Gameplay menu has the same option), confirm the rebuild, then **Restart now*
 variants are cached, so switching back to one you built before is quick. Keep the complete release
 folder and the compiler setup downloaded: building code mods uses those local tools.
 
-Switching code mods on or off and changing their options take effect after a restart. Code mods are
-desktop only (macOS, Windows, Linux) for now; Android doesn't support them yet.
+Switching code mods on or off and changing their options take effect after a restart, except options
+the package marks live. Code mods run on macOS, Windows, Linux and Android (port 0.4.0 and later). On
+Android the setup app's **Code mods** switch (or **Use code mods** in the game, which starts the same
+rebuild) builds the game code with code-mod support on the device, about as long as the first setup;
+close and reopen the app afterwards. Each mod is then translated and built on the device. Mod
+preparation tools written in Python run there too; other programs in a package don't.
 
 To see untested mods of this catalogue, turn on **Show experimental mods**. The port labels them,
 warns before enabling one and backs up your saves first.

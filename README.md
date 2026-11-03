@@ -33,7 +33,7 @@ SDK v2 guest mods for [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/Zelda
 
 Experimental mods (`"experimental": true`) are untested and may break the game or a save. The port lists them only with **Show experimental mods** on and backs up the player's saves before one is enabled.
 
-The v0.2.2 built-in sources are preserved under `legacy/`. Their environment switches and patches apply only to those prototypes. Current guest packages use the mod manager and take effect at restart. Android guest mods remain unsupported.
+The v0.2.2 built-in sources are preserved under `legacy/`. Their environment switches and patches apply only to those prototypes. Current guest packages use the mod manager and take effect at restart; options a package marks live follow at once. Guest mods run on Android too (port 0.4.0 and later): the setup app's **Code mods** switch builds the game with code-mod support, and each mod is translated and built on the device when the game starts.
 
 No game data, keys, saves or state files belong in this repository, packages or CI artifacts. Map images are generated from each player's own game files into the mod's data folder, outside Git. Original package artwork is either generated from reviewed source scripts or committed as licensed original artwork listed in the mod's `assets/ASSETS.md`.
 

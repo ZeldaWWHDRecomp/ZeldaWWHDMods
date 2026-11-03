@@ -63,9 +63,14 @@ versions.
 | Service | What it does |
 | --- | --- |
 | `wwhd_log`, `_int`, `_hex`, `_float` | log lines tagged with your mod's ID |
-| `wwhd_config_int`, `_bool`, `_float`, `_string` | your mod's options (values from startup; the fallback on a missing option or wrong type) |
+| `wwhd_config_int`, `_bool`, `_float`, `_string` | your mod's options (values from startup, or as they are now for `"live"` options; the fallback on a missing option or wrong type) |
+| `wwhd_config_changed` | a live option's revision (port 0.5.0), below |
 | `wwhd_malloc`, `wwhd_free` | per-mod heap, 16-byte aligned; size from `guest.heap_size`; null when full |
 | `wwhd_input_read` | buttons, sticks and touch (read-only) |
+| `wwhd_input_filter_register` | change the controller state the game reads (port 0.5.0), below |
+| `wwhd_touch_register`, `wwhd_touch_claim` | touches and mouse clicks on parts of the TV picture your mod claims, and pinches there (port 0.5.0), below |
+| `wwhd_screen_point` | where the drawn camera shows a point of the world, in touch units (port 0.5.0), below |
+| `wwhd_mic_open`, `_close`, `_state`, `_pitch` | the microphone's pitch, while an option the player turned on allows it (port 0.5.0), below |
 | `wwhd_file_read`, `wwhd_file_write` | flat file names in your mod's own data folder, at most 1 MiB per call; write replaces the file; return bytes or -1 |
 | `wwhd_logic_dt`, `wwhd_logic_step` | the length of the current logic step in seconds (60 fps modes included) and the step counter |
 | `wwhd_setting_get`, `wwhd_setting_changed` | read-only port settings, below |
@@ -75,6 +80,114 @@ versions.
 | `memcpy`, `memmove`, `memset` | as usual |
 
 Your mod can also call any game function through `wwhd/bindings.h`.
+
+## Live options, input filters and touches
+
+These need port 0.5.0: put `"minimum_manager_version": "1.6.0"` in the manifest, so older ports refuse
+the package with "needs a newer version of the game". [QoL extras](examples.md#qol-extras) uses all of
+them.
+
+**Live options.** Mark an option `"live": true` in the manifest and the player can change it while
+playing (in Settings or on the item menu's Settings page). `wwhd_config_*` then return the value as it is
+now, and `wwhd_config_changed(id)` returns the option's revision: 1 at start, one more per change (0 for
+an option your mod doesn't have). Check it once per logic step and read the value again when it changed.
+Keep your hooks installed and return early while a feature is off.
+
+```c
+static unsigned long long seen;
+static int clothes_on;
+static void options(void) {
+    unsigned long long r = wwhd_config_changed("clothes");
+    if (r != seen) { seen = r; clothes_on = wwhd_config_bool("clothes", 0); }
+}
+```
+
+**Input filters.** `wwhd_input_filter_register(fn)` calls `fn(state)` on each of the game's controller
+reads (once per logic step, also at 60 fps), after the port's own touch rules and before the game sees
+it. Change `buttons` and the sticks; the touch fields are read-only. One filter per mod (0 removes it);
+filters of several mods run in load order.
+
+```c
+static void filter(wwhd_input_state* s) {
+    if (fire > 0) { fire--; s->buttons |= 0x8000u; }  /* hold A */
+}
+/* once, from a hook: */ wwhd_input_filter_register(filter);
+```
+
+**Touches.** Register one callback with `wwhd_touch_register(fn)`, then claim rectangles with
+`wwhd_touch_claim(slot, x0, y0, x1, y1)`, slots 0–7. Units are layout units: 1280 × 720 around the
+picture's centre, +y up (a wider picture extends x). A finger on a touch screen (with the on-screen
+controls shown or hidden) or a mouse click on the TV picture that lands in a claim goes only to your
+callback, as a `wwhd_touch_event` with `kind` `WWHD_TOUCH_DOWN`, `_MOVE`, `_UP` or `_CANCEL` and its `x`,
+`y`. It stays yours until it lifts, even outside the rectangle. The newest claim wins where claims
+overlap. Claim only while your feature shows something to touch, and remove the claim (an empty
+rectangle, `x1 <= x0`) when it doesn't, so the player's thumbs work the game again. Events arrive at the
+next controller read, before the input filters, so a tap can become a button in the same read.
+
+```c
+static void touch(const wwhd_touch_event* e) {
+    if (e->kind == WWHD_TOUCH_UP) fire = 4;
+}
+/* once, from a hook: */ wwhd_touch_register(touch);
+/* while the board is shown: */ wwhd_touch_claim(0, -185, -215, 190, 155);
+/* when it's gone: */            wwhd_touch_claim(0, 0, 0, 0, 0);
+```
+
+**Pinches.** A second finger next to your mod's finger, or the mouse wheel over one of your claims on a
+computer, comes as `WWHD_TOUCH_PINCH` with `x` = the spread now divided by the spread when the pinch
+began (above 1: fingers apart, or the wheel turned away from the player; each notch is 15 %), then
+`WWHD_TOUCH_PINCH_END`. The finger keeps its own events; its moves pause during the pinch.
+
+```c
+if (e->kind == WWHD_TOUCH_PINCH) zoom = start_zoom * e->x;
+```
+
+**Points on the picture.** `wwhd_screen_point(world, out)` takes a point of the current room (`x, y, z`)
+and writes where the drawn camera shows it to `out[0]`, `out[1]`, in the same layout units as touches,
+with the picture's shape and field of view as drawn. It returns 1, or 0 when the point is behind the
+camera or no camera is drawn. The camera moves: compare on the step you project.
+
+```c
+f32 w[3] = {x, y, z}, at[2];
+if (wwhd_screen_point(w, at) && (e->x - at[0]) * (e->x - at[0]) + (e->y - at[1]) * (e->y - at[1]) < 40 * 40) {
+    /* the finger is on that point */
+}
+```
+
+**The microphone.** A mod gets the pitch of what the player sings, hums or whistles, never the sound.
+
+- Only through an option the player turns on: a bool option marked `"permission": "microphone"`.
+  `wwhd_mic_open()` works only while that option is on; otherwise the state is `WWHD_MIC_UNAVAILABLE`.
+- The game never asks for the microphone at install or start. The first `wwhd_mic_open()` asks the
+  system then (Android's permission, the macOS prompt); the state is `WWHD_MIC_ASKING` until the answer.
+- If the player declines, the state becomes `WWHD_MIC_DENIED` and the port turns the option off again
+  with a short notice. The player can allow the microphone in the system settings and turn it on again.
+- The port analyses the sound for its pitch and drops it: nothing is stored, written, logged or sent,
+  and your mod never gets samples.
+- `wwhd_mic_pitch(out)` writes the newest window's (about 21 ms) pitch in Hz to `out[0]` (0: none),
+  its loudness (0–1) to `out[1]` and its clarity (0–1) to `out[2]`, and returns a window count: a new
+  value means a new window. `wwhd_mic_state()` is `WWHD_MIC_CLOSED`, `_ASKING`, `_OPEN`, `_DENIED` or
+  `_UNAVAILABLE`.
+- Call `wwhd_mic_close()` when you stop listening (the port also closes it when the option goes off).
+  Keep it closed when nothing listens: QoL extras opens it once when the player turns the option on
+  (for the question), then only while Link conducts.
+
+```json
+{"id": "sing", "type": "bool", "name": "Sing the songs", "default": false, "live": true, "permission": "microphone"}
+```
+
+```c
+f32 p[3];
+static unsigned long long last;
+if (wwhd_mic_state() == WWHD_MIC_OPEN) {
+    unsigned long long n = wwhd_mic_pitch(p);
+    if (n != last && p[0] > 0 && p[1] >= 0.02f && p[2] >= 0.6f) { /* a clear note at p[0] Hz */ }
+    last = n;
+}
+```
+
+For scripted tests, `WWHD_TEST_MIC=from-to:hz,...` (TV frames) feeds tones without a device or a
+question, and `WWHD_TEST_MIC_DENY=1` answers the question with "declined".
 
 ## Port settings
 
@@ -135,6 +248,13 @@ WWHD_HOOK(WWHD_ADDR_daPy_Execute, register_box, (void* link)) {
   `WWHD_HUD_DATA` loads from your mod's data folder (for images your setup tool prepared). Keep the
   handle and free it with `wwhd_hud_release`. After a state load the handles are gone: compare
   `wwhd_hud_epoch()` in each callback and reload when it changes.
+- **The game's own HUD art:** `wwhd_hud_texture(WWHD_HUD_GAME, "<Layout>/<texture>")` loads a texture
+  of the game's 2D layouts (map frames, icons, markers) from the player's own game files, for example
+  `"Map_00/MapShip_00^t"`. Add `#<material>` to colour it the way the game does, and `@2`, `@3` or `@4`
+  for a sharper enlarged copy. `wwhd_game_pane_get("layout-pane:<Layout>/<pane>", &pane)` reads a pane's
+  place, size, rotation and alpha; the key `layout-texture:<Layout>/<texture>` checks that a texture
+  exists without loading it. Missing names return 0, with the reason in the Mods tab. Ship only the
+  names, never the pictures. Example: [`hd-minimap/`](../../hd-minimap/).
 - **Clipping:** `wwhd_hud_clip(list, &element)` records `WWHD_HUD_CLIP_PUSH` (a screen-aligned
   rectangle from `x/y/w/h` and `anchor`, intersected with the parent clip) and `WWHD_HUD_CLIP_POP`.
   Up to 16 nested clips; an unbalanced callback drops the list.
@@ -167,7 +287,8 @@ order); the host copies them before returning. Only 48000 Hz is supported.
 - **Save states.** Full save states include the mods' memory and heaps. Loading a state made with
   different mods shows a warning and continues. Files a mod writes itself are not part of save
   states.
-- **Limits.** Changing enabled mods or their options needs a restart. Mods live in a 16 MiB region of
+- **Limits.** Changing enabled mods or their options needs a restart, except options marked
+  `"live": true`. Mods live in a 16 MiB region of
   game memory; each mod gets its own part. No events or exports between mods yet. Instructions the
   translator doesn't support are reported when the mod is built.
 

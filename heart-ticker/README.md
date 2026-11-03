@@ -6,8 +6,8 @@ heart, then refills at half a heart. It never intentionally lowers health below
 half a heart. Disable and restart to restore normal behavior.
 
 Built once as a PowerPC ELF, then translated locally for USA or European
-installations by the port. Native-code trust is required. Android guest mods
-are not supported. This is a demonstration, not a recommended gameplay mod.
+installations by the port (on Android, on the device). Native-code trust is required.
+This is a demonstration, not a recommended gameplay mod.
 
 Source: `mod.c`. Licence: MPL-2.0 (see LICENSE). SDK declarations are supplied
 by the pinned public port SDK, whose generated game declarations derive from
