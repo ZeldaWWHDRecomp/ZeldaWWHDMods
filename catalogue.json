@@ -286,7 +286,7 @@
         }
       ],
       "port_versions": {
-        "minimum": "0.2.11"
+        "minimum": "0.5.0"
       },
       "experimental": true
     }
