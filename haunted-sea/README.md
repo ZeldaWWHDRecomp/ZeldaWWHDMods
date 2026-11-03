@@ -9,6 +9,8 @@ distance. It lasts two to four minutes.
 - It only comes once Link has the sail and the Wind Waker, never in a file's first four minutes, and not again for
   twelve minutes after one ends.
 - Gyorgs come even before Link has the Boomerang.
+- When a spell ends, the monsters close to Link stay and fight on; the ones far out in the fog (more than 2,000
+  units away, the cannon boats among them) and the Ghost Ship go.
 
 All monsters are the game's own. Nothing from the game is included in this package.
 
