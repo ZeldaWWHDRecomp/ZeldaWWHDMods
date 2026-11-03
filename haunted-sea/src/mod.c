@@ -112,6 +112,7 @@ static const Monster kOship = {0xB3, -1, 0x00FFFF00, (s16)0xFFFF};
 /* the Ghost Ship (daGhostship): no path; tonight's moon phase in the low byte, or the game hides it */
 static const Monster kGhostShip = {0xB2, -1, 0x00FF0000, 0};
 #define FLAG_PROC 0xAE  /* daMajuu_Flag, a cannon boat's flag */
+#define OSHIP_FLAG_ID 0xE6C  /* daOship_c::mFlagPcId: the boat's own record of its flag's process id */
 
 #define MAX_IDS 16
 typedef struct { u32 ids[MAX_IDS]; double born[MAX_IDS]; u32 count; double next; } Spawner;
@@ -168,17 +169,16 @@ static u32 spawn(Spawner* s, Monster m, u8* link, double dist, int behind, doubl
     return id;
 }
 /* one of ours deleted; a cannon boat's flag goes with it (it reads the boat's matrix every step, and left behind it
- * read freed memory and flew off to 1e36, halting the game) */
+ * read freed memory and flew off to 1e36, halting the game). The boat makes its flag with fopAcM_create, not as a
+ * child, so the flag has no parent link to the boat: the boat keeps the flag's id itself, as the game does when it
+ * sinks a boat. */
 static void delete_actor(u32 id) {
     u8* a = hs_search(id);
-    if (a && proc_of(a) == kOship.proc)
-        for (u32 o = 0xD00; o < 0xF00; o += 4) {
-            u8* f = hs_search(word(a, o));
-            if (f && f != a && proc_of(f) == FLAG_PROC) {
-                hs_delete(word(a, o));
-                break;
-            }
-        }
+    if (a && proc_of(a) == kOship.proc) {
+        const u32 flag = word(a, OSHIP_FLAG_ID);
+        u8* f = flag != NONE ? hs_search(flag) : 0;
+        if (f && proc_of(f) == FLAG_PROC) hs_delete(flag);
+    }
     hs_delete(id);
 }
 
