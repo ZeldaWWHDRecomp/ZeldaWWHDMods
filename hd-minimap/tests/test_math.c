@@ -364,6 +364,28 @@ static void hud_entry(void) {
     assert(hdm_hud_waiting(HDM_HUD_WAIT_STEPS - 1, 1, 0) == HDM_HUD_WAIT_STEPS);
     assert(!hdm_hud_waiting(HDM_HUD_WAIT_STEPS - 1, 1, .5f));
 }
+static void sailing(void) {
+    float left, low;
+    /* replacing the compasses: the on-foot corner, whatever the compass rectangle does */
+    hdm_panel_corner(1, 1, 24, 30, &left, &low);
+    assert(left == 24 && low == 30);
+    /* aboard without the lease: above the native compasses; on foot: the corner */
+    hdm_panel_corner(0, 1, 24, 30, &left, &low);
+    assert(left == 24 && low == 140);
+    hdm_panel_corner(0, 0, 24, 30, &left, &low);
+    assert(left == 24 && low == 30);
+    /* the chart's title: centred over the chart, just above it, with the native proportions */
+    hdm_chart_title t = hdm_chart_title_box(100, 200, 200);
+    assert(fabsf(t.w - 188) < 1e-3f && fabsf(t.h - 188 * 47.0f / 312.0f) < 1e-3f);
+    assert(fabsf(t.x + t.w / 2 - 200) < 1e-3f);
+    assert(fabsf(t.y + t.h - (200 - 6)) < 1e-3f);
+    assert(t.shadow_y > t.y && t.shadow_y < t.y + t.h && fabsf(t.shadow_h / t.h - 25.0f / 47.0f) < 1e-5f);
+    /* a short name keeps 0.75 x the ribbon's height; a long one shrinks to fit the 296/312 box */
+    assert(fabsf(hdm_chart_title_size(&t, 2) - t.h * .75f) < 1e-4f);
+    float long_size = hdm_chart_title_size(&t, 60);
+    assert(long_size < t.h * .75f && fabsf(60 * long_size * HDM_TITLE_ADVANCE - t.w * 296.0f / 312.0f) < 1e-2f);
+    assert(fabsf(hdm_chart_title_size(&t, 0) - t.h * .75f) < 1e-4f);
+}
 static void hit_stop(void) {
     /* shown: Link's step ran this step or the one before */
     assert(!hdm_presentation_hidden(1, 0, 0, 10, 10));
@@ -382,6 +404,7 @@ int main(void) {
     chart_mark();
     hud_entry();
     hit_stop();
+    sailing();
     captions();
     animation();
     contexts();

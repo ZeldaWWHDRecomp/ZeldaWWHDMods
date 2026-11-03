@@ -445,4 +445,29 @@ static inline int hdm_presentation_hidden(int visible, int paused, int hit_stop,
     if (hit_stop) return 0;
     return paused || step > captured + 1;
 }
+/* The map's corner: the on-foot options while it replaces the boat compasses (the port reports their
+ * rectangle, but its left/top edges follow the compass pieces' rotation by up to ~19 units, so anchoring
+ * to it made the map drift); without that lease, aboard it stays 110 above the native compasses. */
+static inline void hdm_panel_corner(int compass_lease, int marine, float x, float bottom, float* left, float* low) {
+    *left = x;
+    *low = compass_lease ? bottom : bottom + (marine ? 110 : 0);
+}
+/* MenuMap_00's chart title: a 312 x 47 ribbon, a 312 x 25 shadow whose top is 2 above the ribbon's bottom,
+ * and a 296-wide text box. As in Minimap HD 1.3 it is 0.94 x the chart's side, 0.03 x side above it. */
+typedef struct { float x, y, w, h, shadow_y, shadow_h; } hdm_chart_title;
+static inline hdm_chart_title hdm_chart_title_box(float x, float y, float side) {
+    hdm_chart_title t;
+    t.w = side * .94f; t.h = t.w * 47.0f / 312.0f;
+    t.x = x + (side - t.w) / 2; t.y = y - side * .03f - t.h;
+    t.shadow_y = t.y + t.h - t.h * 2.0f / 47.0f; t.shadow_h = t.h * 25.0f / 47.0f;
+    return t;
+}
+/* the HUD font's average advance is about 0.37 x its size (measured in game): one estimate both limits the
+ * text to the title's box and centres it; the text is 0.75 x the ribbon's height */
+#define HDM_TITLE_ADVANCE .37f
+static inline float hdm_chart_title_size(const hdm_chart_title* t, unsigned chars) {
+    float size = t->h * .75f, box = t->w * 296.0f / 312.0f;
+    if (chars && chars * size * HDM_TITLE_ADVANCE > box) size = box / (chars * HDM_TITLE_ADVANCE);
+    return size;
+}
 #endif

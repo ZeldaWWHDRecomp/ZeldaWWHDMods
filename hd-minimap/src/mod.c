@@ -242,19 +242,7 @@ static void configure(void) {
 }
 
 /* ---- images ---- */
-static u32 game_image(const char* spec) {
-    u32 h = wwhd_hud_texture(WWHD_HUD_GAME, spec);
-    /* TEMP diagnostics: a failed game texture load, once per failing name */
-    static char last_failed[96];
-    if (!h && opt.debug) {
-        int same = 1, i = 0;
-        for (; spec[i] && i < 95; ++i) if (last_failed[i] != spec[i]) same = 0;
-        if (last_failed[i]) same = 0;
-        if (!same) { for (i = 0; spec[i] && i < 95; ++i) last_failed[i] = spec[i]; last_failed[i] = 0;
-                     wwhd_log("image.load_failed"); wwhd_log(spec); }
-    }
-    return h;
-}
+static u32 game_image(const char* spec) { return wwhd_hud_texture(WWHD_HUD_GAME, spec); }
 static void drop(u32* h) { if (*h) wwhd_hud_release(*h); *h = 0; }
 static void forget_rooms(void) {
     for (int i = 0; i < room_count; ++i) drop(&rooms[i].image);
@@ -545,39 +533,22 @@ static void draw_chart(u32 list, float x, float y, float side, float a) {
     /* the game's title ribbon with the chart's number (language-neutral; the chart names are game text) */
     if (!img_ribbon) img_ribbon = game_image("MenuMap_00/TitleBase_00^t#P_TitleTreBase_00");
     if (!img_ribbon_shadow) img_ribbon_shadow = game_image("MenuMap_00/TitleBaseShadow_00^t#P_TitleTreBaseSh_00");
-    /* MenuMap_00's chart title: a 312 x 47 ribbon of two 156-wide halves (the right one's UVs scaled by
-     * -1, -1: turned), a 312 x 25 shadow whose top is 2 above the ribbon's bottom, and the text centred 23
-     * above that bottom. The ribbon sits just above the chart, as in Minimap HD 1.3 (about 0.94 x the
-     * chart's side, 0.03 x side above it). */
-    float rw = side * .94f, rh = rw * 47.0f / 312.0f, rx = x + (side - rw) / 2, ry = y - side * .03f - rh;
-    image(list, img_ribbon_shadow, rx, ry + rh - rh * 2.0f / 47.0f, rw, rh * 25.0f / 47.0f, 0, 0xffffff, a);
+    /* MenuMap_00's chart title (hdm_chart_title_box): the ribbon of two 156-wide halves, the right one's
+     * UVs scaled by -1, -1 (turned), its shadow, and the text centred 23 above the ribbon's bottom */
+    hdm_chart_title title = hdm_chart_title_box(x, y, side);
+    float rw = title.w, rh = title.h, rx = title.x, ry = title.y;
+    image(list, img_ribbon_shadow, rx, title.shadow_y, rw, title.shadow_h, 0, 0xffffff, a);
     image(list, img_ribbon, rx, ry, rw / 2, rh, 0, 0xffffff, a);
     image(list, img_ribbon, rx + rw / 2, ry, rw / 2, rh, pi, 0xffffff, a);
     static char number[4];
     int n = snap.charts[ui.chart].number;
     number[0] = (char)('0' + n / 10 % 10); number[1] = (char)('0' + n % 10); number[2] = 0;
     if (n < 10) { number[0] = number[1]; number[1] = 0; }
-    if (opt.debug) {
-        /* TEMP diagnostics: which chart pieces are missing while the chart is drawn */
-        static int last_missing = -1, last_number = -1;
-        int missing = (!img_chart_base) | (!img_chart) << 1 | (!img_mark) << 2 | (!img_mark_fill) << 3 | (!img_ribbon) << 4 | (!img_ribbon_shadow) << 5;
-        if (missing != last_missing || (missing && n != last_number)) {
-            last_missing = missing; last_number = n;
-            wwhd_log_int("chart.missing(base1,art2,mark4,fill8,ribbon16,shadow32)", missing);
-            wwhd_log_int("chart.missing.number", n); wwhd_log_int("chart.missing.sea", snap.charts[ui.chart].sea);
-            wwhd_log_float("chart.missing.mark_dx", mx); wwhd_log_float("chart.missing.mark_dy", my);
-            wwhd_log_float("chart.missing.alpha", a);
-        }
-    }
     element = (wwhd_hud_element){0};
     element.kind = WWHD_HUD_TEXT; element.anchor = WWHD_HUD_TOP_LEFT;
     u32 chars = snap.chart_name_bytes ? snap.chart_name_chars : n < 10 ? 1 : 2;
-    /* the HUD font's average advance is about 0.37 x its size (measured in game); one estimate both
-     * limits and centres the text, inside the title's 296-of-312 text box */
-    const float advance = .37f;
-    float text_size = rh * .75f, box = rw * 296.0f / 312.0f;
-    if (chars && chars * text_size * advance > box) text_size = box / (chars * advance);
-    element.x = rx + (rw - chars * text_size * advance) / 2;
+    float text_size = hdm_chart_title_size(&title, chars);
+    element.x = rx + (rw - chars * text_size * HDM_TITLE_ADVANCE) / 2;
     element.y = ry + rh - rh * 23.0f / 47.0f - text_size / 2; element.size = text_size;
     element.thickness = 1; element.u1 = element.v1 = 1;
     element.rgba = 0x011f6d00u | (u32)(a * 255.0f);  /* T_TitleTre_00 */
@@ -832,15 +803,7 @@ static void presentation_logic(void){
         wwhd_log_int("sdk.compass.version",compass_api);wwhd_log_int("sdk.chart.version",chart_api);
         wwhd_log_int("sdk.compass.active",compass_active);wwhd_log_int("chart.pending",chart_sync.pending);
         wwhd_log_int("marine.view",ui.sea_view);
-        /* TEMP diagnostics: compass rectangle drift and image-handle health */
-        wwhd_log_float("compass.x",compass_rect.x);wwhd_log_float("compass.y",compass_rect.y);
-        wwhd_log_float("compass.w",compass_rect.w);wwhd_log_float("compass.h",compass_rect.h);
-        wwhd_log_float("panel.left",panel_left.value);wwhd_log_float("panel.bottom",panel_bottom.value);
-        wwhd_log_int("img.frame",(int)img_frame);wwhd_log_int("img.island",(int)img_island);
-        wwhd_log_int("img.chart_base",(int)img_chart_base);wwhd_log_int("img.chart",(int)img_chart);
-        wwhd_log_int("img.mark",(int)img_mark);wwhd_log_int("img.ribbon",(int)img_ribbon);
     }
-    if(opt.debug&&compass_recheck)wwhd_log_int("compass.recheck.forget_images",1);
     int chart_mode=marine&&ui.sea_view==2&&snap.chart_count>0;
     int chart_requested=requested&&chart_mode;
     if(chart_api&&!chart_mode&&hdm_chart_cancel(&chart_sync))wwhd_map_chart_cancel();
@@ -869,8 +832,8 @@ static void presentation_logic(void){
          * rectangle's left/top edges follow the compass pieces' rotation (up to
          * ~19 units), which made the map drift. Without the lease it stays above
          * the native compasses. */
-        float left=opt.x;
-        float bottom=compass_active?opt.bottom:opt.bottom+(marine?110:0);
+        float left,bottom;
+        hdm_panel_corner(compass_active,marine,opt.x,opt.bottom,&left,&bottom);
         if(!was_visible){
             panel_left=(hdm_tween){left,left,left,0,0};
             panel_bottom=(hdm_tween){bottom,bottom,bottom,0,0};

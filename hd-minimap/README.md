@@ -129,6 +129,11 @@ MPL-2.0; adapted portions retain that MIT notice.
 - **0.2.3:**
   - The treasure chart shows its whole art, as the game's chart screen does, with the X where the
     treasure is; before, the X stayed in the middle and the art was moved off the chart.
+  - While sailing, the map that replaces the boat compasses stays in its on-foot corner instead of
+    drifting with the compass pieces, and the treasure chart's title is the game's own: its ribbon and
+    shadow just above the chart, the name in the native colour at full size and centred.
+  - A revoked compass lease no longer loses the map's images against the mod's image budget, and a
+    chart picture that fails to load is retried.
   - A sword blow that lands no longer hides the minimap and its D-pad icons: during the game's
     hit-stop (its play pause timer) the map keeps its last frame, as the HUD does.
   - While Medli or Makar are controlled the HUD keeps its D-pad hidden; the map no longer waits
