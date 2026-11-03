@@ -87,7 +87,7 @@ These features are optional. Older ports keep the map above the compasses and
 follow eligible GamePad caption changes in one direction. The package still loads
 with older installers; it does not import mandatory new host functions.
 
-## Known limits (0.2.1)
+## Known limits (0.2.2)
 
 - Native localized chart names retain a numeric fallback if a message is missing.
 - Link and boat markers are never drawn on treasure charts.
@@ -111,7 +111,7 @@ the [parity report](PARITY.md) for the scenes checked and remaining gaps, and
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
 buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and framing,
-the Forsaken Fortress plan turn, its outside and searchlights, and the dungeon zoom's turn. No game data is included.
+the Forsaken Fortress plan turn, its outside and searchlights, the dungeon zoom's turn, and the HUD's opacity the map and its icons follow when the HUD comes in. No game data is included.
 
 ## Credits and licensing
 
@@ -125,6 +125,10 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
+- **0.2.2:**
+  - After loading a save, the minimap and its D-pad icons wait for the game's HUD: the icons fade in
+    with the HUD's own icons and the map slides in as the HUD comes in, instead of showing on the
+    still-dark screen before the HUD.
 - **0.2.1:** on ports with the new map/HUD services:
   - While sailing, the minimap takes the place of the boat compasses instead of sitting
     above them; the compasses come back 200 ms after the map has left.

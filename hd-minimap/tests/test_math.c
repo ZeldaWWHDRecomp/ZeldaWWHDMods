@@ -324,7 +324,27 @@ static void sdk_integration(void){
     }
 }
 
+static void hud_entry(void) {
+    /* the D-pad's chain after a save load (log of 2026-11-02): State, InOut, N_All_00 (waiting at 0), parents */
+    const unsigned char waiting_global[] = {255, 255, 0, 255, 255, 255, 255, 255};
+    const unsigned char shown[] = {3, 3, 0x13, 1, 3, 1, 1, 1};
+    assert(hdm_hud_alpha(waiting_global, shown, 8) == 0);
+    const unsigned char coming_global[] = {0x1B, 0x1B, 0x1B, 255, 255, 255, 255, 255};
+    assert(fabsf(hdm_hud_alpha(coming_global, shown, 8) - 0x1B / 255.0f) < 1e-6f);
+    const unsigned char in_global[] = {255, 255, 255, 255, 255, 255, 255, 255};
+    assert(hdm_hud_alpha(in_global, shown, 8) == 1);
+    const unsigned char hidden[] = {3, 3, 3, 0, 3, 1, 1, 1};   /* a hidden parent */
+    assert(hdm_hud_alpha(in_global, hidden, 8) == 0);
+    assert(hdm_hud_alpha(in_global, shown, 0) == 0);
+    /* the panel's entrance waits while the HUD is found and not in; never held without the HUD */
+    assert(hdm_hud_waiting(1, 1, 0));
+    assert(!hdm_hud_waiting(1, 1, 0x1B / 255.0f));
+    assert(!hdm_hud_waiting(1, 0, 0));
+    assert(!hdm_hud_waiting(0, 1, 0));   /* once in, the HUD's later fades don't hold the map */
+}
+
 int main(void) {
+    hud_entry();
     captions();
     animation();
     contexts();
