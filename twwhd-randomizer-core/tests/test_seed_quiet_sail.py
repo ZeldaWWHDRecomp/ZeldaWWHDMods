@@ -10,17 +10,13 @@ import seed_quiet_sail as policy
 from seed_headers import render_quiet_sail
 
 class QuietPolicy(unittest.TestCase):
-    def test_source_only_review_extension(self):
+    def test_shared_port_profile_accepts_both_reviewed_variants(self):
         repo=port_source()
         base=json.loads((repo/'tools/recomp/randomizer-usa.json').read_text())
-        source=json.loads(((TOOLS / 'source-core-usa.json')).read_text())
         native=next(f for f in base['functions'] if f['start']==policy.START)
-        extension=next(f for f in source['functions'] if f['start']==policy.START)
         self.assertEqual(native['end'],policy.END)
-        self.assertEqual(extension['end'],policy.END)
         self.assertIn(policy.DISABLED,native['sha256'])
-        self.assertNotIn(policy.ENABLED,native['sha256'])
-        self.assertEqual(extension['sha256'],[policy.ENABLED])
+        self.assertIn(policy.ENABLED,native['sha256'])
 
     def test_variants_and_unknown(self):
         size=policy.END-policy.START

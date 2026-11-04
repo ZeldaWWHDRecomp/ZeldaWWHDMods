@@ -135,23 +135,23 @@ class SeedPrepare(unittest.TestCase):
         fake_builds = SimpleNamespace(canonical_build=lambda:SimpleNamespace(sha256='a'*64))
         fake_compat = SimpleNamespace(RPX_LIMITS={'file':32}, identify=Mock(return_value=SimpleNamespace(sha256='b'*64,randomizer_report={})))
         parser = Mock(side_effect=[SimpleNamespace(buffer_sha256='a'*64), SimpleNamespace(buffer_sha256='c'*64)])
-        # Production deliberately loads the mod-owned policy by path instead of
-        # trusting an existing sys.modules entry. Inject that loader, while the
-        # RPX parsers still exercise the actual parsed-byte identity checks.
-        from importlib.machinery import ModuleSpec
-        class PolicyLoader:
-            def create_module(self, spec): return None
-            def exec_module(self, module): module.identify_source_core = fake_compat.identify
-        policy = ModuleSpec('source_core_compat', PolicyLoader())
         modules = {'builds':fake_builds,'randomizer_compat':fake_compat,'rpx':SimpleNamespace(Rpx=parser)}
-        with patch.dict(sys.modules,modules), patch('importlib.util.spec_from_file_location',return_value=policy), self.assertRaisesRegex(ValueError,'changed before seed data'):
+        with patch.dict(sys.modules,modules), self.assertRaisesRegex(ValueError,'changed before seed data'):
             _validated_readers(Path('original.rpx'),Path('seed.rpx'))
         self.assertEqual(parser.call_count,2)
+        fake_compat.identify.assert_called_once_with(Path('seed.rpx'))
         parser = Mock(return_value=SimpleNamespace(buffer_sha256='wrong'))
         modules['rpx'] = SimpleNamespace(Rpx=parser);fake_compat.identify.reset_mock()
-        with patch.dict(sys.modules,modules), patch('importlib.util.spec_from_file_location',return_value=policy), self.assertRaisesRegex(ValueError,'unmodified USA'):
+        with patch.dict(sys.modules,modules), self.assertRaisesRegex(ValueError,'unmodified USA'):
             _validated_readers(Path('original.rpx'),Path('seed.rpx'))
         fake_compat.identify.assert_not_called()
+        fake_compat.identify.side_effect = ValueError('unreviewed change')
+        parser = Mock(return_value=SimpleNamespace(buffer_sha256='a'*64))
+        modules['rpx'] = SimpleNamespace(Rpx=parser)
+        with patch.dict(sys.modules,modules), self.assertRaisesRegex(ValueError,'unreviewed change'):
+            _validated_readers(Path('original.rpx'),Path('seed.rpx'))
+        self.assertEqual(parser.call_count,1)
+        fake_compat.identify.assert_called_once_with(Path('seed.rpx'))
 
     def test_content_preparation_binds_complete_seed_identity(self):
         from seed_prepare import prepare_seed

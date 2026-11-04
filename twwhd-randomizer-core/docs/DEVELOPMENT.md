@@ -70,6 +70,9 @@ guest compilation, not the later native host-module compiler. See
 
 Preparation validates the original USA identity, bounded randomized RPX input,
 reviewed function variants, hook compatibility, data layouts and option domains.
+It uses the port's `randomizer_compat.identify()` and shipped compatibility
+profile directly, with the same executable checks as randomized-game setup.
+There is no mod-specific profile extension or pinned copy of the profile.
 Unknown, truncated or incoherent variants fail before a completed preparation
 is published. Do not bypass the compatibility checks to accept another
 randomizer version or hand-edit generated headers to silence a rejection.

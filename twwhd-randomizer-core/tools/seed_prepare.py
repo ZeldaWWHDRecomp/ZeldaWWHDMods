@@ -57,24 +57,16 @@ def generate_headers(original_read, seed_read):
 
 
 def _validated_readers(original_rpx, seed_rpx):
-    import sys
-    from pathlib import Path
     from sdk_paths import add_port_tools
     add_port_tools()
     import builds
     import randomizer_compat
-    import importlib.util
-    policy_path = Path(__file__).with_name('source_core_compat.py')
-    spec = importlib.util.spec_from_file_location('source_core_compat', policy_path)
-    source_core_compat = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = source_core_compat
-    spec.loader.exec_module(source_core_compat)
     from rpx import Rpx
 
     original = Rpx(original_rpx, limits=randomizer_compat.RPX_LIMITS)
     if original.buffer_sha256 != builds.canonical_build().sha256:
         raise ValueError('the original game must be the supported unmodified USA build')
-    selected = source_core_compat.identify_source_core(seed_rpx)
+    selected = randomizer_compat.identify(seed_rpx)
     seed = Rpx(seed_rpx, limits=randomizer_compat.RPX_LIMITS)
     if seed.buffer_sha256 != selected.sha256:
         raise ValueError('randomized RPX changed before seed data was decoded')

@@ -240,8 +240,6 @@
   "tools/seed_startup.py",
   "tools/seed_text_options.py",
   "tools/seed_windfall_data.py",
-  "tools/source-core-usa.json",
-  "tools/source_core_compat.py",
   "tools/title_seed_data.py",
   "tools/traversal_seed_data.py",
   "tools/warp_smoke_seed_data.py"
