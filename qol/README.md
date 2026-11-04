@@ -6,6 +6,7 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 
 | Extra | Section | What it does |
 | --- | --- | --- |
+| **Faster block pushing** | Movement | Off (default), 1.5x or 2x. Both pushing and pulling finish sooner; Link follows the block's actual native movement. |
 | **Link's clothes** | Link | The Hero's clothes or the casual clothes (the lobster shirt) at any time. "As in the story" gives Link the clothes the story gave him. |
 | **Replay conducted songs** | Songs | After you conduct a song, Link plays it back before its effect, as on the GameCube (the HD version skips the replay for songs you played before). |
 | **Songs by touch** | Songs | While Link holds up the Wind Waker: a button for each song he knows (a tap plays it, as if conducted; a scene that waits for one song shows only that one) and four note pads to conduct by touch. |
@@ -62,5 +63,27 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
   keeps its own choice.
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod. The figurine's
   name on the Picto subjects label and More figurine orders are ideas from @gogokfen (issue #276); thanks!
+
+## Faster block pushing (#294)
+
+The option accelerates the native movebox countdown, retaining the original
+collision checks, movement path, completion callbacks and grid endpoint. Link
+continues to follow the box through the game's own push/pull callback. Only his
+looping push/pull animation controllers advance faster; their rates are restored
+after each update, and a native stop or rate change is preserved. No shared block
+tables, player coordinates, inventory or save flags are patched. Turning this
+option off leaves native movement and animation untouched.
+
+Game-free regression tests cover disabled identity, both speeds, short/end
+counts, push/pull synchronization, and scoped animation-rate restoration. Gameplay
+on real blocks, both regions and 30/60 fps remains to be checked; no full
+playthrough is claimed. Public source references: CC0 ZeldaWWHDDecomp/wwhd
+`a874e1a9`, `mode_walk` (02379834), `setPushPullKeepData` (0243CEE0), and
+`J3DFrameCtrl::update` (027F2FC4). The mod observes these functions; it does not
+copy their implementations or replace native collision behavior.
+
+Publication of this update should follow the catalogue rebuild/compiler alignment
+change in [Mods PR #25](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/pull/25).
+This feature does not change `sdk.json`, generated `index.json` or build-policy tools.
 
 - Enemy hit freeze (Combat): Original keeps the game's duration. Half rounds each enemy sword-hit freeze up to at least one native 30-Hz tick, so regular one-tick hits remain unchanged; Off removes it. Damage, spin damage and parry calculations stay native, and menus/cutscenes keep their pauses. The same logical durations apply at 30 fps and true 60 fps. This option defaults to Original.

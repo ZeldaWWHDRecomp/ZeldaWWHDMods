@@ -13,7 +13,7 @@
     "heap_size": 1048576
   },
   "author": "ZeldaWWHDRecomp contributors",
-  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch.",
+  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch. Optional faster block pushing and pulling.",
   "options": [
     {
       "id": "clothes",
@@ -120,6 +120,21 @@
       "live": true,
       "section": "Minigames",
       "description": "Sploosh Kaboom, the Cabana's puzzles, mail sorting, the cannon game, the auction and the Nintendo Gallery's figurines by touch or mouse."
+    },
+    {
+      "id": "block_push_speed",
+      "type": "enum",
+      "name": "Faster block pushing",
+      "choices": [
+        "Off",
+        "1.5x",
+        "2x"
+      ],
+      "default": "Off",
+      "menu": true,
+      "live": true,
+      "section": "Movement",
+      "description": "Move pushable blocks faster while Link follows their native movement. Speeds up pushing and pulling; collision checks and final grid positions remain native."
     },
     {
       "id": "enemy_hit_freeze",
