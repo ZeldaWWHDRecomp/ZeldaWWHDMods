@@ -16,6 +16,7 @@
  * Ideas from the GreenNaugahyde Android fork (MPL-2.0), reimplemented as a guest mod. */
 #include "qol.h"
 #include "clothes.c"
+#include "block_push.c"
 #include "replay.c"
 #include "picto_subjects.c"
 #include "songs.c"
@@ -28,6 +29,7 @@
 #include "sing.c"
 
 static qol_feature features[] = {
+    {"block_push_speed", block_push_option_changed, 0},
     {"clothes", clothes_option_changed, 0},
     {"replay_songs", replay_option_changed, 0},
     {"picto_subjects", picto_option_changed, 0},
@@ -81,6 +83,7 @@ WWHD_HOOK(WWHD_ADDR_daPy_Execute, qol_link_step, (void* link)) {
         wwhd_input_filter_register(filter);
     }
     options();
+    block_push_link_step((u32)link);
     clothes_step((u32)link);
     replay_step((u32)link);
     songs_step((u32)link);
