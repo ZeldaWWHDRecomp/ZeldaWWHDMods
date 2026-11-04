@@ -1,6 +1,6 @@
 # Enemy HP Bars
 
-A standalone `enemy-hp-bars-0.1.1.wwhdmod` for ZeldaWWHDRecomp. Displays floating
+A standalone `enemy-hp-bars-1.0.0.wwhdmod` for ZeldaWWHDRecomp. Displays floating
 health bars and rising, fading damage numbers on the main game picture. It reads
 enemy health; it does not change combat, difficulty, drops or save data. No
 textures, images, models or game files are included.

@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "enemy-hp-bars",
   "name": "Enemy HP Bars",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "author": "BeZide93",
   "description": "Floating enemy health bars and fading damage numbers for supported native enemies. Live size, distance and visibility settings. Bosses and Stalfos split health are not supported in this version.",
   "game_id": "wwhd",
