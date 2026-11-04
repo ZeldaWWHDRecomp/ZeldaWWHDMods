@@ -294,7 +294,7 @@
       "id": "sword-wave",
       "name": "Sword Wave",
       "description": "At full hearts, sword Spin Attacks launch a forward wave using native Spin Attack particles and sword collision. Inspired by Dawnlight's Great Spin projectile.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "kind": "guest",
       "setup": [
         {

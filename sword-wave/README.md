@@ -10,6 +10,26 @@ sword colors and width scaling. It has its own attack-only sword capsule and
 particle storage; Link's attack, models, inventory and save bytes are unchanged.
 No textures, models, game bytes or host runtime changes are included.
 
+## Flat ribbon endpoint (0.1.2)
+
+The native previous-particle direction uses the emitter origin at the list head.
+The cut-turn callback updates that origin only when emitting, so it stays behind
+when the persistent arc moves. It also initially duplicates the endpoint. The
+stripe's width axis is carried between draws; correcting center positions alone
+does not keep the ribbon flat.
+
+An owned-particle return hook now extends the first segment's tangent at the
+endpoint instead of using that emitter origin. After native particle animation,
+the ribbon axis is restored to the arc's normal and its roll is cleared. Normal
+shots remain horizontal across both edges, including the endpoint; elevated
+lock-on shots retain their existing aim and lie in one consistent plane. The
+front curve, native colors/width, damage and flight behavior are unchanged.
+
+USA/EU translated regression checks cover edge positions, nonzero endpoint
+tangents, five headings, elevated/near-vertical lock-on, 30/60 Hz, partial particle
+allocation and unrelated/detached emitters. The edge calculation is a CPU fixture
+of native stripe math, not an in-game/GPU visual acceptance test.
+
 ## Open arc correction (0.1.1)
 
 The native stripe renderer joins every particle in an emitter's list. Version
@@ -25,7 +45,7 @@ accumulate. The original front curve, colors, width, damage and motion remain.
 
 Native linked lists, allocation and deferred GPU teardown are untouched. The
 particles expire naturally after detachment; regular Link/other emitters pass
-through both observer hooks unchanged. Partial allocation remains bounded.
+through the observer hooks unchanged. Partial allocation remains bounded.
 Translated tests model native prepend/callback ordering and aging, check ordered
 open geometry over repeated 30/60-Hz steps, unchanged front coordinates, pause,
 partial allocation, constant particle count and unrelated-emitter isolation.
@@ -52,7 +72,7 @@ Based on Dawnlight's **normal Great Spin projectile**, not Survivors' upgrades:
 - Pauses with gameplay. Clears on death, events, stage/room/owner changes,
   save loading and the live Enable Sword Wave option being turned off.
 
-Install `sword-wave-0.1.1.wwhdmod` through **Settings → Mods**, enable it and restart.
+Install `sword-wave-0.1.2.wwhdmod` through **Settings → Mods**, enable it and restart.
 The game needs existing code-mod support, as with the other standalone mods.
 No rebuild of the app is needed. Source: `sword-wave/src/`.
 
@@ -89,6 +109,7 @@ Reviewed `ZeldaWWHDDecomp/wwhd` at `a874e1a9243f573af44c2649a2f2107dbebb50be`
 | `d_a_player_main_02.cpp`, `main_08.cpp` | Spin init `023E6380`, Hurricane init `02441A44`; proc `55/56`, item `103` |
 | `d_a_player_main_04.cpp`, `_04_collision.h` | Spin resources `25/26/28`, callbacks `6730/6740/6750`, attack cylinder `78BC`; sample its active flag/power/material |
 | `JPA_particle.cpp`, `JPADrawVisitor.cpp` | Particle calculation `0281FBD8`; native list/stripe order, position and lifetime fields; retained native deferred deletion |
+| `JPADrawVisitor.cpp`, `JPA_math_drawcalc.h` | Previous-particle direction `028304F0`; draw axis at particle `8C`, roll angle at `C0`; stripe cross products and width vertices |
 | `d_particle_callbacks.cpp`, `d_particle_water.cpp` | `025A847C` particle set; 16-byte cut-turn callback, native end `025A9D64` detaches it synchronously |
 | `d_cc_d.h`, `c_m3d_g_cps.h` | Capsule `138` bytes; geometry start `118`, end `124`, vtable `130`, radius `134`; status `3C` bytes |
 | `d_cc_s.cpp`, `c_cc_s.cpp` | `0200E240` native registration, attack-only mask, `AtNoConHit`, shield response bit at `54` |

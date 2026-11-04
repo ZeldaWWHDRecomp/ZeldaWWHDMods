@@ -31,7 +31,7 @@ def main():
     sys.path.insert(0, str(REPO/'tools/guestmod'))
     import build_guest_mod as builder
     from builds import by_name
-    addresses = {'PARTICLES':0x0281FBD8, 'PLAY':0x025200D4, 'LINK':0x0240EBB0, 'DELETE':0x0240EE28,
+    addresses = {'DIRECTION':0x028304F0, 'PARTICLES':0x0281FBD8, 'PLAY':0x025200D4, 'LINK':0x0240EBB0, 'DELETE':0x0240EE28,
         'SPIN':0x023E6380, 'ROLL':0x02441A44, 'PARTICLE':0x025A847C,
         'END':0x025A9D64, 'CAPSULE':0x024445B0, 'STATUS':0x02375AB8,
         'STATUS_INIT':0x02515F14, 'STATUS_MOVE':0x02515E50, 'RESET_HIT':0x02516138,
@@ -40,7 +40,7 @@ def main():
     for region in ('USA','EU'):
         build = by_name(region)
         translated = builder.translator_for((out/'mod.elf').read_bytes(), 0x7F000000, build)
-        assert len(translated.hooks)==9 and all(h[0]!=1 for h in translated.hooks)
+        assert len(translated.hooks)==10 and all(h[0]!=1 for h in translated.hooks)
         source = out/('translated-'+region+'.c')
         source.write_text(translated.emit(manifest['id']))
         module = out/('translated-'+region+'.so')

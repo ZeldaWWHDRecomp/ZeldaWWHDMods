@@ -64,7 +64,10 @@ static void dispatch(Cpu* c) {
         assert(ld32(capsule+0x58)==0);
         assert(ld32(capsule+0x130)==0x10203040 && ld32(capsule+0x114)==0x10203044);
         assert(near(ldf32(capsule+0x134),55));
-        assert(near(ldf32(capsule+0x124)-ldf32(capsule+0x118),300) || ld32(LINK+0x65b0));
+        float dx=ldf32(capsule+0x124)-ldf32(capsule+0x118);
+        float dy=ldf32(capsule+0x128)-ldf32(capsule+0x11c);
+        float dz=ldf32(capsule+0x12c)-ldf32(capsule+0x120);
+        assert(near(sqrtf(dx*dx+dy*dy+dz*dz),300));
         last_z=(ldf32(capsule+0x120)+ldf32(capsule+0x12c))*0.5f;
         return;
     case GAME_PARTICLE: {
@@ -173,11 +176,13 @@ static void particle_pass(int i, unsigned limit) {
             uint32_t p=0x19000000+i*0x10000+n*0x200;
             memset(ppc_ptr(p),0,0x128);
             st32(p,p); st32(p+0xc,head); st32(p+0xd4,e);
+            if(head) st32(head+8,p);
             for(unsigned k=0;k<12;k+=4) stf32(p+0x10+k,ldf32(points+j*12+k));
             stf32(p+0x78,-1); stf32(p+0x7c,2);
             head=p; ++n; ++particles_created;
         }
         st32(e+0x1ac,head); st32(e+0x1b4,n); st16(cb+6,0);
+        for(unsigned k=0;k<12;k+=4) stf32(e+0x22c+k,ldf32(points+k));
     }
     hook(GAME_PARTICLES,2,e);
     for(uint32_t p=ld32(e+0x1ac);p;p=ld32(p+0xc)) {
@@ -186,8 +191,88 @@ static void particle_pass(int i, unsigned limit) {
         float age=ldf32(p+0x78)+1;
         assert(age<ldf32(p+0x7c)); stf32(p+0x78,age);
         stf32(p+0x28,9999); stf32(p+0x2c,-10); stf32(p+0x30,-9999);
+        /* Exercise correction after native animation, not only at creation. */
+        stf32(p+0x8c,0.3f); stf32(p+0x90,0.4f); stf32(p+0x94,0.5f);
+        st16(p+0xc0,0x2000);
     }
     hook(GAME_PARTICLES,3,e);
+}
+typedef struct { float x,y,z; } Vec;
+static Vec sub(Vec a,Vec b) { return (Vec){a.x-b.x,a.y-b.y,a.z-b.z}; }
+static float dot(Vec a,Vec b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
+static Vec cross(Vec a,Vec b) { return (Vec){a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x}; }
+static Vec norm(Vec v,Vec fallback) {
+    float n=dot(v,v); if(!(n>3.814697265625e-06f)) return fallback;
+    n=sqrtf(n); return (Vec){v.x/n,v.y/n,v.z/n};
+}
+static Vec vec(uint32_t p) { return (Vec){ldf32(p),ldf32(p+4),ldf32(p+8)}; }
+/* Reference the native dirTypePrevPtcl / JPADrawExecStripe width calculation.
+ * This tests actual edge positions, not merely the centerline. GPU/material
+ * operations remain outside this fixture. Emitter translation includes an
+ * example local Y offset; the first-point tangent must not depend on it. */
+static Vec stripe_edge(uint32_t p,uint32_t e,float width,int fix) {
+    uint32_t prev=ld32(p+8), out=TARGET+0x8000;
+    Vec pos=vec(p+0x28), reference;
+    if(prev) reference=vec(ld32(prev)+0x28);
+    else { reference=vec(e+0x22c); reference.y+=47; }
+    Vec direction=sub(reference,pos);
+    stf32(out,direction.x); stf32(out+4,direction.y); stf32(out+8,direction.z);
+    if(fix) { cpu.r[4]=e; cpu.r[5]=out; hook(GAME_DIRECTION,3,p); }
+    direction=norm(vec(out),(Vec){0,1,0});
+    Vec side=norm(cross(vec(p+0x8c),direction),(Vec){1,0,0});
+    Vec axis=norm(cross(direction,side),(Vec){0,0,0});
+    float angle=(ld16(p+0xc0)>>3)*2.0f*3.141592653589793f/8192;
+    return (Vec){pos.x+width*(sinf(angle)*axis.x+cosf(angle)*side.x),
+                 pos.y+width*(sinf(angle)*axis.y+cosf(angle)*side.y),
+                 pos.z+width*(sinf(angle)*axis.z+cosf(angle)*side.z)};
+}
+static void test_stripe_edges(void) {
+    const int headings[]={0,0x2000,0x4000,-0x4000,-0x8000};
+    for(int aim=0;aim<7;++aim) for(int hz=30;hz<=60;hz+=30) {
+        setup(); dt=1.0/hz; Vec normal={0,1,0};
+        if(aim<5) st16(LINK+0x32a,headings[aim]);
+        else {
+            Vec flight=aim==5?(Vec){500,100,1000}:(Vec){0,500,1};
+            st32(LINK+0x65b0,TARGET); stf32(TARGET+0x37c,flight.x);
+            stf32(TARGET+0x380,60+flight.y); stf32(TARGET+0x384,flight.z);
+            normal=norm(cross(flight,(Vec){flight.z,0,-flight.x}),(Vec){0,1,0});
+        }
+        begin(0x55,1,3);
+        for(int tick=0;tick<12;++tick) {
+            if(tick) frame();
+            for(int i=0;i<3;++i) {
+                particle_pass(i,aim==4?5:11);
+                uint32_t e=emitters[i], head=ld32(e+0x1ac); Vec origin=vec(head+0x28);
+                for(uint32_t p=head;p;p=ld32(p+0xc)) {
+                    if(p==head) {
+                        stripe_edge(p,e,39,1);
+                        Vec expected=sub(vec(p+0x28),vec(ld32(ld32(p+0xc))+0x28));
+                        Vec actual=vec(TARGET+0x8000);
+                        assert(dot(expected,expected)>1);
+                        assert(dot(sub(actual,expected),sub(actual,expected))<0.0001);
+                    }
+                    Vec a=stripe_edge(p,e,-28,1), b=stripe_edge(p,e,39,1);
+                    assert(fabsf(dot(sub(a,origin),normal))<0.01);
+                    assert(fabsf(dot(sub(b,origin),normal))<0.01);
+                    assert(fabsf(sqrtf(dot(sub(b,a),sub(b,a)))-67)<0.01);
+                    if(ld32(p+8)) {
+                        Vec native=stripe_edge(p,e,39,0);
+                        assert(dot(sub(b,native),sub(b,native))<0.0001);
+                    }
+                }
+            }
+        }
+        /* Both the endpoint hook and frame correction cease after detach. */
+        enabled=0; frame();
+        uint32_t p=ld32(emitters[0]+0x1ac);
+        Vec a=stripe_edge(p,emitters[0],39,0), b=stripe_edge(p,emitters[0],39,1);
+        assert(dot(sub(a,b),sub(a,b))<0.0001);
+    }
+    setup();
+    stf32(TARGET,1); stf32(TARGET+4,2); stf32(TARGET+8,3);
+    cpu.r[4]=EMITTER; cpu.r[5]=TARGET; hook(GAME_DIRECTION,3,LINK);
+    assert(near(ldf32(TARGET),1)&&near(ldf32(TARGET+4),2)&&near(ldf32(TARGET+8),3));
+    puts("Stripe edge regression: endpoint tangent, planar width, headings, elevated aim, 30/60 Hz, partial allocation and isolation passed");
 }
 static void assert_arc(int i, float center_z, unsigned expected) {
     uint32_t e=emitters[i], node=ld32(e+0x1ac); unsigned n=0;
@@ -243,7 +328,7 @@ int main(int argc,char** argv) {
     WWHDGuestHostV1 host={.size=sizeof(host),.abi_version=WWHD_GUEST_ABI_VERSION,
         .dispatch=dispatch,.unimplemented=unimplemented,.trap=trap,.core_preempt=preempt,
         .call_original=original,.service=service};
-    mod=init(&host); assert(mod && mod->hook_count==9);
+    mod=init(&host); assert(mod && mod->hook_count==10);
     for(unsigned i=0;i<mod->hook_count;++i) assert(mod->hooks[i].kind!=1);
     setup(); begin(0x55,1,3); assert(spawned==3 && !collisions);
     for(int i=0;i<3;++i) { assert(ld16(callbacks[i]+6)==12); own(ld32(callbacks[i]+8),12*12); assert(near(ldf32(emitters[i]+0x238),1.5)); assert(ld32(emitters[i]+0x5c)==0); }
@@ -297,6 +382,7 @@ int main(int argc,char** argv) {
     setup(); failing=1; begin(0x55,1,3); assert(spawned==3); frame(); enabled=0; frame(); assert(!ended);
     puts("30/60-Hz range, elevated lock-on and particle allocation failure passed");
     test_open_arc();
+    test_stripe_edges();
     puts("Sword Wave translated integration: all checks passed");
     return 0;
 }

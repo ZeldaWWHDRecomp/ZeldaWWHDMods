@@ -151,6 +151,14 @@ static void place_arc(void* emitter, int renew) {
             *(cXyz*)((u8*)particle+0x10)=p;
             *(cXyz*)((u8*)particle+0x1c)=(cXyz){0,0,0};
             *(cXyz*)((u8*)particle+0x28)=p;
+            /* The stripe width must lie in the arc's plane. Native drawing
+             * transports this axis between frames, so restore its normal after
+             * physics and clear rotation around the tangent for our particles. */
+            *(cXyz*)((u8*)particle+0x8c)=(cXyz){
+                wave.dir.y*wave.right.z,
+                wave.dir.z*wave.right.x-wave.dir.x*wave.right.z,
+                -wave.dir.y*wave.right.x};
+            *(u16*)((u8*)particle+0xc0)=0; /* JPADrawParams::mRotateAngle */
             if(renew) {
                 put_real(particle,0x78,-1); /* native first-frame phase after aging */
                 put_real(particle,0x7c,3); /* expires normally after detach */
@@ -170,6 +178,23 @@ WWHD_HOOK(0x0281FBD8, before_particles, (void* emitter)) {
 }
 WWHD_HOOK_RETURN(0x0281FBD8, after_particles, (void* emitter)) {
     if(owned_emitter(emitter)>=0) place_arc(emitter,0);
+}
+/* dirTypePrevPtcl uses the emitter origin at the list head. The cut-turn
+ * callback updates that origin only when emitting: it is stale once our arc
+ * travels, and initially coincides with the endpoint (zero tangent). Continue
+ * the first segment backwards instead, without adding a rendered particle or
+ * changing shared renderer state. The remaining native tangents are valid. */
+WWHD_HOOK_RETURN(0x028304F0, stripe_direction, (void* particle, void* emitter, cXyz* out)) {
+    if(owned_emitter(emitter)<0 || !particle || !out ||
+        word(particle,0xd4)!=(u32)emitter ||
+        (u32)particle!=word(emitter,0x1ac) || word(particle,8)) return;
+    void* next=(void*)word(particle,0xc);
+    if(!next) return;
+    void* neighbor=(void*)word(next,0);
+    if(!neighbor || word(neighbor,0xd4)!=(u32)emitter) return;
+    const cXyz* p=(const cXyz*)((u8*)particle+0x28);
+    const cXyz* q=(const cXyz*)((u8*)neighbor+0x28);
+    *out=(cXyz){p->x-q->x,p->y-q->y,p->z-q->z};
 }
 static void launch(daPy_lk_c* link) {
     stop(0);
