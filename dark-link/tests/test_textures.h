@@ -12,7 +12,8 @@ static void texture_refresh(void) {
 static void texture_originals(void) {
     for (int m=0;m<MATERIAL_COUNT;++m) assert(ld32(texture_slot(m))==TEX_ORIGINAL);
 }
-static void texture_view_check(uint32_t view, uint32_t original, int eye) {
+/* surface: 0 neutral body albedo, 1 red eyes, 2 black aura. */
+static void texture_view_check(uint32_t view, uint32_t original, int surface) {
     assert(view!=original && view>=module->mem_base && view+0xa0<=module->mem_base+module->mem_size);
     for (int i=0;i<0xa0;i+=4) if (i!=0x88 && i!=0x94)
         assert(ld32(view+i)==ld32(original+i));
@@ -26,7 +27,8 @@ static void texture_view_check(uint32_t view, uint32_t original, int eye) {
     for (int p=0;p<2;++p) for (int c=0;c<3;++c) {
         unsigned selector=(reg>>(16+3*c))&7;
         assert(selector<6 && selector==((comp>>(24-8*c))&7));
-        assert(samples[p][selector]==(eye && !c ? 1.0f : 0.0f));
+        float expected=surface==0 || (surface==1 && !c) ? 1.0f : 0.0f;
+        assert(samples[p][selector]==expected);
     }
 }
 static void texture_tinted(void) {
@@ -67,7 +69,7 @@ static void test_textures(void) {
         st32(texture_slot(m)-4,TEX_ORIGINAL); st32(texture_slot(m),TEX_ORIGINAL);
     }
     texture_refresh(); texture_tinted();
-    expect_hud("DL 0.1.37 ON");
+    expect_hud("DL 0.1.38 ON");
     expect_hud("Body J/N=8/8  Albedo=8  Views=8  Eyes found/bound=6/6");
     expect_hud("Samplers body: _a1,_a0  eyes: _a1,_a0");
     /* A handle resembling a valid _a0 relative pointer must never select the
@@ -89,7 +91,7 @@ static void test_textures(void) {
     st32(TEX_RES+0x98+0x10,0xc4-(0x98+0x10));
     hook(0x027f50f8,3,MODEL,0); texture_tinted();
     uint32_t body_view=ld32(texture_slot(0)), eye_view=ld32(texture_slot(1));
-    assert(body_view!=eye_view); /* the same input texture needs two distinct views */
+    assert(body_view!=eye_view); /* the same input texture needs distinct views */
     memcpy(old_view,ppc_ptr(eye_view),sizeof old_view);
     /* Returning from the outer submission must NOT remove queued bindings. */
     hook(0x025e2e5c,2,MODEL,0); hook(0x025e2e5c,3,MODEL,0); texture_tinted();
@@ -190,7 +192,7 @@ static void test_textures(void) {
     st8(TEX_RES+0xc5,'a'); st32(texture_slot(1),TEX_ORIGINAL);
     st32(TEX_MATS+(MATERIAL_COUNT-1-2)*0x3c,TEX_RES+2*0x200);
     st16(TEX_RES+3*0x200+0xc,MATERIAL_COUNT-1-3);
-    /* Hands/hair and selected sword grip/shield/scabbard/held sword stay black,
+    /* Hands/hair and selected sword grip/shield/scabbard/held sword get neutral albedo,
      * even if their synthetic material names match eyes. A held non-sword is excluded. */
     const uint32_t fields[]={0xcf4,0x44c,0xcf8,0xe80,0xe7c,0x4440};
     for (int part=0;part<6;++part) {
@@ -209,6 +211,21 @@ static void test_textures(void) {
         st32(texture_slot(0),TEX_ORIGINAL); texture_originals(); st32(field,0);
         st16(LINK+0x69b0,0);
     }
+    /* Same original texture, third role: a black aura must not reuse either
+     * the neutral body or red eye view, including after late native refresh. */
+    uint32_t aura_model=MODEL+0x2000;
+    st32(LINK+0x5700,aura_model); st32(aura_model+0xac,DATA);
+    st16(aura_model+0x2a,MATERIAL_COUNT); st32(aura_model+0x34,TEX_MATS);
+    hook(0x027f50f8,3,aura_model,0);
+    uint32_t aura_view=ld32(texture_slot(0));
+    assert(aura_view!=body_view && aura_view!=eye_view);
+    for(int m=0;m<MATERIAL_COUNT;++m) texture_view_check(ld32(texture_slot(m)),TEX_ORIGINAL,2);
+    st32(texture_slot(0),TEX_NEXT);
+    hook(0x027f55fc,2,aura_model,0); hook(0x027f55fc,3,aura_model,0);
+    texture_view_check(ld32(texture_slot(0)),TEX_NEXT,2);
+    hook(0x027f50f8,2,aura_model,0);
+    assert(ld32(texture_slot(0))==TEX_NEXT);
+    st32(texture_slot(0),TEX_ORIGINAL); texture_originals(); st32(LINK+0x5700,0);
     st32(LINK+0x3bc,0x800); texture_refresh(); texture_originals(); st32(LINK+0x3bc,0);
     texture_refresh(); texture_tinted();
     st8(PLAY+0x514c,1); tick(); texture_originals(); st8(PLAY+0x514c,0);

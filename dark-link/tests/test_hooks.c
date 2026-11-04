@@ -160,6 +160,12 @@ static void restored(void) {
     assert(!memcmp(ppc_ptr(MATERIALS),original_materials,sizeof original_materials));
     assert(!memcmp(ppc_ptr(INSTANCES),original_instances,sizeof original_instances));
 }
+static float body_tint(int index, int channel) {
+    const float shadow[]={0.006f,0.009f,0.014f};
+    const float diffuse[]={0.035f,0.040f,0.050f};
+    const float base[]={0.018f,0.021f,0.026f};
+    return index==4 ? shadow[channel] : index==7 ? diffuse[channel] : base[channel];
+}
 static void tinted(void) {
     for (int m=0;m<MATERIAL_COUNT;++m) {
         uint32_t expected=0xa00007fbu;
@@ -167,10 +173,16 @@ static void tinted(void) {
         assert(ld32(MATERIALS+m*0x39c+0xa0)==expected);
         for (int k=0;k<11;++k) {
             int changed=k>=4;
-            assert((float)ldf32(color(m,k))==(changed ? (eye ? 1.0f : 0.0f) : 0.25f+k*0.01f));
-            assert((float)ldf32(color(m,k)+4)==(changed ? 0.0f : 0.5f));
-            assert((float)ldf32(color(m,k)+8)==(changed ? 0.0f : 0.75f));
+            assert((float)ldf32(color(m,k))==(changed ? (eye ? 1.0f : body_tint(k,0)) : 0.25f+k*0.01f));
+            assert((float)ldf32(color(m,k)+4)==(changed ? (eye ? 0.0f : body_tint(k,1)) : 0.5f));
+            assert((float)ldf32(color(m,k)+8)==(changed ? (eye ? 0.0f : body_tint(k,2)) : 0.75f));
             assert((float)ldf32(color(m,k)+12)==0.4f+m*0.1f);
+        }
+        if(!eye) for(int c=0;c<3;++c) {
+            /* The two native lighting inputs must not collapse to the same
+             * black. This is an input contract, not a game-shader simulation. */
+            assert(ldf32(color(m,4)+c*4)>0 && ldf32(color(m,4)+c*4)<ldf32(color(m,7)+c*4));
+            assert(ldf32(color(m,7)+c*4)<=0.05f);
         }
     }
 }
@@ -312,7 +324,7 @@ int main(int argc, char** argv) {
     hook(0x025e2e5c,2,MODEL,0);
     assert(ld32(MATERIALS+0xa0)==(0xa00007fbu & ~(1u<<5)));
     assert((float)ldf32(color(0,5))==0.30f);
-    assert((float)ldf32(color(0,6))==0.0f);
+    assert((float)ldf32(color(0,6))==body_tint(6,0));
     hook(0x025e2e5c,3,MODEL,0); restored(); missing_slots=0;
     missing_color=1; prepare(0); missing_color=0;
     st32(DATA+0x0c,97); prepare(0); st32(DATA+0x0c,MATERIAL_COUNT);
@@ -320,14 +332,14 @@ int main(int argc, char** argv) {
     /* Missing/out-of-range names must never make a body material red. */
     for (int i=0;i<6;++i) eye_indices[i]=i%2 ? MATERIAL_COUNT : -1;
     hook(0x025e2e5c,2,MODEL,0);
-    assert((float)ldf32(color(1,4))==0.0f && (float)ldf32(color(2,4))==0.0f);
+    assert((float)ldf32(color(1,4))==body_tint(4,0) && (float)ldf32(color(2,4))==body_tint(4,0));
     hook(0x025e2e5c,3,MODEL,0); restored();
     st32(LINK+0x604,EYE_ANIM); st32(MATERIALS+0x39c+0x24,EYE_ANIM);
     hook(0x025e2e5c,2,MODEL,0); assert((float)ldf32(color(1,4))==1.0f);
     hook(0x025e2e5c,3,MODEL,0);
     st32(LINK+0x604,0); st32(MATERIALS+0x39c+0x24,0); restored();
     for (int i=0;i<6;++i) eye_indices[i]=i+1;
-    /* Hands and hair use the black palette even when sharing this synthetic
+    /* Hands and hair use the matte palette even when sharing this synthetic
      * material table; eye names apply only to the current player's body. */
     const uint32_t gear_fields[]={0xcf4,0x44c,0xcf8,0xe80,0xe7c,0x4440};
     for (int part=0;part<6;++part) {
@@ -339,9 +351,18 @@ int main(int argc, char** argv) {
         hook(0x025e2e5c,2,model,0);
         assert(name_lookups==previous_lookups);
         for (int m=0;m<MATERIAL_COUNT;++m) for (int k=4;k<=10;++k)
-            for (int c=0;c<3;++c) assert((float)ldf32(color(m,k)+c*4)==0.0f);
+            for (int c=0;c<3;++c) assert((float)ldf32(color(m,k)+c*4)==body_tint(k,c));
         hook(0x025e2e5c,3,model,0); restored(); st32(field,0); st16(LINK+0x69b0,0);
     }
+    /* Aura gets neither charcoal colour nor eye red, even when the material
+     * table is shared in this fixture. Its native alpha remains untouched. */
+    st32(LINK+0x5700,MODEL+0x2000); st32(MODEL+0x2000+0xac,DATA);
+    hook(0x025e2e5c,2,MODEL+0x2000,0);
+    for(int m=0;m<MATERIAL_COUNT;++m) for(int k=4;k<=10;++k) {
+        for(int c=0;c<3;++c) assert(ldf32(color(m,k)+c*4)==0);
+        assert((float)ldf32(color(m,k)+12)==0.4f+m*0.1f);
+    }
+    hook(0x025e2e5c,3,MODEL+0x2000,0); restored(); st32(LINK+0x5700,0);
     test_textures();
     test_magic();
     test_shortcut();

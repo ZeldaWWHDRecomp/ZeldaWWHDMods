@@ -51,6 +51,7 @@ static int dl_sword(const DLAttack* hit, const daPy_lk_c* link) {
  * +0xec scabbard, +0xf0 selected shield, +0x36b0 held item (sword only).
  * Evidence: setSwordModel, initModel, draw, setEquipItem models in main_01/04. */
 #define DL_MODEL_PARTS 8
+enum { DL_SURFACE_BODY, DL_SURFACE_EYE, DL_SURFACE_AURA };
 static int dl_model_part(const daPy_lk_c* link, u32 model) {
     if (!link || !model) return -1;
     if (model == link->mpCLModel) return 0;

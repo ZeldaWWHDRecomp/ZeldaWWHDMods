@@ -11,10 +11,10 @@
 typedef struct {
     u32 original[DL_TEXTURE_BYTES / 4];
     u32 view[DL_TEXTURE_BYTES / 4];
-    u32 eye;
+    u32 surface;
 } DLTextureView;
 typedef struct {
-    u32 model, materials, index, resource, refs, slot, original, view, eye;
+    u32 model, materials, index, resource, refs, slot, original, view, surface;
 } DLTextureBinding;
 static DLTextureView dl_texture_cache[DL_TEXTURE_CACHE];
 static u32 dl_texture_count, dl_binding_count;
@@ -57,28 +57,34 @@ static void dl_texture_restore_model(u32 model) {
 }
 static void dl_texture_restore_all(void) { dl_texture_restore_model(0); dl_aura_restore(); }
 
-static u32 dl_texture_view(u32 texture, int eye) {
+static u32 dl_texture_view(u32 texture, u32 surface) {
     /* Never guess descriptor layouts or dereference an unrecognized mod view. */
     if (!dl_game_span(texture, DL_TEXTURE_BYTES) || *(u32*)texture != 0x46544558u) return 0;
     const u32* source = (const u32*)texture;
     if (!source[2] || !source[3] || !source[0x28 / 4] || (source[0x88 / 4] & 0xffu) > 5) return 0;
     for (u32 i = 0; i < dl_texture_count; ++i) {
         DLTextureView* cached = &dl_texture_cache[i];
-        if (cached->eye != (u32)eye) continue;
+        if (cached->surface != surface) continue;
         u32 j = 0;
         while (j < DL_TEXTURE_BYTES / 4 && cached->original[j] == source[j]) ++j;
         if (j == DL_TEXTURE_BYTES / 4) return (u32)cached->view;
     }
     if (dl_texture_count == DL_TEXTURE_CACHE) return 0;
     DLTextureView* cached = &dl_texture_cache[dl_texture_count++];
-    cached->eye = (u32)eye;
+    cached->surface = surface;
     for (u32 j = 0; j < DL_TEXTURE_BYTES / 4; ++j) cached->view[j] = cached->original[j] = source[j];
     /* GX2Texture starts at FTEX+4. Selectors 4/5 mean constant zero/one.
      * Change both compSel (+0x84) and its precomputed SQ_TEX_RESOURCE_WORD4
      * (+0x90). Keep the alpha selector and ALL other register bits intact. */
-    cached->view[0x88 / 4] = (source[0x88 / 4] & 0xffu) | (eye ? 0x05040400u : 0x04040400u);
+    /* Neutral albedo lets the body's nonzero ambient/diffuse palette and
+     * native toon lighting reach the shader. A zero sample would multiply
+     * those colours back to black. Eyes stay red; the aura keeps its old
+     * black view. Include this distinction in cache AND late-rebind state. */
+    u32 r = surface == DL_SURFACE_AURA ? 4u : 5u;
+    u32 gb = surface == DL_SURFACE_BODY ? 5u : 4u;
+    cached->view[0x88 / 4] = (source[0x88 / 4] & 0xffu) | (r << 24) | (gb << 16) | (gb << 8);
     cached->view[0x94 / 4] = (source[0x94 / 4] & ~(0x1ffu << 16)) |
-        ((eye ? 5u : 4u) << 16) | (4u << 19) | (4u << 22);
+        (r << 16) | (gb << 19) | (gb << 22);
     return (u32)cached->view;
 }
 /* Wii U ResSampler (24 bytes): GX2 words +0x00..08, handle +0x0c,
@@ -178,9 +184,11 @@ static void dl_texture_apply(void* model) {
         int duplicate = 0;
         for (u32 n = 0; n < dl_binding_count; ++n) if (dl_bindings[n].slot == slot) duplicate = 1;
         if (duplicate) { if (probe) dl_probe_skip(DL_PROBE_DUPLICATE); continue; }
-        u32 original = *(u32*)slot, view = dl_texture_view(original, eye);
+        u32 surface = dl_model_part(dl_owner, (u32)model) == 7 ? DL_SURFACE_AURA :
+            eye ? DL_SURFACE_EYE : DL_SURFACE_BODY;
+        u32 original = *(u32*)slot, view = dl_texture_view(original, surface);
         if (!view) { if (probe) dl_probe_skip(dl_texture_count == DL_TEXTURE_CACHE ? DL_PROBE_CAPACITY : DL_PROBE_TEXTURE); continue; }
-        dl_bindings[dl_binding_count++] = (DLTextureBinding){(u32)model, native_materials, index, resource, refs, slot, original, view, (u32)eye};
+        dl_bindings[dl_binding_count++] = (DLTextureBinding){(u32)model, native_materials, index, resource, refs, slot, original, view, surface};
         *(u32*)slot = view;
         if (probe) { ++dl_probe.views; dl_probe.eyes += (u32)eye; }
     }
@@ -202,7 +210,7 @@ static void dl_texture_resubmit(void* model) {
         u32 current = *(u32*)b->slot;
         if (current == b->view) continue;
         if (probe) dl_probe_increment(&dl_probe.late_changed);
-        u32 view = dl_texture_view(current, (int)b->eye);
+        u32 view = dl_texture_view(current, b->surface);
         if (!view) {
             if (probe) {
                 if (!dl_probe.late_rejected) {
@@ -248,7 +256,7 @@ static void dl_diag_hud(u32 list) {
 #define DL_S(s) n = dl_probe_append(line, n, s)
 #define DL_N(v) n = dl_probe_number(line, n, v)
     char* line = dl_probe_lines[0];
-    DL_S("DL 0.1.37 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
+    DL_S("DL 0.1.38 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
     DL_S("  Draw="); DL_N(dl_probe.draws); DL_S("  Refresh B/H/Hair/Gear=");
     DL_N(dl_probe.refresh[0]); DL_S("/"); DL_N(dl_probe.refresh[1]); DL_S("/"); DL_N(dl_probe.refresh[2]); DL_S("/"); DL_N(dl_probe.refresh[3]);
     DL_S(" Magic="); DL_N((dl_magic_images[0][0]!=0)+(dl_magic_images[0][1]!=0)+(dl_magic_images[1][0]!=0)+(dl_magic_images[1][1]!=0));

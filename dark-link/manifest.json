@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "dark-link",
   "name": "Dark Link",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "game_id": "wwhd",
   "minimum_manager_version": "1.5.0",
   "kind": "guest",
@@ -10,7 +10,7 @@
     "api_version": 1,
     "elf": "mod.elf"
   },
-  "description": "Dark Link with black body/equipment, red eyes, a black native Magic Armor aura and a red MagicBar gauge below the normal magic gauge.",
+  "description": "Dark Link with matte charcoal body/equipment, red eyes, a black native Magic Armor aura and a red MagicBar gauge below the normal magic gauge.",
   "options": [
     {
       "id": "appearance_diagnostics",

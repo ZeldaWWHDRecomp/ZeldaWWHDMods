@@ -1,4 +1,4 @@
-/* Scoped TEV palette: body black, eye materials red. Keep the lighting inputs
+/* Scoped matte palette: charcoal body, red eyes, black aura. Keep native light directions
  * and the user-confirmed 0.1.5 submission boundaries unchanged. */
 #pragma once
 #define DL_MAX_MATERIALS 96
@@ -29,7 +29,7 @@ static void dl_restore_colors(u32 mark) {
         *saved->flags = (*saved->flags & ~DL_TINT_MASK) | saved->mask;
     }
 }
-static void dl_palette(u8* material, int eye) {
+static void dl_palette(u8* material, u32 surface) {
     u32* flags = (u32*)(material + 0xa0);
     DLMaterialSave* saved = 0;
     for (u32 i = 0; i < dl_material_count; ++i)
@@ -47,12 +47,26 @@ static void dl_palette(u8* material, int eye) {
     for (u32 i = 0; i < DL_COLOR_COUNT; ++i) {
         f32* color = (f32*)saved->color[i];
         if (!color) continue;
-        color[0] = eye ? 1.0f : 0.0f;
-        color[1] = 0.0f;
-        color[2] = 0.0f;
+        if (surface == DL_SURFACE_BODY) {
+            /* The native environment path supplies ambient C0 (slot 4) and
+             * diffuse K0 (slot 7): d_kankyo_6 setLight_actor / setLightTevColorType.
+             * Give them distinct dark, cool tones instead of flattening both
+             * to zero. Other colour registers retain a dark neutral base.
+             * Values are linear shader inputs, not 8-bit display colours.
+             * Leave native normals, toon ramp and light directions untouched. */
+            static const f32 shadow[3] = {0.006f, 0.009f, 0.014f};
+            static const f32 diffuse[3] = {0.035f, 0.040f, 0.050f};
+            static const f32 base[3] = {0.018f, 0.021f, 0.026f};
+            const f32* tint = i == 0 ? shadow : i == 3 ? diffuse : base;
+            for (u32 c=0;c<3;++c) color[c] = tint[c];
+        } else {
+            color[0] = surface == DL_SURFACE_EYE ? 1.0f : 0.0f;
+            color[1] = 0.0f;
+            color[2] = 0.0f;
+        }
         *flags |= 1u << (DL_FIRST_COLOR + i);
     }
-    /* No alpha writes, no material/ambient lighting overrides, no fog changes. */
+    /* No alpha writes, no MAT/AMB channel overrides, no fog changes. */
 }
 static void dl_find_eyes(u8* data, u32 count, s32 eyes[DL_EYE_COUNT]) {
     /* All eye variants from daPy_lk_c::playerInit (02410BE8). Eyebrows
@@ -78,7 +92,8 @@ static void dl_visual_begin(void* model) {
     daPy_lk_c* link = dl_player();
     if (!link || link != dl_owner || (dl_word(link, 0x3bc) & 0x800)) return;
     u32 address = (u32)model;
-    if (dl_model_part(link, address) < 0) return;
+    int part = dl_model_part(link, address);
+    if (part < 0) return;
     if (dl_diagnostics && address == link->mpCLModel) dl_probe_increment(&dl_probe.draws);
     u8* data = (u8*)dl_word(model, 0xac);
     if (!data) return;
@@ -97,7 +112,7 @@ static void dl_visual_begin(void* model) {
                 if ((s32)i == eyes[e]) eye = 1;
             if (animation && (animation == link->m_tex_eye_scroll[0] || animation == link->m_tex_eye_scroll[1])) eye = 1;
         }
-        dl_palette(material, eye);
+        dl_palette(material, part == 7 ? DL_SURFACE_AURA : eye ? DL_SURFACE_EYE : DL_SURFACE_BODY);
     }
 }
 static void dl_visual_end(void) {

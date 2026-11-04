@@ -1,10 +1,15 @@
 # Dark Link
 
-Sword hits charge a transformation with a black body and equipment, red eyes,
+Sword hits charge a transformation with a dark charcoal body and equipment, red eyes,
 a translucent black native Magic Armor aura and boosted sword damage. A red native MagicBar
-appears below the normal magic gauge. Current version: **0.1.37**.
+appears below the normal magic gauge. Current version: **0.1.38**.
 
-The black shell now uses the midpoint of its native fade animation instead of
+The body uses separate cool near-black ambient and charcoal diffuse colours,
+with neutral albedo so native lighting can reveal the contours. Eyes stay red.
+This adds no specular lighting, extra light or shader replacement. The final
+contrast still needs checking with the actual game shaders on device.
+
+The black shell uses the midpoint of its native fade animation instead of
 its fully visible end. Soft coverage and the independent texture animation stay
 native; the fade curve determines the exact opacity (not a fixed 50% alpha).
 This visual change still needs in-game confirmation.

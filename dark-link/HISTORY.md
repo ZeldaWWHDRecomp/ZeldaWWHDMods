@@ -1,3 +1,25 @@
+# Dark Link 0.1.38 — matte contour shading
+
+Replace the body/equipment's flat-zero palette with separate dark cool ambient
+C0 and charcoal diffuse K0 inputs; keep the other colour registers at a subdued
+charcoal base. The native environment path assigns ambient C0 to slot 4 and
+diffuse K0 to slot 7 (d_kankyo_6 setLight_actor / setLightTevColorType). Native
+normals, toon ramps, light directions, material/ambient lighting channels and
+fog remain unchanged. No specular lighting, new lights or shader replacements.
+
+The body albedo view now returns neutral RGB rather than zero, so it no longer
+annihilates the nonzero palette. A separate cache/binding role keeps eyes red
+and the aura black, including late native texture rebinding. Texture alpha,
+UVs and image data stay native. All palette values/owned flags and texture
+bindings retain the existing restoration behavior. Aura fade from 0.1.37 stays.
+
+Regression coverage checks distinct nonzero body inputs, all six eye variants,
+equipment, untouched lighting/alpha, nested restoration, missing parameters,
+and three distinct views of one texture with late aura rebinding. These tests
+validate submitted inputs and ownership, not the actual game shaders; device
+checks must confirm body/face/equipment contrast in bright and dark scenes,
+blinking and repeated transformation/cancellation.
+
 # Dark Link 0.1.37 — softer black aura
 
 The Ymgcs00 shell samples the midpoint of its native BRK fade during Link draw,
