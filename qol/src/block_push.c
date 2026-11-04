@@ -8,15 +8,16 @@
 #define BP_AT(t, a) (*(volatile t*)(a))
 #endif
 static int block_push_choice;
-static u32 block_push_link;
-static struct { u32 controller; unsigned depth; f32 original, written; } block_push_rate;
+static struct {
+    u32 link; unsigned depth;
+    struct { int active; f32 original, written; } rates[2];
+} block_push_rate;
 
 static void block_push_option_changed(void) {
     char value[16] = {0};
     wwhd_config_string("block_push_speed", value, sizeof value);
     block_push_choice = value[0] == '1' ? 1 : value[0] == '2' ? 2 : 0;
 }
-static void block_push_link_step(u32 link) { block_push_link = link; }
 
 WWHD_HOOK(0x02379834, qol_block_push_tick, (void* actor)) {
     if (!block_push_choice) return;
@@ -29,33 +30,50 @@ WWHD_HOOK(0x02379834, qol_block_push_tick, (void* actor)) {
         BP_AT(s16, box + 0x644) = remaining - 1;
 }
 
-/* Only the two native walking-push/pull controllers advance faster. The rate
- * exists for this one update call and is restored unless native code changed it
- * (for example, stopping). Other animations and actors are not accelerated. */
-WWHD_HOOK(0x027F2FC4, qol_block_push_animation_before, (void* control)) {
-    const u32 at = (u32)control;
+/* Link-only animeUpdate captures pack pointers, then advances Under0 and (when
+ * distinct/present) Upper0 without rewriting their rates first. Both controllers
+ * are embedded in Link. The intervening FrameCtrl updates touch only their own controller
+ * (their sole helper is floating-point remainder); frame copies target
+ * animation packs, not these controllers. Scope the rates
+ * around this Link-only method, never the global J3DFrameCtrl hot path.
+ * CC0 d_a_player_main_01.cpp animeUpdate 023DD054; J3DFrameCtrl.cpp update.
+ * Restore only unchanged injected rates, so native stops/changes survive.
+ * A nested call on the same Link shares the outer scope without multiplying
+ * twice; unrelated nested Link calls cannot consume the outer return. */
+WWHD_HOOK(0x023DD054, qol_block_push_animation_before, (void* actor)) {
+    const u32 link = (u32)actor;
     if (block_push_rate.depth) {
-        if (block_push_rate.controller == at) ++block_push_rate.depth;
+        if (block_push_rate.link == link) ++block_push_rate.depth;
         return;
     }
-    if (!block_push_choice || !qol_guest_ptr(block_push_link)) return;
-    if (at != block_push_link + 0x5898 && at != block_push_link + 0x58B8) return;
-    if (BP_AT(u16, block_push_link + 0xE) != 0xA8) return;
-    const s16 procedure = BP_AT(s16, block_push_link + 0x69AC);
+    if (!block_push_choice || !qol_guest_ptr(link)) return;
+    if (BP_AT(u16, link + 0xE) != 0xA8) return;
+    const s16 procedure = BP_AT(s16, link + 0x69AC);
     if (procedure != 0x33 && procedure != 0x34) return;
-    if (BP_AT(u8, at + 0xE) != 2) return; /* Ordinary looping movement only. */
-    const f32 rate = BP_AT(f32, at);
-    if (!(rate > 0.0f && rate <= 8.0f)) return;
-    block_push_rate.controller = at;
-    block_push_rate.original = rate;
-    block_push_rate.written = rate * (block_push_choice == 1 ? 1.5f : 2.0f);
-    block_push_rate.depth = 1;
-    BP_AT(f32, at) = block_push_rate.written;
+    const u32 under = BP_AT(u32, link + 0x57FC);
+    const u32 upper = BP_AT(u32, link + 0x581C);
+    block_push_rate.link = link;
+    for (unsigned i = 0; i < 2; ++i) {
+        const u32 control = link + (i ? 0x58B8 : 0x5898);
+        block_push_rate.rates[i].active = 0;
+        if (i && (!upper || upper == under)) continue;
+        if (BP_AT(u8, control + 0xE) != 2) continue;
+        const f32 rate = BP_AT(f32, control);
+        if (!(rate > 0.0f && rate <= 8.0f)) continue;
+        block_push_rate.rates[i].active = 1;
+        block_push_rate.rates[i].original = rate;
+        block_push_rate.rates[i].written = rate * (block_push_choice == 1 ? 1.5f : 2.0f);
+        BP_AT(f32, control) = block_push_rate.rates[i].written;
+        block_push_rate.depth = 1;
+    }
 }
-WWHD_HOOK_RETURN(0x027F2FC4, qol_block_push_animation_after, (void* control)) {
-    const u32 at = (u32)control;
-    if (!block_push_rate.depth || block_push_rate.controller != at) return;
+WWHD_HOOK_RETURN(0x023DD054, qol_block_push_animation_after, (void* actor)) {
+    const u32 link = (u32)actor;
+    if (!block_push_rate.depth || block_push_rate.link != link) return;
     if (--block_push_rate.depth) return;
-    if (BP_AT(f32, at) == block_push_rate.written)
-        BP_AT(f32, at) = block_push_rate.original;
+    for (unsigned i = 0; i < 2; ++i) if (block_push_rate.rates[i].active) {
+        const u32 control = link + (i ? 0x58B8 : 0x5898);
+        if (BP_AT(f32, control) == block_push_rate.rates[i].written)
+            BP_AT(f32, control) = block_push_rate.rates[i].original;
+    }
 }

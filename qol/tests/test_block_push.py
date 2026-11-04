@@ -7,6 +7,12 @@ import unittest
 
 
 class BlockPush(unittest.TestCase):
+    def test_no_global_animation_hook(self):
+        import re
+        source=(Path(__file__).resolve().parents[1]/'src/block_push.c').read_text()
+        targets=re.findall(r'WWHD_HOOK(?:_RETURN)?\(\s*(0x[0-9A-Fa-f]+)',source)
+        self.assertNotIn('0x027F2FC4',targets)
+        self.assertEqual(targets.count('0x023DD054'),2)
     def test_block_push(self):
         compiler = shutil.which('clang') or shutil.which('cc')
         if not compiler:

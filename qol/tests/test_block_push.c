@@ -72,45 +72,62 @@ static void synchronization(void) {
     }
 }
 static void animation(void) {
-    memset(link_memory, 0, sizeof link_memory);
-    block_push_link_step(LINK);
-    BP_AT(u16, LINK + 0xE) = 0xA8;
-    BP_AT(s16, LINK + 0x69AC) = 0x33;
-    for (int proc = 0x33; proc <= 0x34; ++proc)
-    for (unsigned offset = 0x5898; offset <= 0x58B8; offset += 0x20)
-    for (int speed = 1; speed <= 2; ++speed) {
-        u32 ctrl = LINK + offset; choose(speed == 1 ? "1.5x" : "2x");
-        BP_AT(s16, LINK + 0x69AC) = (s16)proc;
-        BP_AT(u8, ctrl + 0xE) = 2; BP_AT(f32, ctrl) = 1.f;
-        qol_block_push_animation_before((void*)(uintptr_t)ctrl);
-        assert(BP_AT(f32, ctrl) == (speed == 1 ? 1.5f : 2.f));
-        float advanced = BP_AT(f32, ctrl);
-        qol_block_push_animation_after((void*)(uintptr_t)ctrl);
-        assert(BP_AT(f32, ctrl) == 1.f && advanced > 1.f);
-        qol_block_push_animation_before((void*)(uintptr_t)ctrl);
-        BP_AT(f32, ctrl) = 0.f; /* Native stop must survive the observer. */
-        qol_block_push_animation_after((void*)(uintptr_t)ctrl);
-        assert(BP_AT(f32, ctrl) == 0.f);
-        BP_AT(f32, ctrl) = 1.f;
-        qol_block_push_animation_before((void*)(uintptr_t)ctrl);
-        qol_block_push_animation_before((void*)(uintptr_t)ctrl);
-        qol_block_push_animation_after((void*)(uintptr_t)ctrl);
-        assert(block_push_rate.depth == 1);
+    memset(link_memory,0,sizeof link_memory);
+    BP_AT(u16,LINK+0xE)=0xA8;
+    BP_AT(u32,LINK+0x57FC)=0x1000;BP_AT(u32,LINK+0x581C)=0x2000;
+    for(int proc=0x33;proc<=0x34;++proc)for(int speed=1;speed<=2;++speed) {
+        choose(speed==1?"1.5x":"2x");
+        BP_AT(s16,LINK+0x69AC)=(s16)proc;
+        for(unsigned i=0;i<2;++i) {
+            u32 at=LINK+0x5898+i*0x20;
+            BP_AT(u8,at+0xE)=2;BP_AT(f32,at)=1.f+i;
+        }
+        qol_block_push_animation_before((void*)(uintptr_t)LINK);
+        for(unsigned i=0;i<2;++i)assert(BP_AT(f32,LINK+0x5898+i*0x20)==(1.f+i)*(speed==1?1.5f:2.f));
+        /* Both rates are present at the native Link-only update's consumption
+         * points. Nested same-Link entry must not multiply them a second time. */
+        qol_block_push_animation_before((void*)(uintptr_t)LINK);
+        assert(block_push_rate.depth==2);
+        qol_block_push_animation_before((void*)(uintptr_t)OTHER);
         qol_block_push_animation_after((void*)(uintptr_t)OTHER);
-        assert(block_push_rate.depth == 1);
-        qol_block_push_animation_after((void*)(uintptr_t)ctrl);
-        assert(BP_AT(f32, ctrl) == 1.f && !block_push_rate.depth);
+        assert(block_push_rate.depth==2);
+        qol_block_push_animation_after((void*)(uintptr_t)LINK);
+        assert(block_push_rate.depth==1);
+        qol_block_push_animation_after((void*)(uintptr_t)LINK);
+        assert(!block_push_rate.depth);
+        assert(BP_AT(f32,LINK+0x5898)==1.f && BP_AT(f32,LINK+0x58B8)==2.f);
+        qol_block_push_animation_before((void*)(uintptr_t)LINK);
+        BP_AT(f32,LINK+0x5898)=0.f;BP_AT(f32,LINK+0x58B8)=.75f;
+        qol_block_push_animation_after((void*)(uintptr_t)LINK);
+        assert(BP_AT(f32,LINK+0x5898)==0.f && BP_AT(f32,LINK+0x58B8)==.75f);
     }
-    u32 ctrl = LINK + 0x5898;
-    for (int proc = 0; proc < 0x100; ++proc) if (proc != 0x33 && proc != 0x34) {
-        BP_AT(s16, LINK + 0x69AC) = (s16)proc; BP_AT(f32, ctrl) = 1.f;
-        qol_block_push_animation_before((void*)(uintptr_t)ctrl);
-        qol_block_push_animation_after((void*)(uintptr_t)ctrl);
-        assert(BP_AT(f32, ctrl) == 1.f);
+    /* An absent or shared upper animation pack is not advanced by animeUpdate;
+     * its unused controller must not even have its rate read or changed. */
+    choose("2x");BP_AT(s16,LINK+0x69AC)=0x33;
+    for(unsigned pack=0;pack<=0x1000;pack+=0x1000) {
+        BP_AT(u32,LINK+0x581C)=pack;
+        BP_AT(f32,LINK+0x5898)=1.f;BP_AT(f32,LINK+0x58B8)=3.f;
+        qol_block_push_animation_before((void*)(uintptr_t)LINK);
+        assert(BP_AT(f32,LINK+0x5898)==2.f && BP_AT(f32,LINK+0x58B8)==3.f);
+        qol_block_push_animation_after((void*)(uintptr_t)LINK);
+        assert(BP_AT(f32,LINK+0x5898)==1.f && BP_AT(f32,LINK+0x58B8)==3.f);
     }
-    choose("Off"); accesses = 0;
-    qol_block_push_tick(0); qol_block_push_animation_before(0); qol_block_push_animation_after(0);
-    assert(!accesses); /* Disabled hooks do not even inspect game memory. */
-    choose("unknown"); assert(!block_push_choice);
+    BP_AT(u32,LINK+0x581C)=0x2000;
+    BP_AT(f32,LINK+0x5898)=1.f;BP_AT(f32,LINK+0x58B8)=2.f;
+    qol_block_push_animation_before((void*)(uintptr_t)LINK);
+    choose("Off"); /* Live option change must not strand an injected rate. */
+    qol_block_push_animation_after((void*)(uintptr_t)LINK);
+    assert(BP_AT(f32,LINK+0x5898)==1.f && BP_AT(f32,LINK+0x58B8)==2.f);
+    choose("2x");
+    for(int proc=0;proc<0x100;++proc)if(proc!=0x33&&proc!=0x34) {
+        BP_AT(s16,LINK+0x69AC)=(s16)proc;BP_AT(f32,LINK+0x5898)=1.f;
+        qol_block_push_animation_before((void*)(uintptr_t)LINK);
+        qol_block_push_animation_after((void*)(uintptr_t)LINK);
+        assert(BP_AT(f32,LINK+0x5898)==1.f);
+    }
+    choose("Off");accesses=0;
+    qol_block_push_tick(0);qol_block_push_animation_before(0);qol_block_push_animation_after(0);
+    assert(!accesses);
+    choose("unknown");assert(!block_push_choice);
 }
-int main(void) { countdowns(); synchronization(); animation(); puts("block push contracts passed"); }
+int main(void) {countdowns();synchronization();animation();puts("block push Link-only contracts passed");}

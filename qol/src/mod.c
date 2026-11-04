@@ -85,7 +85,6 @@ WWHD_HOOK(WWHD_ADDR_daPy_Execute, qol_link_step, (void* link)) {
         wwhd_input_filter_register(filter);
     }
     options();
-    block_push_link_step((u32)link);
     clothes_step((u32)link);
     replay_step((u32)link);
     songs_step((u32)link);
