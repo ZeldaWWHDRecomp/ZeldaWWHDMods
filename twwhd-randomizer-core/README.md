@@ -25,7 +25,7 @@ You need:
   command is not assumed compatible.
 
 This repository owns the mod source and private seed builder. It requires the
-companion port/SDK support from [port PR #381](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/381).
+companion port/SDK support from [port support PR #385](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/385).
 The seed-specific package is built locally; it is not a downloadable catalogue
 package because it contains player-owned assets. No changes to the published
 catalogue or its SDK pin are included here.
