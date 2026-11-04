@@ -1,0 +1,26 @@
+{
+  "format_version": 1,
+  "id": "twwhd-randomizer-core",
+  "name": "TWWHD Randomizer core (experimental)",
+  "version": "0.0.1",
+  "game_id": "wwhd",
+  "kind": "guest",
+  "minimum_manager_version": "1.8.0",
+  "experimental": true,
+  "supported_game_builds": [
+    "USA"
+  ],
+  "author": "TWWHD Randomizer contributors; WWHD Recomp source-port contributors",
+  "description": "EXPERIMENTAL, INCOMPLETE SOURCE PORT. Not a supported playable randomizer. Native fixtures cover selected behaviors, not a full playthrough or all options. Use private test saves. Never redistribute this package: it contains player-owned assets.",
+  "guest": {
+    "api_version": 1,
+    "elf": "mod.elf",
+    "heap_size": 262144
+  },
+  "content_dir": "content",
+  "save_profile": {
+    "version": 1,
+    "provider": "twwhd-randomizer",
+    "identity": "__GENERATED_SEED_IDENTITY__"
+  }
+}
