@@ -24,6 +24,7 @@ SDK v2 guest mods for [ZeldaWWHDRecomp](https://github.com/ZeldaWWHDRecomp/Zelda
 
 | Mod | Current status | Behaviour |
 | --- | --- | --- |
+| [TWWHD Randomizer core](twwhd-randomizer-core/) | Experimental source-only, private seed builder; companion port support required | Runs a locally generated USA seed through the guest SDK against the original game. |
 | [Heart ticker](heart-ticker/) | Existing guest example | Hearts tick down to half a heart and refill. |
 | [GameCube minimap](gc-minimap/) | Guest implementation; 30 fps gameplay verified | Position and heading on locally prepared sea and current-room dungeon maps. |
 | [Call of the Sky](dragon/) | Experimental guest implementation; gameplay verification pending | Optional Dragon Roost song quest and Valoo ride, with its quest in the story notebook. |

@@ -3,3 +3,14 @@ __pycache__/
 .DS_Store
 
 build/
+
+# Private randomizer builds and player-derived seed inputs
+twwhd-randomizer-core/build/
+twwhd-randomizer-core/seed_init_data.h
+twwhd-randomizer-core/seed_reward_data.h
+twwhd-randomizer-core/seed_resources.h
+twwhd-randomizer-core/seed_boss_data.h
+twwhd-randomizer-core/seed-content/
+twwhd-randomizer-core/*.elf
+twwhd-randomizer-core/resource-data.json
+twwhd-randomizer-core/seed-boss-config.json
