@@ -1,5 +1,7 @@
 # Sword Wave
 
+Current version: **1.0.0**.
+
 At **full hearts**, a sword Spin Attack fires one forward Sword Wave. Quick spins,
 charged spins and the start of Hurricane Spin use the same native attack gate.
 Charging alone, ordinary slashes and spinning with a carried enemy weapon do not
@@ -72,7 +74,7 @@ Based on Dawnlight's **normal Great Spin projectile**, not Survivors' upgrades:
 - Pauses with gameplay. Clears on death, events, stage/room/owner changes,
   save loading and the live Enable Sword Wave option being turned off.
 
-Install `sword-wave-0.1.2.wwhdmod` through **Settings → Mods**, enable it and restart.
+Install `sword-wave-1.0.0.wwhdmod` through **Settings → Mods**, enable it and restart.
 The game needs existing code-mod support, as with the other standalone mods.
 No rebuild of the app is needed. Source: `sword-wave/src/`.
 

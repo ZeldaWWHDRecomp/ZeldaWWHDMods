@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "sword-wave",
   "name": "Sword Wave",
-  "version": "0.1.2",
+  "version": "1.0.0",
   "author": "BeZide93",
   "description": "At full hearts, sword Spin Attacks launch a forward wave using native Spin Attack particles and sword collision. Inspired by Dawnlight's Great Spin projectile.",
   "game_id": "wwhd",
