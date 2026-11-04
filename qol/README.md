@@ -64,24 +64,7 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod. The figurine's
   name on the Picto subjects label and More figurine orders are ideas from @gogokfen (issue #276); thanks!
 
-## Faster block pushing (#294)
+## Faster block pushing
 
-The option accelerates the native movebox countdown, retaining the original
-collision checks, movement path, completion callbacks and grid endpoint. Link
-continues to follow the box through the game's own push/pull callback. Only his
-looping push/pull animation controllers advance faster; their rates are restored
-after each update, and a native stop or rate change is preserved. No shared block
-tables, player coordinates, inventory or save flags are patched. Turning this
-option off leaves native movement and animation untouched.
-
-Game-free regression tests cover disabled identity, both speeds, short/end
-counts, push/pull synchronization, and scoped animation-rate restoration. Gameplay
-on real blocks, both regions and 30/60 fps remains to be checked; no full
-playthrough is claimed. Public source references: CC0 ZeldaWWHDDecomp/wwhd
-`a874e1a9`, `mode_walk` (02379834), `setPushPullKeepData` (0243CEE0), and
-`J3DFrameCtrl::update` (027F2FC4). The mod observes these functions; it does not
-copy their implementations or replace native collision behavior.
-
-Publication of this update should follow the catalogue rebuild/compiler alignment
-change in [Mods PR #25](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/pull/25).
-This feature does not change `sdk.json`, generated `index.json` or build-policy tools.
+Choose 1.5x or 2x to push and pull blocks faster while Link follows their movement.
+This experimental option defaults to Off; Dragon Roost and Tower of the Gods puzzles at 30/60 fps still need gameplay testing.
