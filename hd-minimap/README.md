@@ -138,6 +138,9 @@ MPL-2.0; adapted portions retain that MIT notice.
     hit-stop (its play pause timer) the map keeps its last frame, as the HUD does.
   - While Medli or Makar are controlled the HUD keeps its D-pad hidden; the map no longer waits
     for it forever after the Command Melody, and comes in after a bounded wait.
+  - The map shows and hides with the game's HUD, as Minimap HD 1.3 does: aiming the bow, the
+    hookshot or the boomerang (first person or Z-targeting) keeps it while the HUD stays, and the map's
+    buttons wait until the aim ends. Without a readable HUD it still hides while aiming.
 - **0.2.2:**
   - After loading a save, the minimap and its D-pad icons wait for the game's HUD: the icons fade in
     with the HUD's own icons and the map slides in as the HUD comes in, instead of showing on the

@@ -727,6 +727,14 @@ static void read_dpad(void) {
     }
     dpad.alpha = hdm_hud_alpha(global, flags, depth);
 }
+/* the HUD hearts' N_All_00 (Main_00's first layout, RootPane > N_All_00, as Minimap HD 1.3 reads it): 1 shown,
+ * 0 hidden or transparent, -1 when the HUD can't be read */
+static int hud_hearts(void) {
+    u32 hud = follow(*(u32*)&WWHD_GAME_DATA(UI_SCENE, u8), 0x178);
+    u32 pane = follow(follow(follow(follow(follow(follow(hud, 0x4C), 0), 0x44), 4), 0x0C), 0x14);
+    if (!heap_pointer(pane) || !hdm_same((const char*)(pane + 0x80), "N_All_00")) return -1;
+    return hdm_pane_shown(*(u8*)(pane + 0x44), *(u8*)(pane + 0x45));
+}
 /* an icon centred (ox, oy) layout units from the D-pad's pane, size units wide, with the shadow Minimap HD's
  * icons have in the game: black, offset (dx, dy) */
 static void dpad_icon(u32 list, int icon, float ox, float oy, float size, float dx, float dy, float shadow) {
@@ -1215,7 +1223,18 @@ static void capture(fopAc_ac_c* actor) {
     if (snap.mode != MODE_DUNGEON || play[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET]) {
         floor_history = floor_dungeon = floor_role = -1;
     }
-    if (busy || (status0 & STTS0_HIDE) || (status1 & STTS1_CONDUCT)) {
+    /* The map shows while the game's HUD does (Minimap HD 1.3): hidden with the HUD hearts' N_All_00, so
+     * that aiming the bow, the hookshot or the boomerang keeps it as the HUD keeps its hearts. Without a
+     * readable HUD it falls back to Link's aiming, first-person and telescope flags. Aiming still blocks
+     * the map's buttons. */
+    int aiming = (status0 & STTS0_HIDE) != 0, hearts = hud_hearts();
+    if (opt.debug) {
+        /* TEMP diagnostics: the HUD hearts and Link's flags, on change */
+        static u32 last = ~0u;
+        u32 now = (u32)(hearts + 1) | (status0 & STTS0_HIDE) << 2;
+        if (now != last) { last = now; wwhd_log_int("hide.hearts", hearts); wwhd_log_hex("hide.status0", status0); }
+    }
+    if (busy || (status1 & STTS1_CONDUCT) || hdm_hud_hides_map(hearts, aiming)) {
         handle_input(HDM_ALL_BUTTONS, 0);
         return;
     }
@@ -1239,7 +1258,7 @@ static void capture(fopAc_ac_c* actor) {
     snap.room = role ? map_companion()->current.roomNo : actor->current.roomNo;
     if (!at_sea) {
         select_choice(snap.mode == MODE_DUNGEON);
-        handle_input(hdm_blocked_buttons(0, snap.on_ship, at_sea), 0);
+        handle_input(hdm_blocked_buttons(aiming, snap.on_ship, at_sea), 0);
     }
     if (at_sea) {
         snap.mode = MODE_SEA;
@@ -1257,7 +1276,7 @@ static void capture(fopAc_ac_c* actor) {
         if (opt.dungeons && hdm_forsaken_outside(snap.sector, snap.on_ship, snap.covered) && stage_map(2)) {
             snap.mode = MODE_DUNGEON;
             select_choice(1);
-            handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), 0);
+            handle_input(hdm_blocked_buttons(aiming, snap.on_ship, 1), 0);
             forsaken_outside(play, save);
             return;
         }
@@ -1269,7 +1288,7 @@ static void capture(fopAc_ac_c* actor) {
         snap.wind = wind_angle();
         snap.chart_set = *(u8*)(save + SAVE_CHART_SET) & 3;
         read_charts(save);
-        handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), snap.on_ship);
+        handle_input(hdm_blocked_buttons(aiming, snap.on_ship, 1), snap.on_ship);
         read_chart_name();
         snap.visible = 1;
         return;

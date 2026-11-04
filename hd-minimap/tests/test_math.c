@@ -386,6 +386,16 @@ static void sailing(void) {
     assert(long_size < t.h * .75f && fabsf(60 * long_size * HDM_TITLE_ADVANCE - t.w * 296.0f / 312.0f) < 1e-2f);
     assert(fabsf(hdm_chart_title_size(&t, 0) - t.h * .75f) < 1e-4f);
 }
+static void hud_follow(void) {
+    /* the HUD's hearts decide: aiming with the HUD up keeps the map; a hidden HUD hides it */
+    assert(hdm_pane_shown(1, 255) && !hdm_pane_shown(0, 255) && !hdm_pane_shown(1, 0) && hdm_pane_shown(3, 1));
+    assert(!hdm_hud_hides_map(1, 1) && !hdm_hud_hides_map(1, 0));
+    assert(hdm_hud_hides_map(0, 0) && hdm_hud_hides_map(0, 1));
+    /* without a readable HUD, Link's aiming / first-person / telescope flags */
+    assert(hdm_hud_hides_map(-1, 1) && !hdm_hud_hides_map(-1, 0));
+    /* aiming blocks the map's buttons */
+    assert(hdm_blocked_buttons(1, 0, 0) == HDM_ALL_BUTTONS);
+}
 static void hit_stop(void) {
     /* shown: Link's step ran this step or the one before */
     assert(!hdm_presentation_hidden(1, 0, 0, 10, 10));
@@ -404,6 +414,7 @@ int main(void) {
     chart_mark();
     hud_entry();
     hit_stop();
+    hud_follow();
     sailing();
     captions();
     animation();

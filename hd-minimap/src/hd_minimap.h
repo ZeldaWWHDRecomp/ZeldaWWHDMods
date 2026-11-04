@@ -223,6 +223,14 @@ static inline unsigned int hdm_button_bit(const char* s) {
 /* Buttons left to the game: all during events/loading; aboard, left/right remain
  * cannon/crane in both marine and dungeon-map contexts. */
 #define HDM_ALL_BUTTONS 0xffffffffu
+/* a layout pane is drawn when its visible flag (+0x44 bit 0) is set and its alpha (+0x45) is not 0 */
+static inline int hdm_pane_shown(unsigned char flags, unsigned char alpha) {
+    return (flags & 1) && alpha != 0;
+}
+/* hidden with the HUD's hearts (1 shown, 0 hidden, -1 unreadable); unreadable falls back to aiming */
+static inline int hdm_hud_hides_map(int hearts, int aiming) {
+    return hearts < 0 ? aiming : !hearts;
+}
 static inline unsigned int hdm_blocked_buttons(int busy, int on_ship, int at_sea) {
     (void)at_sea;
     if (busy) return HDM_ALL_BUTTONS;
