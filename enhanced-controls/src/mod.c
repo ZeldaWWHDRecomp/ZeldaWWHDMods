@@ -240,7 +240,7 @@ WWHD_HOOK(WWHD_ADDR_daPy_Execute,enhanced_register,(void* link)) {
         ec_init(&state); load_layout(); last_step=~0ull;
         wwhd_touch_register(touch); wwhd_input_filter_register(filter);
         wwhd_hud_register(hud,WWHD_HUD_TV); registered=1;
-        wwhd_log("Enhanced Controls: guest mod ready (experimental)");
+        wwhd_log("Enhanced Controls: guest mod ready");
     }
     refresh();
     /* Execute once on Link's game update, never from a touch/HUD/input callback.
