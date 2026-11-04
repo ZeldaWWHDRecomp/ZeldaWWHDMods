@@ -210,10 +210,15 @@ def _inspect(package):
 
 def _source_revision():
     def revision(root, paths):
-        commit = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'],
-                                capture_output=True, text=True, check=True).stdout.strip()
-        status = subprocess.run(['git', '-C', str(root), 'status', '--porcelain', '--', *paths],
-                                capture_output=True, text=True, check=True)
+        # Content snapshots above are the authoritative input identity. Git is
+        # optional provenance: source archives and machines without Git work too.
+        try:
+            commit = subprocess.run(['git', '-C', str(root), 'rev-parse', 'HEAD'],
+                                    capture_output=True, text=True, check=True, timeout=5).stdout.strip()
+            status = subprocess.run(['git', '-C', str(root), 'status', '--porcelain', '--', *paths],
+                                    capture_output=True, text=True, check=True, timeout=5)
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            return {'commit': None, 'compiler_inputs_modified': None}
         return {'commit': commit, 'compiler_inputs_modified': bool(status.stdout)}
     mod = revision(SOURCE, ['.'])
     mod['sdk_source'] = revision(port_source(), ['runtime/guest/include', 'tools/guestmod'])

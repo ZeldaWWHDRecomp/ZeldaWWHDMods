@@ -80,6 +80,25 @@ class SeedPackage(unittest.TestCase):
                  'allocation_size': 65536}):
             return seed_package.build_package(self.prepared, self.base, self.seed, self.output, 'fixture-clang')
 
+    def test_source_archive_build_needs_neither_git_nor_a_checkout(self):
+        archive=self.root/'source-archive'
+        seed_package._snapshot_tree(seed_package.SOURCE,archive,compile_only=True)
+        (archive/'LICENSE-TWWHD-Randomizer.txt').write_bytes((seed_package.SOURCE/'LICENSE-TWWHD-Randomizer.txt').read_bytes())
+        for failure in (FileNotFoundError('git unavailable'),subprocess.CalledProcessError(128,['git'])):
+            with self.subTest(failure=type(failure).__name__):
+                output=self.root/('package-'+type(failure).__name__)
+                def run(command,**kwargs):
+                    if command[0]=='git':raise failure
+                    return self.fake_compiler(command,**kwargs)
+                with patch('seed_package.SOURCE',archive),patch('seed_package.subprocess.run',side_effect=run), \
+                     patch('seed_package._inspect',side_effect=lambda package:{'elf_sha256':hashlib.sha256((package/'mod.elf').read_bytes()).hexdigest(),'allocation_size':65536}):
+                    result=seed_package.build_package(self.prepared,self.base,self.seed,output,'fixture-clang')
+                self.assertIsNone(result['source_revision']['commit'])
+                self.assertIsNone(result['source_revision']['sdk_source']['commit'])
+                self.assertEqual(len(result['source_sha256']),64)
+                self.assertEqual(len(result['sdk_sha256']),64)
+                self.assertTrue(result['complete'])
+
     def test_explicit_release_resources_and_structured_compiler(self):
         sdk=self.root/'release-sdk';sdk.mkdir();(sdk/'wwhd_guest.h').write_text('/* synthetic SDK */')
         from unittest.mock import Mock
