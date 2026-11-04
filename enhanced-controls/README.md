@@ -1,4 +1,4 @@
-# Enhanced Controls (experimental guest mod)
+# Enhanced Controls
 
 Current version: **1.0.0**.
 
@@ -86,8 +86,7 @@ macro's release; the mod does not forcibly release the player's inputs.
 2. Enable **Code mods** in the app's setup or **Settings → Mods → More →
    Code-mod support**. If newly enabled, let the app rebuild the game code.
 3. For a local test package, choose the `.wwhdmod` under **Mods → More → Install from a file**; skip this when installing from the catalogue.
-4. Review and enable it. The manager marks this package experimental and handles
-   its save backup. Close and reopen the app when asked.
+4. Review and enable it. Close and reopen the app when asked.
 5. Under **Mods → Community → Enhanced Controls**, set the Edit button's position
    and visibility. Use **Edit** in-game for all four macro buttons, including
    their visibility.
@@ -127,8 +126,7 @@ files. Publication is separate from opening or merging a source PR.
 
 ## Validation limits
 
-This is an initial **experimental** package. Translation, synthetic tests and
-compilation do not prove in-game behavior. Android device playtesting is still
+Translation, synthetic tests and compilation do not prove in-game behavior. Android device playtesting is still
 required for both regions, menus, true-60, input combinations and coexistence with other mods.
 It does not guarantee forward compatibility with changes to the game's layouts
 or upstream APIs. No renderer/frame-generation changes are made here.

@@ -6,7 +6,6 @@
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
-  "experimental": true,
   "author": "BeZide93",
   "description": "Four combat buttons with their own touch layout editor. Standalone guest mod; no APK changes.",
   "guest": {

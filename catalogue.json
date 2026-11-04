@@ -316,8 +316,7 @@
       "requires": [],
       "port_versions": {
         "minimum": "0.5.0"
-      },
-      "experimental": true
+      }
     }
   ]
 }
