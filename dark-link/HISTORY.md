@@ -1,3 +1,7 @@
+# Dark Link 1.0.0
+
+Version update from 0.1.39; gameplay and rendering are unchanged.
+
 # Dark Link 0.1.39 — suppress overly bright body shading
 
 The 0.1.38 device screenshot shows grey/green body regions and white facial

@@ -2,7 +2,7 @@
 
 Sword hits charge a transformation with a dark charcoal body and equipment, red eyes,
 a translucent black native Magic Armor aura and boosted sword damage. A red native MagicBar
-appears below the normal magic gauge. Current version: **0.1.39**.
+appears below the normal magic gauge. Current version: **1.0.0**.
 
 The body uses separate cool near-black ambient and charcoal diffuse colours,
 with neutral albedo so native lighting can reveal the contours. Final body RGB
