@@ -26,7 +26,8 @@ You need:
 
 This repository owns the mod source and private seed builder. It requires the
 companion port/SDK support from [save profiles PR #385](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/385)
-and [source-mod services PR #389](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/389),
+[source-mod services PR #389](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/389),
+and [game-build constraints PR #393](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/393),
 after SDK prerequisites #369 and #375.
 The seed-specific package is built locally; it is not a downloadable catalogue
 package because it contains player-owned assets. No changes to the published
@@ -59,7 +60,7 @@ produce invalid local pointers even when argument registers are correct.
 
 Recompile and relink older guest ELFs, including separately compiled helpers.
 A cache rebuild or repeat translation does not add the missing prologue. A
-runtime entry wrapper can protect some older ELFs, but its coverage depends on
+[runtime entry wrapper (#391)](https://github.com/ZeldaWWHDRecomp/ZeldaWWHDRecomp/pull/391) can protect some older ELFs, but its coverage depends on
 validated stack bounds and caller frames; rebuilding remains the reliable fix.
 `-mstack-alignment=8` alone is not the fix. This requirement applies to PowerPC
 guest compilation, not the later native host-module compiler. See
