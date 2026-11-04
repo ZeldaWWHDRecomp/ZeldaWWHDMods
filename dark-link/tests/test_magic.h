@@ -668,7 +668,11 @@ static void test_aura(void) {
     assert(ld32(LINK+0x3bc)==flags && ld16(LINK+0x699e)==timer);
     hook(0x0240b7f4,3,LINK,0); assert((float)ldf32(AURA_ANM)==0);
     hook(0x023dbbe4,2,LINK,0); assert((float)ldf32(AURA_ANM)>29);
+    assert((float)ldf32(AURA_ANM+0x100)==15);
+    assert((float)ldf32(LINK+0x5704+4)==15 && (float)ldf32(AURA_VALUE+0x100)==15);
     hook(0x023dbbe4,3,LINK,0); assert((float)ldf32(AURA_ANM)==0 && (float)ldf32(AURA_VALUE)==0);
+    assert((float)ldf32(AURA_ANM+0x100)==0 && (float)ldf32(AURA_VALUE+0x100)==0);
+    assert((float)ldf32(LINK+0x5704+4)==0);
     assert(aura_notifications>=6 && !memcmp(original_save,ppc_ptr(SAVE),sizeof original_save));
     st32(AURA_RS+0x1c,0x504); /* native non-separate alpha uses RGB equation */
     hook(0x0240b7f4,2,LINK,0);
@@ -680,12 +684,24 @@ static void test_aura(void) {
     st32(LINK+0x3bc,flags|1); stf32(AURA_ANM,12);
     hook(0x0240b7f4,2,LINK,0); assert((float)ldf32(AURA_ANM)==12);
     hook(0x0240b7f4,3,LINK,0); assert((float)ldf32(AURA_ANM)==12);
+    /* Real armor keeps all three distinct pre-draw frame values. Repeated
+     * draws sample the resource midpoint, never halve the previous result. */
+    stf32(AURA_ANM+0x100,18); stf32(LINK+0x5704+4,17); stf32(AURA_VALUE+0x100,16);
+    for(int draw=0;draw<3;++draw) {
+        hook(0x023dbbe4,2,LINK,0);
+        assert((float)ldf32(AURA_ANM)>29 && (float)ldf32(AURA_ANM+0x100)==15);
+        assert(ld32(LINK+0x3bc)==(flags|1) && ld16(LINK+0x699e)==timer);
+        hook(0x023dbbe4,3,LINK,0);
+        assert((float)ldf32(AURA_ANM)==12 && (float)ldf32(AURA_ANM+0x100)==18);
+        assert((float)ldf32(LINK+0x5704+4)==17 && (float)ldf32(AURA_VALUE+0x100)==16);
+    }
     st32(LINK+0x3bc,flags);
     st32(AURA_RS,ld32(AURA_RS)|0x400); /* another mod's unrelated flag */
     st32(AURA_RS+0x1c,ld32(AURA_RS+0x1c)|0x80000000u);
     enabled=0; ++revision; tick();
     assert(ld32(AURA_RS)==0x407 && ld32(AURA_RS+0x14)==0xcc0100 && ld32(AURA_RS+0x1c)==0xa0010101);
     hook(0x023dbbe4,2,LINK,0); assert((float)ldf32(AURA_ANM)==12);
+    assert((float)ldf32(AURA_ANM+0x100)==18 && (float)ldf32(AURA_VALUE+0x100)==16);
     hook(0x023dbbe4,3,LINK,0);
     st32(LINK+0x5700,0); enabled=1; ++revision; tick();
     buttons(0); for(int i=0;i<20;++i) hit(1); buttons(0x60000); tick(); assert(damage(3)==6);

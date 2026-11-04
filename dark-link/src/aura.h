@@ -126,8 +126,15 @@ WWHD_HOOK(WWHD_ADDR_daPy_Draw, dl_aura_draw_before, (daPy_lk_c* link)) {
     if (!dl_aura_active(link) || !dl_aura_frame((u32)link+0x5614,&dl_aura_draw_frames[0]) ||
         !dl_aura_frame((u32)link+0x5704,&dl_aura_draw_frames[1])) return;
     dl_aura_draw_owner=(u32)link;
-    for (u32 i=0;i<2;++i) dl_aura_set(&dl_aura_draw_frames[i],
-        dl_aura_draw_frames[i].end-0.001f);
+    for (u32 i=0;i<2;++i) {
+        DLAuraFrame* f=&dl_aura_draw_frames[i];
+        /* Only Ymgcs00 (index 1) is the black shell. Sample the middle of
+         * its native BRK fade instead of the fully visible end. This keeps
+         * authored coverage/soft edges and the independent BTK animation.
+         * Half the fade time is not necessarily half the shader alpha.
+         * The surrounding aura and the real armor's saved frame stay intact. */
+        dl_aura_set(f, i == 1 ? f->end * 0.5f : f->end - 0.001f);
+    }
 }
 WWHD_HOOK_RETURN(WWHD_ADDR_daPy_Draw, dl_aura_draw_after, (daPy_lk_c* link)) {
     if (dl_aura_draw_owner!=(u32)link) return;

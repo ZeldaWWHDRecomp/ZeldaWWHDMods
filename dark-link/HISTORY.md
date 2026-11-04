@@ -1,3 +1,17 @@
+# Dark Link 0.1.37 — softer black aura
+
+The Ymgcs00 shell samples the midpoint of its native BRK fade during Link draw,
+instead of the fully visible end. The other aura animation remains at its old
+frame, and native BTK motion, black blending, body, eyes and equipment are
+unchanged. This is 50% of the fade timeline, not a claim of exactly 50% opacity;
+the game-owned curve controls the result.
+
+Frame resource, controller and renderer-channel values are restored after each
+draw, including during real Magic Armor use. No protection flags, timers or save
+values are changed. Regression coverage checks the shell-only midpoint, repeated
+draws, restoration and the disabled path. Actual GPU appearance needs an in-game
+check in bright/dark areas and while moving and toggling the transformation.
+
 # Dark Link (prototype 0.1.36 — retain charge on manual cancellation)
 
 Standalone code mod for ZeldaWWHDRecomp: sword hits charge a transformation with

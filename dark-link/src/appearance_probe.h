@@ -1,4 +1,4 @@
-/* Bounded, on-screen observations for 0.1.36. No game writes or file logging. */
+/* Bounded, on-screen observations for 0.1.37. No game writes or file logging. */
 #pragma once
 enum {
     DL_PROBE_OK, DL_PROBE_NO_REFRESH, DL_PROBE_FROZEN, DL_PROBE_MODEL_DATA,

@@ -294,7 +294,7 @@
       "id": "dark-link",
       "name": "Dark Link",
       "description": "Dark Link with black body/equipment, red eyes, a black native Magic Armor aura and a red MagicBar gauge below the normal magic gauge.",
-      "version": "0.1.36",
+      "version": "0.1.37",
       "kind": "guest",
       "setup": [
         {

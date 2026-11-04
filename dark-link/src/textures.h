@@ -248,7 +248,7 @@ static void dl_diag_hud(u32 list) {
 #define DL_S(s) n = dl_probe_append(line, n, s)
 #define DL_N(v) n = dl_probe_number(line, n, v)
     char* line = dl_probe_lines[0];
-    DL_S("DL 0.1.36 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
+    DL_S("DL 0.1.37 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
     DL_S("  Draw="); DL_N(dl_probe.draws); DL_S("  Refresh B/H/Hair/Gear=");
     DL_N(dl_probe.refresh[0]); DL_S("/"); DL_N(dl_probe.refresh[1]); DL_S("/"); DL_N(dl_probe.refresh[2]); DL_S("/"); DL_N(dl_probe.refresh[3]);
     DL_S(" Magic="); DL_N((dl_magic_images[0][0]!=0)+(dl_magic_images[0][1]!=0)+(dl_magic_images[1][0]!=0)+(dl_magic_images[1][1]!=0));

@@ -67,7 +67,7 @@ static void test_textures(void) {
         st32(texture_slot(m)-4,TEX_ORIGINAL); st32(texture_slot(m),TEX_ORIGINAL);
     }
     texture_refresh(); texture_tinted();
-    expect_hud("DL 0.1.36 ON");
+    expect_hud("DL 0.1.37 ON");
     expect_hud("Body J/N=8/8  Albedo=8  Views=8  Eyes found/bound=6/6");
     expect_hud("Samplers body: _a1,_a0  eyes: _a1,_a0");
     /* A handle resembling a valid _a0 relative pointer must never select the
