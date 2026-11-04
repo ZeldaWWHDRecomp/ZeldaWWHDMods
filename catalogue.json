@@ -8,7 +8,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.1.0",
+      "version": "0.1.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -36,7 +36,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -90,7 +90,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -120,7 +120,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.6.1",
+      "version": "0.6.2",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -149,7 +149,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -180,7 +180,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.1.1",
+      "version": "0.1.2",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -210,7 +210,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.2.2",
+      "version": "0.2.3",
       "kind": "guest",
       "licences": [
         "MPL-2.0",
@@ -239,7 +239,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -268,7 +268,7 @@
       "authors": [
         "asadsi"
       ],
-      "version": "0.1.0",
+      "version": "0.1.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"

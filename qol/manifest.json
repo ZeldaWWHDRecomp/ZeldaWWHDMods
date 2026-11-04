@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
