@@ -3,11 +3,6 @@
 This reads data operands only; it never patches or distributes game instructions.
 The randomized stage assets provide the matching respawn ACTR item parameters.
 """
-from pathlib import Path
-import argparse
-import hashlib
-import json
-import sys
 
 # Upstream location_data.yaml Boss paths; first four use cloud r7 high-immediate byte.
 BOSS_SITES = (
@@ -34,28 +29,7 @@ def extract(read):
     return rewards
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("rpx", type=Path)
-    parser.add_argument("output", type=Path, help="private module source directory")
-    args = parser.parse_args()
-    from sdk_paths import add_port_tools
-    add_port_tools()
-    from rpx import Rpx
-    rpx = Rpx(str(args.rpx))
-    def read(address, size):
-        for section in rpx.sections:
-            if section.addr <= address and address + size <= section.addr + len(section.data):
-                return section.data[address-section.addr:address-section.addr+size]
-        raise ValueError(f"unmapped boss operand {address:08X}")
-    rewards = extract(read)
-    args.output.mkdir(parents=True, exist_ok=True)
-    (args.output / "seed_boss_data.h").write_text(
-        "/* Private player-owned seed boss rewards. Gohma, Kalle, Gohdan, Helmaroc, Jalhalla, Molgera. */\n"
-        "static const u8 init_reward_boss[6] = {" + ",".join(map(str, rewards)) + "};\n")
-    (args.output / "seed-boss-config.json").write_text(json.dumps({
-        "source_sha256": hashlib.sha256(args.rpx.read_bytes()).hexdigest(),
-        "boss_rewards": dict(zip((site[0] for site in BOSS_SITES), rewards)),
-    }, indent=2) + "\n")
+    raise SystemExit("Use seed_prepare.py for validated, exclusive seed output; this legacy extractor is a library only.")
 
 if __name__ == "__main__":
     main()

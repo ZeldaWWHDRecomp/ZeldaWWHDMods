@@ -101,4 +101,13 @@ int main(void){
    for bad in (b"",bytes([0,0,0,0]),bytes([0x38,0xE0,17,3]) if cloud else bytes([0x38,0x80,1,17])):
     broken=dict(words);broken[site]=bad
     with self.assertRaises(ValueError):extract(lambda a,n:broken[a])
+ def test_legacy_extractor_cannot_overwrite_private_output(self):
+  import sys
+  with tempfile.TemporaryDirectory() as tmp:
+   output=Path(tmp)/'private';output.mkdir()
+   for name in ('seed_boss_data.h','seed-boss-config.json'):(output/name).write_bytes(b'keep existing data')
+   result=subprocess.run([sys.executable,str(Path(__file__).with_name('extract_boss_rewards.py')),str(Path(tmp)/'missing.rpx'),str(output)],capture_output=True,text=True)
+   self.assertNotEqual(result.returncode,0);self.assertIn('seed_prepare.py',result.stderr)
+   self.assertEqual(sorted(p.name for p in output.iterdir()),['seed-boss-config.json','seed_boss_data.h'])
+   for path in output.iterdir():self.assertEqual(path.read_bytes(),b'keep existing data')
 if __name__=='__main__':unittest.main()
