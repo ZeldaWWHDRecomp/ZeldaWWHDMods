@@ -223,7 +223,7 @@ def _source_revision():
 def _manifest(identity):
     return {'format_version': 1, 'id': PACKAGE_ID, 'name': 'TWWHD Randomizer core (experimental)',
             'version': '0.0.1', 'game_id': 'wwhd', 'kind': 'guest',
-            'minimum_manager_version': '1.7.0', 'experimental': True,
+            'minimum_manager_version': '1.8.0', 'experimental': True,
             'supported_game_builds': ['USA'],
             'author': 'TWWHD Randomizer contributors; WWHD Recomp source-port contributors',
             'description': WARNING, 'guest': {'api_version': 1, 'elf': 'mod.elf', 'heap_size': 262144},

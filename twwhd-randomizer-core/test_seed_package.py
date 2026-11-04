@@ -118,7 +118,7 @@ class SeedPackage(unittest.TestCase):
         manifest = json.loads((self.output / 'manifest.json').read_text())
         self.assertEqual(manifest['save_profile'], {'version': 1, 'provider': 'twwhd-randomizer',
                                                    'identity': self.record['seed_identity']})
-        self.assertEqual(manifest['minimum_manager_version'], '1.7.0')
+        self.assertEqual(manifest['minimum_manager_version'], '1.8.0')
         self.assertEqual(manifest['supported_game_builds'], ['USA'])
         self.assertEqual(manifest['game_id'], 'wwhd')
         self.assertTrue(manifest['experimental'])

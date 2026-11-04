@@ -138,7 +138,7 @@ verification of each option.
 
 ## Saves, backups and states
 
-The manifest requires mod manager 1.7.0 and explicitly constrains the game build
+The manifest requires mod manager 1.8.0 and explicitly constrains the game build
 to USA. The generic `game_id` field alone is not a region check. Save ownership
 uses provider `twwhd-randomizer` and the complete prepared seed identity.
 
