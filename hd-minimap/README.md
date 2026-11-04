@@ -93,7 +93,8 @@ with older installers; it does not import mandatory new host functions.
 - Link and boat markers are never drawn on treasure charts.
 - A missing native menu or another mod owning the feature can reject a chart
   request or compass lease; rejected leases keep the existing fallback position.
-- Command Melody and airborne companions still need gameplay validation. The
+- Medli under the Command Melody was checked in the Earth Temple; Makar and airborne companions
+  still need gameplay validation. The
   unspecified Tower room omission is not confirmed resolved; a room/floor
   reproducer is still needed. Those limits are independent of the SDK integration.
 - This remains a bounded parity follow-up, not a full-playthrough equivalence claim.
@@ -128,6 +129,10 @@ MPL-2.0; adapted portions retain that MIT notice.
 - **0.2.3:**
   - The treasure chart shows its whole art, as the game's chart screen does, with the X where the
     treasure is; before, the X stayed in the middle and the art was moved off the chart.
+  - A sword blow that lands no longer hides the minimap and its D-pad icons: during the game's
+    hit-stop (its play pause timer) the map keeps its last frame, as the HUD does.
+  - While Medli or Makar are controlled the HUD keeps its D-pad hidden; the map no longer waits
+    for it forever after the Command Melody, and comes in after a bounded wait.
 - **0.2.2:**
   - After loading a save, the minimap and its D-pad icons wait for the game's HUD: the icons fade in
     with the HUD's own icons and the map slides in as the HUD comes in, instead of showing on the

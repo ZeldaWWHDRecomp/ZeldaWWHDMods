@@ -427,8 +427,22 @@ static inline float hdm_hud_alpha(const unsigned char* global, const unsigned ch
     return count > 0 ? lowest / 255.0f : 0;
 }
 /* After the map's panel restarts (a load, a menu, an event), its entrance waits for the HUD's: still waiting
- * while the HUD's D-pad is found and not shown yet; never held when the HUD can't be read. */
+ * while the HUD's D-pad is found and not shown yet; never held when the HUD can't be read. The wait counts
+ * logic steps and gives up after HDM_HUD_WAIT_STEPS: while Medli or Makar are controlled the HUD keeps its
+ * D-pad hidden, and the map must not wait for it forever. A load's HUD comes in about 30 steps after Link's
+ * first capture (log of 2026-11-02). */
+#define HDM_HUD_WAIT_STEPS 45
 static inline int hdm_hud_waiting(int waiting, int found, float hud_alpha) {
-    return waiting && found && !(hud_alpha > 0);
+    if (!waiting || !found || hud_alpha > 0 || waiting >= HDM_HUD_WAIT_STEPS) return 0;
+    return waiting + 1;
+}
+/* A landed blow sets the play scene's pause timer (dScnPly_ply_c::pauseTimer) for a few steps of hit-stop:
+ * actors don't run, Link's capture among them, and dScnPly_isPause is true, but the HUD stays. The map keeps
+ * its last frame then. Otherwise it hides while paused (menus) or when Link's step didn't run this step. */
+static inline int hdm_presentation_hidden(int visible, int paused, int hit_stop, unsigned long long step,
+                                          unsigned long long captured) {
+    if (!visible) return 1;
+    if (hit_stop) return 0;
+    return paused || step > captured + 1;
 }
 #endif

@@ -356,11 +356,32 @@ static void hud_entry(void) {
     assert(!hdm_hud_waiting(1, 1, 0x1B / 255.0f));
     assert(!hdm_hud_waiting(1, 0, 0));
     assert(!hdm_hud_waiting(0, 1, 0));   /* once in, the HUD's later fades don't hold the map */
+    /* a D-pad that stays hidden (Medli or Makar controlled) holds the map only for a bounded wait */
+    int waiting = 1, steps = 0;
+    while (waiting && steps < 1000) { waiting = hdm_hud_waiting(waiting, 1, 0); ++steps; }
+    assert(!waiting && steps == HDM_HUD_WAIT_STEPS);
+    /* the HUD coming in on the last waiting step still ends the wait */
+    assert(hdm_hud_waiting(HDM_HUD_WAIT_STEPS - 1, 1, 0) == HDM_HUD_WAIT_STEPS);
+    assert(!hdm_hud_waiting(HDM_HUD_WAIT_STEPS - 1, 1, .5f));
+}
+static void hit_stop(void) {
+    /* shown: Link's step ran this step or the one before */
+    assert(!hdm_presentation_hidden(1, 0, 0, 10, 10));
+    assert(!hdm_presentation_hidden(1, 0, 0, 11, 10));
+    /* a menu or a missed step hides it */
+    assert(hdm_presentation_hidden(1, 1, 0, 10, 10));
+    assert(hdm_presentation_hidden(1, 0, 0, 12, 10));
+    assert(hdm_presentation_hidden(0, 0, 0, 10, 10));
+    /* hit-stop: paused, Link's step missed, but the last frame stays */
+    assert(!hdm_presentation_hidden(1, 1, 1, 14, 10));
+    /* nothing to keep when there was no frame */
+    assert(hdm_presentation_hidden(0, 1, 1, 14, 10));
 }
 
 int main(void) {
     chart_mark();
     hud_entry();
+    hit_stop();
     captions();
     animation();
     contexts();

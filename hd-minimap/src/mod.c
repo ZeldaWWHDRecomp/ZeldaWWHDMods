@@ -57,6 +57,7 @@ WWHD_GAME_FUNC(0x0273A2E8, u32, chart_msg_text, (u32 data, u32 index));
 #define STTS0_HIDE (0x1000u | 0x2000u | 0x4000u | 0x20000u | 0x80000u | 0x200000u) /* aiming, first person, telescope */
 #define STTS0_SHIP 0x10000u
 #define STTS1_CONDUCT 0x1u
+#define PAUSE_TIMER 0x101EACB6      /* dScnPly_ply_c::pauseTimer (s8), set by a landed blow's hit-stop; same in USA and EU */
 #define UI_SCENE 0x101F8344         /* the game's UI scene: +0x178 the TV HUD, +0x218 the map screens */
 
 enum { MODE_NONE, MODE_SEA, MODE_DUNGEON };
@@ -925,7 +926,8 @@ static void draw(u32 list) {
         }
     }
     /* Link's step runs in the logic step before this callback; in menus or while paused it doesn't */
-    if (!snap.visible || game_paused() || wwhd_logic_step() > captured_step + 1) {
+    int hit_stop = WWHD_GAME_DATA(PAUSE_TIMER, s8) != 0;
+    if (hdm_presentation_hidden(snap.visible, game_paused(), hit_stop, wwhd_logic_step(), captured_step)) {
         panel_slide = (hdm_tween){0}; chart_slide = (hdm_tween){0};
         have_panel = have_chart = floor_direction = 0;
         presentation_dungeon = presentation_floor = -1;
