@@ -1,5 +1,7 @@
 # Enhanced Controls (experimental guest mod)
 
+Current version: **1.0.0**.
+
 Standalone guest mod for ZeldaWWHDRecomp. Requires mod manager **1.6.0** and
 code-mod support. It uses the public SDK pinned by this catalogue repository.
 
