@@ -289,6 +289,34 @@
         "minimum": "0.5.0"
       },
       "experimental": true
+    },
+    {
+      "id": "dark-link",
+      "name": "Dark Link",
+      "description": "Dark Link with black body/equipment, red eyes, a black native Magic Armor aura and a red MagicBar gauge below the normal magic gauge.",
+      "version": "0.1.36",
+      "kind": "guest",
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Dark Link for this installation"
+        }
+      ],
+      "authors": [
+        "BeZide93"
+      ],
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "port_versions": {
+        "minimum": "0.5.0"
+      }
     }
   ]
 }
