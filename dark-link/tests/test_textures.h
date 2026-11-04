@@ -2,6 +2,30 @@
  * This verifies actual binding lifetime and descriptor contents, not a game shader. */
 enum { TEX_MATS=0x11100000, TEX_RES=0x11110000, TEX_REFS=0x11120000,
        TEX_ORIGINAL=0x11130000, TEX_NEXT=0x11131000, TEX_PIXELS=0x11140000 };
+static uint32_t body_state(int m) { return TEX_RES+m*0x200+0x100; }
+static uint32_t body_native[MATERIAL_COUNT][12];
+static void body_states_restored(void) {
+    for (int m=0;m<MATERIAL_COUNT;++m) for (int k=0;k<12;++k)
+        assert(ld32(body_state(m)+k*4)==body_native[m][k]);
+}
+static void body_state_tinted(int m) {
+    uint32_t state=body_state(m), blend=ld32(state+0x1c);
+    assert((ld32(state)&3)==(body_native[m][0]&3)); /* opaque/cutout bucket */
+    assert(ld32(state+8)==body_native[m][2]); /* depth writes/test */
+    assert(ld32(state+12)==body_native[m][3] && ld32(state+16)==body_native[m][4]);
+    assert((blend&31)==13 && ((blend>>8)&31)==0 && ((blend>>5)&7)==0);
+    assert((blend&(1u<<29)) && ((blend>>16)&31)==1 && ((blend>>24)&31)==0 && ((blend>>21)&7)==0);
+    assert(ld32(state+0x2c)==body_native[m][11]); /* constant alpha */
+    for (int c=0;c<3;++c) {
+        float scale=ldf32(state+0x20+4*c);
+        assert(scale>0 && scale<=0.013f);
+        /* Independently evaluate native CONST_COLOR/ZERO/ADD for dark and
+         * bright pixels, against arbitrary backgrounds. Relative contrast
+         * survives, while white output becomes near black. */
+        float dark=.1f*scale, bright=1.0f*scale;
+        assert(dark>0 && bright>dark && bright<.013f);
+    }
+}
 static uint32_t texture_slot(int material) {
     return TEX_REFS+(MATERIAL_COUNT-1-material)*0x20+4; /* _a0 is slot ONE */
 }
@@ -11,6 +35,7 @@ static void texture_refresh(void) {
 }
 static void texture_originals(void) {
     for (int m=0;m<MATERIAL_COUNT;++m) assert(ld32(texture_slot(m))==TEX_ORIGINAL);
+    body_states_restored();
 }
 /* surface: 0 neutral body albedo, 1 red eyes, 2 black aura. */
 static void texture_view_check(uint32_t view, uint32_t original, int surface) {
@@ -36,6 +61,8 @@ static void texture_tinted(void) {
         uint32_t slot=texture_slot(m);
         assert(ld32(slot-4)==TEX_ORIGINAL); /* toon sampler stays original */
         texture_view_check(ld32(slot),TEX_ORIGINAL,m>=1 && m<=6);
+        if (m==0 || m==7) body_state_tinted(m);
+        else for(int k=0;k<12;++k) assert(ld32(body_state(m)+4*k)==body_native[m][k]);
     }
 }
 static void test_textures(void) {
@@ -57,6 +84,14 @@ static void test_textures(void) {
         st32(MATERIALS+m*0x39c,res);
         st32(res,0x464d4154); st16(res+0xc,index); st8(res+0x10,2); st8(res+0x11,2);
         st32(res+0x2c,0x80-0x2c); /* sampler array */
+        st32(res+0x20,0x100-0x20);
+        uint32_t state=body_state(m);
+        st32(state,m==7 ? 2 : 1); st32(state+4,0x1234); st32(state+8,0x37);
+        st32(state+12,m==7 ? 1 : 0); stf32(state+16,.5f);
+        st32(state+0x14,0x00cc0020); st32(state+0x18,0);
+        st32(state+0x1c,0x40000504); /* dormant SRC_ALPHA blend must not affect alpha */
+        for(int c=0;c<4;++c) stf32(state+0x20+c*4,.2f+c*.1f);
+        for(int k=0;k<12;++k) body_native[m][k]=ld32(state+k*4);
         /* Wii U sampler: three GX2 words, handle (+0x0c), name (+0x10),
          * index (+0x14), padding; verified against BfresLibrary Sampler.Load.
          * Zero handles reproduce the video's ?,? / NO_ALBEDO failure. */
@@ -69,7 +104,7 @@ static void test_textures(void) {
         st32(texture_slot(m)-4,TEX_ORIGINAL); st32(texture_slot(m),TEX_ORIGINAL);
     }
     texture_refresh(); texture_tinted();
-    expect_hud("DL 0.1.38 ON");
+    expect_hud("DL 0.1.39 ON");
     expect_hud("Body J/N=8/8  Albedo=8  Views=8  Eyes found/bound=6/6");
     expect_hud("Samplers body: _a1,_a0  eyes: _a1,_a0");
     /* A handle resembling a valid _a0 relative pointer must never select the
@@ -239,7 +274,10 @@ static void test_textures(void) {
     texture_refresh(); st32(MODEL+0x34,TEX_MATS+0x1000);
     st32(texture_slot(0),0xdeadbeef);
     enabled=0; ++revision; tick(); assert(ld32(texture_slot(0))==0xdeadbeef);
-    for (int m=0;m<MATERIAL_COUNT;++m) st32(texture_slot(m),TEX_ORIGINAL);
+    for (int m=0;m<MATERIAL_COUNT;++m) {
+        st32(texture_slot(m),TEX_ORIGINAL);
+        for(int k=0;k<12;++k) st32(body_state(m)+k*4,body_native[m][k]);
+    }
     st32(MODEL+0x34,TEX_MATS);
     enabled=1; ++revision; tick(); buttons(0); buttons(0x60000); tick(); assert(damage(3)==6);
     /* Diagnostic toggle only changes observations, never appearance bindings. */
@@ -260,6 +298,30 @@ static void test_textures(void) {
     /* Turning off restores all original bindings and leaves an explicitly old sample. */
     buttons(0); buttons(0x60000); tick(); texture_originals(); expect_hud("OFF (last sample)");
     buttons(0); buttons(0x60000); tick(); expect_hud("Skip=NO_REFRESH");
+    /* Unsupported blend/material states must never expose white albedo. */
+    const uint32_t unsupported_flags[]={3,0x11,0};
+    for (int i=0;i<3;++i) {
+        st32(body_state(0),unsupported_flags[i]); texture_refresh();
+        texture_view_check(ld32(texture_slot(0)),TEX_ORIGINAL,3);
+        assert(ld32(body_state(0))==unsupported_flags[i]);
+        hook(0x027f50f8,2,MODEL,0);
+        st32(body_state(0),body_native[0][0]);
+    }
+    /* Replacing refs invalidates old texture slots, but the material still
+     * owns its blend state and must not remain dim after cancellation. */
+    texture_refresh();
+    uint32_t native0=TEX_MATS+(MATERIAL_COUNT-1)*0x3c, refs0=ld32(native0+0x2c);
+    st32(native0+0x2c,0);
+    hook(0x027f50f8,2,MODEL,0); body_states_restored();
+    st32(native0+0x2c,refs0); st32(texture_slot(0),TEX_ORIGINAL);
+    /* A newer owner of a constant or unrelated flag wins during restore. */
+    texture_refresh(); stf32(body_state(0)+0x20,.75f);
+    st32(body_state(0),ld32(body_state(0))|0x400);
+    hook(0x027f50f8,2,MODEL,0);
+    assert(ldf32(body_state(0)+0x20)==.75f);
+    assert(ld32(body_state(0))==(body_native[0][0]|0x400));
+    st32(body_state(0),body_native[0][0]); st32(body_state(0)+0x20,body_native[0][8]);
+    body_states_restored();
     assert(!memcmp(asset,ppc_ptr(TEX_ORIGINAL),sizeof asset));
     for (int m=0;m<MATERIAL_COUNT;++m) st32(MATERIALS+m*0x39c,0);
     st32(MODEL+0x34,0); st16(MODEL+0x2a,0);

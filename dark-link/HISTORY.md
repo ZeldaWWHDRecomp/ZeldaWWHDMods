@@ -1,3 +1,21 @@
+# Dark Link 0.1.39 — suppress overly bright body shading
+
+The 0.1.38 device screenshot shows grey/green body regions and white facial
+accents despite near-black TEV inputs. Neutral albedo exposed contributions
+from the original shaders which are not controlled by those colour registers.
+Scale final RGB to 1.25% using native constant-colour blending on opaque/cutout
+body/equipment materials. Preserve source alpha explicitly, the original draw
+bucket, depth writes, alpha tests, normals and lighting. Destination RGB has a
+zero factor, so the body does not become transparent. Red eye materials and
+the softer 0.1.37 aura are excluded. Unsupported blend states use black albedo.
+
+Track blend edits with the existing live per-instance binding ledger; restore
+only still-owned bits and constants, including on cancellation/disable. Native
+or third-party replacements are preserved. No textures or shader assets added.
+Synthetic guest tests exercise brightness attenuation, source-alpha preservation,
+cutout/depth retention, excluded eyes/aura, unsupported-state fallback and
+restoration. Actual game rendering still needs confirmation on device.
+
 # Dark Link 0.1.38 — matte contour shading
 
 Replace the body/equipment's flat-zero palette with separate dark cool ambient

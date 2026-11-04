@@ -15,6 +15,7 @@ typedef struct {
 } DLTextureView;
 typedef struct {
     u32 model, materials, index, resource, refs, slot, original, view, surface;
+    u32 state, before[6], ours[6];
 } DLTextureBinding;
 static DLTextureView dl_texture_cache[DL_TEXTURE_CACHE];
 static u32 dl_texture_count, dl_binding_count;
@@ -35,15 +36,53 @@ static int dl_texture_model(u32 model) {
     return link && link == dl_owner && dl_actor_id(link) == dl_owner_id &&
         dl_model_part(link, model) >= 0;
 }
-static int dl_binding_live(const DLTextureBinding* b) {
+static int dl_binding_material_live(const DLTextureBinding* b) {
     if (!dl_texture_model(b->model) || !dl_game_span(b->model, 0xb0) ||
         dl_word((void*)b->model, 0x34) != b->materials) return 0;
     u32 count = *(u16*)(b->model + 0x2a);
     if (b->index >= count || count > DL_MAX_MATERIALS ||
         !dl_game_span(b->materials, count * 0x3c)) return 0;
-    u8* material = (u8*)(b->materials + b->index * 0x3c);
-    return dl_word(material, 0) == b->resource && dl_word(material, 0x2c) == b->refs &&
+    return dl_word((void*)(b->materials + b->index * 0x3c), 0) == b->resource;
+}
+static int dl_binding_live(const DLTextureBinding* b) {
+    return dl_binding_material_live(b) &&
+        dl_word((void*)(b->materials + b->index * 0x3c), 0x2c) == b->refs &&
         dl_game_span(b->slot, 4);
+}
+/* Attenuate the final shader RGB, including contributions that bypass TEV.
+ * RenderPipelineState::bind (027E220C) binds the FMAT blend constant too.
+ * Only ordinary opaque/cutout materials on target 0 are eligible: keep their
+ * draw bucket, depth and alpha test. RGB = src * 0.0125 + dst * 0; alpha = src.
+ * Thus no scene colour leaks through the body. Unsupported states use black
+ * albedo instead of allowing an unattenuated white input. */
+static const u32 dl_body_offsets[6] = {0, 0x14, 0x1c, 0x20, 0x24, 0x28};
+static const u32 dl_body_masks[6] = {0x30, 0x100, 0x3fff1fff, ~0u, ~0u, ~0u};
+static int dl_body_blend(DLTextureBinding* b) {
+    u32 state = dl_relative(b->resource + 0x20);
+    if (!dl_game_span(state, 0x30)) return 0;
+    u32 flags = *(u32*)state, color = *(u32*)(state + 0x14);
+    if ((flags & 3) < 1 || (flags & 3) > 2 || (flags & 0x30) ||
+        (color & 0xff00) || ((color >> 16) & 0xff) != 0xcc ||
+        *(u32*)(state + 0x18) != 0) return 0;
+    b->state = state;
+    for (u32 k=0;k<6;++k) b->ours[k] = b->before[k] = *(u32*)(state + dl_body_offsets[k]);
+    b->ours[0] |= 0x10;
+    b->ours[1] |= 0x100;
+    /* CONST_COLOR=13, ZERO=0, ADD=0; separate alpha ONE/ZERO/ADD.
+     * Blending was disabled, so retain source alpha, not dormant factors. */
+    b->ours[2] = (b->before[2] & ~0x3fff1fffu) | 13u | (1u << 16) | (1u << 29);
+    union { f32 f; u32 u; } scale = {.f = 0.0125f};
+    for (u32 k=3;k<6;++k) b->ours[k] = scale.u;
+    for (u32 k=0;k<6;++k) *(u32*)(state + dl_body_offsets[k]) = b->ours[k];
+    return 1;
+}
+static void dl_body_restore(const DLTextureBinding* b) {
+    if (!b->state || dl_relative(b->resource + 0x20) != b->state) return;
+    for (u32 k=0;k<6;++k) {
+        u32* word = (u32*)(b->state + dl_body_offsets[k]), mask = dl_body_masks[k];
+        if ((*word & mask) == (b->ours[k] & mask))
+            *word = (*word & ~mask) | (b->before[k] & mask);
+    }
 }
 static void dl_texture_restore_model(u32 model) {
     for (u32 i = 0; i < dl_binding_count;) {
@@ -52,6 +91,9 @@ static void dl_texture_restore_model(u32 model) {
         /* Native animation or another mod may already have changed this slot.
          * Restore only a still-live binding that contains OUR exact view. */
         if (dl_binding_live(b) && *(u32*)b->slot == b->view) *(u32*)b->slot = b->original;
+        /* Replaced texture-reference storage does not invalidate the still-live
+         * FMAT state: restore it even when the old texture slots are stale. */
+        if (dl_binding_material_live(b)) dl_body_restore(b);
         dl_bindings[i] = dl_bindings[--dl_binding_count];
     }
 }
@@ -80,7 +122,7 @@ static u32 dl_texture_view(u32 texture, u32 surface) {
      * native toon lighting reach the shader. A zero sample would multiply
      * those colours back to black. Eyes stay red; the aura keeps its old
      * black view. Include this distinction in cache AND late-rebind state. */
-    u32 r = surface == DL_SURFACE_AURA ? 4u : 5u;
+    u32 r = surface == DL_SURFACE_BODY || surface == DL_SURFACE_EYE ? 5u : 4u;
     u32 gb = surface == DL_SURFACE_BODY ? 5u : 4u;
     cached->view[0x88 / 4] = (source[0x88 / 4] & 0xffu) | (r << 24) | (gb << 16) | (gb << 8);
     cached->view[0x94 / 4] = (source[0x94 / 4] & ~(0x1ffu << 16)) |
@@ -188,8 +230,16 @@ static void dl_texture_apply(void* model) {
             eye ? DL_SURFACE_EYE : DL_SURFACE_BODY;
         u32 original = *(u32*)slot, view = dl_texture_view(original, surface);
         if (!view) { if (probe) dl_probe_skip(dl_texture_count == DL_TEXTURE_CACHE ? DL_PROBE_CAPACITY : DL_PROBE_TEXTURE); continue; }
-        dl_bindings[dl_binding_count++] = (DLTextureBinding){(u32)model, native_materials, index, resource, refs, slot, original, view, surface};
-        *(u32*)slot = view;
+        DLTextureBinding binding = {.model=(u32)model, .materials=native_materials,
+            .index=index, .resource=resource, .refs=refs, .slot=slot,
+            .original=original, .view=view, .surface=surface};
+        if (surface == DL_SURFACE_BODY && !dl_body_blend(&binding)) {
+            binding.surface = DL_SURFACE_BODY_BLACK;
+            binding.view = dl_texture_view(original, binding.surface);
+            if (!binding.view) continue;
+        }
+        dl_bindings[dl_binding_count++] = binding;
+        *(u32*)slot = binding.view;
         if (probe) { ++dl_probe.views; dl_probe.eyes += (u32)eye; }
     }
 }
@@ -256,7 +306,7 @@ static void dl_diag_hud(u32 list) {
 #define DL_S(s) n = dl_probe_append(line, n, s)
 #define DL_N(v) n = dl_probe_number(line, n, v)
     char* line = dl_probe_lines[0];
-    DL_S("DL 0.1.38 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
+    DL_S("DL 0.1.39 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
     DL_S("  Draw="); DL_N(dl_probe.draws); DL_S("  Refresh B/H/Hair/Gear=");
     DL_N(dl_probe.refresh[0]); DL_S("/"); DL_N(dl_probe.refresh[1]); DL_S("/"); DL_N(dl_probe.refresh[2]); DL_S("/"); DL_N(dl_probe.refresh[3]);
     DL_S(" Magic="); DL_N((dl_magic_images[0][0]!=0)+(dl_magic_images[0][1]!=0)+(dl_magic_images[1][0]!=0)+(dl_magic_images[1][1]!=0));

@@ -2,10 +2,13 @@
 
 Sword hits charge a transformation with a dark charcoal body and equipment, red eyes,
 a translucent black native Magic Armor aura and boosted sword damage. A red native MagicBar
-appears below the normal magic gauge. Current version: **0.1.38**.
+appears below the normal magic gauge. Current version: **0.1.39**.
 
 The body uses separate cool near-black ambient and charcoal diffuse colours,
-with neutral albedo so native lighting can reveal the contours. Eyes stay red.
+with neutral albedo so native lighting can reveal the contours. Final body RGB
+is scaled to 1.25% in the native blend stage to suppress shader contributions
+that bypass that palette. Opaque/cutout routing, depth and alpha stay intact;
+unsupported blend states fall back to black albedo. Eyes stay red.
 This adds no specular lighting, extra light or shader replacement. The final
 contrast still needs checking with the actual game shaders on device.
 
