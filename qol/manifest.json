@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
@@ -120,6 +120,21 @@
       "live": true,
       "section": "Minigames",
       "description": "Sploosh Kaboom, the Cabana's puzzles, mail sorting, the cannon game, the auction and the Nintendo Gallery's figurines by touch or mouse."
+    },
+    {
+      "id": "enemy_hit_freeze",
+      "type": "enum",
+      "name": "Enemy hit freeze",
+      "choices": [
+        "Original",
+        "Half",
+        "Off"
+      ],
+      "default": "Original",
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Shorten or remove the brief freeze when Link hits an enemy with his sword. Half rounds up to at least one logical tick, so ordinary one-tick hits stay unchanged. Off removes the freeze. Damage, parries and spin attacks keep their native calculations; menu and scripted pauses stay unchanged."
     }
   ],
   "setup": [

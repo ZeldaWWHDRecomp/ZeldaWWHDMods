@@ -62,3 +62,5 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
   keeps its own choice.
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod. The figurine's
   name on the Picto subjects label and More figurine orders are ideas from @gogokfen (issue #276); thanks!
+
+- Enemy hit freeze (Combat): Original keeps the game's duration. Half rounds each enemy sword-hit freeze up to at least one native 30-Hz tick, so regular one-tick hits remain unchanged; Off removes it. Damage, spin damage and parry calculations stay native, and menus/cutscenes keep their pauses. The same logical durations apply at 30 fps and true 60 fps. This option defaults to Original.
