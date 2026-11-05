@@ -132,7 +132,7 @@ static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img
 static u32 img_stair;     /* the floor-change markers' arrow (assets/floor-arrow.png) */
 static u32 img_island, img_chart, img_ribbon, img_ribbon_shadow, img_chart_base, img_mark, img_mark_fill;
 static u32 img_searchlight[2];  /* searching, stopped */
-static int island_room = -1, island_full = -1, chart_key = -1;
+static int island_room = -1, chart_key = -1;
 typedef struct { int pane, room; float x, y, w, h; u32 image; char texture[96]; } hdm_room;
 static hdm_room rooms[MAX_ROOMS];
 /* the floor screens' room tables (DungeonMapFloor_00..05): (plan room, floor, room) per plan room; Forsaken
@@ -276,7 +276,7 @@ static void forget_rooms(void) {
 static void forget_images(void) {
     /* after a state load the handles are gone: just forget them */
     img_frame = img_wind = img_unknown = img_face = img_arrow = img_chest = img_medli = img_makar = img_ship = img_base = img_door = img_boss = 0;
-    img_island = img_chart = img_ribbon = img_ribbon_shadow = img_chart_base = img_mark = img_mark_fill = 0; island_room = island_full = chart_key = -1;
+    img_island = img_chart = img_ribbon = img_ribbon_shadow = img_chart_base = img_mark = img_mark_fill = 0; island_room = chart_key = -1;
     img_searchlight[0] = img_searchlight[1] = 0;
     img_stair = 0;
     for (int i = 0; i < 4; ++i) img_feedback[i] = 0;
@@ -300,7 +300,7 @@ static void release_dungeon_images(void) {
     drop(&img_searchlight[0]); drop(&img_searchlight[1]);
 }
 static void release_sea_images(void) {
-    drop(&img_island); island_room = island_full = -1;
+    drop(&img_island); island_room = -1;
     drop(&img_chart); chart_key = -1;
     drop(&img_ribbon); drop(&img_ribbon_shadow); drop(&img_chart_base); drop(&img_mark); drop(&img_mark_fill);
     drop(&img_base); drop(&img_wind); drop(&img_ship); drop(&img_unknown);
@@ -322,10 +322,11 @@ static void island_image(int room) {
     if (island_room == room) return;
     drop(&img_island);
     island_room = room;
-    hdm_sector_texture(name, room, 1);
-    island_full = texture_exists(name);
-    if (!island_full) hdm_sector_texture(name, room, 0);
-    if (island_full || texture_exists(name)) {
+    /* the GamePad balloon's plan (rXX_b, as its 200 x 200 view), never the zoomed view's rXX_Full: that
+     * one (9 sectors) carries the cloth weave and heavy dark blur meant for the full-screen view, which
+     * look dirty and black when shrunk to the minimap */
+    hdm_sector_texture(name, room, 0);
+    if (texture_exists(name)) {
         /* "Smooth island maps": the port enlarges the 100 x 100 art 3 times (Lanczos-3) on the player's
          * machine; the original art when the port can't */
         if (opt.smooth) {

@@ -148,6 +148,8 @@ MPL-2.0; adapted portions retain that MIT notice.
   - The map shows and hides with the game's HUD, as Minimap HD 1.3 does: aiming the bow, the
     hookshot or the boomerang (first person or Z-targeting) keeps it while the HUD stays, and the map's
     buttons wait until the aim ends. Without a readable HUD it still hides while aiming.
+  - Island plans use the GamePad balloon's art (`rXX_b`) everywhere; the nine sectors that also have the
+    zoomed view's art (`rXX_Full`, with its cloth weave and dark blur) no longer look dirty when shrunk.
   - Dungeon plans show the floor-change markers the GamePad shows: an arrow where the plan's stairs and
     ladders lead up or down, labelled with the floor they lead to (blue up, pink down). Their places,
     sizes and colours are the game's; the arrow picture and the label text are not yet (see Known limits).
