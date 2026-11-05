@@ -49,3 +49,5 @@ Only the current room is tracked. Cutscenes, transitions and native menu flags
 hide/clear the display. Room changes, Quest Log loads and full-state epochs
 reset it without producing phantom damage. Maximum HP uses the native maximum
 when available, otherwise the highest health observed for that actor.
+
+Enable **Show experimental mods** in the mod manager to find this mod.

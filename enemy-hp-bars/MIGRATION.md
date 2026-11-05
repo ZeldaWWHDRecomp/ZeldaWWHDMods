@@ -11,7 +11,7 @@ The migrated entrypoint compiles against the unchanged SDK pin `fab80fcec42a2500
 ## Build and catalogue validation
 
 Use a clean SDK checkout at the commit in the repository's `sdk.json`.
-The catalogue builds the single entrypoint `src/mod.c`; source files, licence
+The catalogue builds the single entrypoint `src/mod.c`; source files and the licence
 are included by the existing repository packager.
 
 ```sh
