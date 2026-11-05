@@ -289,6 +289,35 @@
         "minimum": "0.5.0"
       },
       "experimental": true
+    },
+    {
+      "id": "enemy-hp-bars",
+      "name": "Enemy HP Bars",
+      "description": "Floating enemy health bars and fading damage numbers for supported native enemies. Live size, distance and visibility settings. Bosses and Stalfos split health are not supported in this version.",
+      "version": "1.0.0",
+      "kind": "guest",
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Enemy HP Bars for this installation"
+        }
+      ],
+      "authors": [
+        "BeZide93"
+      ],
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true
     }
   ]
 }
