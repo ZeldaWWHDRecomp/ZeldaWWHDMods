@@ -5,12 +5,11 @@
 typedef uint8_t u8;
 typedef uint32_t u32;
 typedef int8_t s8;
-/* fixture actor: the fields hitstop.c reads (group, health) and sub_method at +0xF0 (a fake guest pointer) */
-typedef struct { u8 group; s8 health; unsigned cut_type, parry_state; u8 pad[0xF0 - 12]; u32 sub_method; } fopAc_ac_c;
-_Static_assert(__builtin_offsetof(fopAc_ac_c, sub_method) == 0xF0, "fixture sub_method");
-static u32 fake_execute; /* what the fake sub_method's +8 holds */
-static int qol_guest_ptr(u32 a) { return a == 0x10000000u; }
-static u32 qol_ld32(u32 a) { assert(a == 0x10000008u); return fake_execute; }
+typedef int16_t s16;
+/* fixture actor: the fields hitstop.c reads (group, health) and the process name at +0x8 (base_process_class
+ * mProcName) */
+typedef struct { u8 group; s8 health; u8 pad[6]; s16 proc_name; unsigned cut_type, parry_state; } fopAc_ac_c;
+_Static_assert(__builtin_offsetof(fopAc_ac_c, proc_name) == 0x8, "fixture proc_name");
 static int event_mode;
 static int qol_event(void) { return event_mode; }
 static int kinds_on[5] = {1, 1, 1, 1, 0};
@@ -36,8 +35,8 @@ static int wwhd_config_string(const char* id,char* out,unsigned n) {
 _Static_assert(sizeof(qol_hit_info)==12,"Native CcAtInfo prefix remains 12 bytes");
 static void choose(const char* value) {option=value;hitstop_option_changed();}
 /* Native scene pause contract: transfer the request_pending signed-byte request, then
- * decrement the active timer on subsequent logical ticks. True60 skips the
- * unconverted scene on half passes; this fixture models that scheduling only. */
+ * decrement the active timer on subsequent logical ticks. At a 60-Hz display the
+ * play scene steps on every other frame (30-Hz logic ticks); this fixture models that scheduling only. */
 static unsigned stalled_frames(unsigned hz) {
     unsigned stalled=0;
     for(unsigned frame=0;frame<600;++frame) {
@@ -51,7 +50,7 @@ static unsigned stalled_frames(unsigned hz) {
 }
 int main(void) {
     *(u32*)(play+QOL_PLAYER)=0x12345678;
-    fopAc_ac_c enemy={2,9,8,7,{0},0}, unchanged=enemy;
+    fopAc_ac_c enemy={.group=2,.health=9,.proc_name=0x100,.cut_type=8,.parry_state=7}, unchanged=enemy;
     qol_hit_info hit={0x1000,0x12345678,2,0,1,0};
     for(unsigned duration=1;duration<=127;++duration)for(int mode=0;mode<3;++mode) {
         choose(mode==0?"Original":mode==1?"Half":"Off");
@@ -90,14 +89,15 @@ int main(void) {
     /* kinds: today's set (hits, strong, defeats, bosses) by default; each switched off keeps its pauses */
     choose("Off");
     hitstop_kinds_changed();
-    struct { s8 health; u8 duration; u32 execute; int kind; } cases[] = {
-        {5, 1, 0, 0}, {5, 2, 0, 0}, {5, 4, 0, 1}, {5, 6, 0, 1}, {0, 6, 0, 2}, {-1, 8, 0, 2}, {5, 3, 0x020F1494, 3}, {0, 1, 0x020F1494, 3}};
+    struct { s8 health; u8 duration; s16 name; int kind; } cases[] = {
+        {5, 1, 0x100, 0}, {5, 2, 0x100, 0}, {5, 4, 0x100, 1}, {5, 6, 0x100, 1}, {0, 6, 0x100, 2}, {-1, 8, 0x100, 2},
+        {5, 3, 0xEA, 3}, {0, 1, 0xEA, 3}};
     for (unsigned c = 0; c < sizeof cases / sizeof *cases; c++)
         for (int off = -1; off < 5; off++) {
             for (int k = 0; k < 5; k++) kinds_on[k] = k == off ? 0 : k == 4 ? 0 : 1;
             hitstop_kinds_changed();
             fopAc_ac_c a = enemy; a.health = cases[c].health;
-            a.sub_method = cases[c].execute ? 0x10000000u : 0; fake_execute = cases[c].execute;
+            a.proc_name = cases[c].name;
             request_pending = cases[c].duration;
             qol_enemy_hit_freeze(&a, &hit);
             const int changed = off != cases[c].kind;
@@ -112,8 +112,7 @@ int main(void) {
                 choose(mode == 0 ? "Original" : mode == 1 ? "Half" : "Off");
                 kinds_on[4] = signs; hitstop_kinds_changed();
                 fopAc_ac_c a = enemy; a.group = who == 2 ? 4 : 2;
-                fake_execute = who == 1 ? 0x02066A38 : who == 2 ? 0x0218B234 : 0x02200000;
-                a.sub_method = 0x10000000u;
+                a.proc_name = who == 1 ? 0xEE : who == 2 ? 0xB6 : 0x100;
                 request_pending = 2;  /* a pause asked for earlier in this frame: Off keeps it */
                 hitstop_actor_before(&a);
                 request_pending = who == 2 ? 1 : 8;  /* the step's own request */
@@ -125,12 +124,46 @@ int main(void) {
             }
     /* no change asked in the step, an event under way, or the sword path already handled it: left alone */
     choose("Off"); kinds_on[4] = 1; hitstop_kinds_changed();
-    fopAc_ac_c boss = enemy; boss.sub_method = 0x10000000u; fake_execute = 0x02066A38;
+    fopAc_ac_c boss = enemy; boss.proc_name = 0xEE;
     request_pending = 3; hitstop_actor_before(&boss); qol_hit_freeze_actor_step(&boss); assert(request_pending == 3);
     event_mode = 1; hitstop_actor_before(&boss); request_pending = 8; qol_hit_freeze_actor_step(&boss); assert(request_pending == 8);
     event_mode = 0;
     request_pending = 0; hitstop_actor_before(&boss); request_pending = 6; qol_enemy_hit_freeze(&boss, &hit);
     assert(request_pending == 0); request_pending = 5; qol_hit_freeze_actor_step(&boss); assert(request_pending == 5);
+    /* every listed profile (public CC0 wwhd_src fpcNm_*_e) is its kind, wherever its execute function lies; any
+     * other process name (Link, an ordinary enemy, a near neighbour of a listed name) gets the normal kinds */
+    struct { s16 name; int kind; } names[] = {
+        {0xEE, HITSTOP_BOSS}, /* BDK Helmaroc King */  {0xEF, HITSTOP_BOSS}, /* BDKOBJ its parts */
+        {0xF3, HITSTOP_BOSS}, /* BGN Puppet Ganon */   {0xF4, HITSTOP_BOSS}, /* BGN2 */
+        {0xF5, HITSTOP_BOSS}, /* BGN3 */               {0xEB, HITSTOP_BOSS}, /* BMD Kalle Demos */
+        {0xF0, HITSTOP_BOSS}, /* BST Gohdan */         {0xEA, HITSTOP_BOSS}, /* BTD Gohma */
+        {0xD9, HITSTOP_BOSS}, /* BWD Molgera */        {0xF1, HITSTOP_BOSS}, /* FGANON Phantom Ganon */
+        {0xF6, HITSTOP_BOSS}, /* GND Ganondorf */      {0xB6, HITSTOP_SIGN}, /* KANBAN signposts */
+        {0xA8, 0}, {0x100, 0}, {0xF2, 0}, {0xF7, 0}, {0xB5, 0}, {0xB7, 0}, {0, 0}, {-1, 0}};
+    unsigned bosses = 0, signs = 0;
+    for (unsigned n = 0; n < sizeof names / sizeof *names; n++) {
+        fopAc_ac_c a = enemy; a.proc_name = names[n].name;
+        assert(hitstop_kind_of_actor(&a) == names[n].kind);
+        bosses += names[n].kind == HITSTOP_BOSS; signs += names[n].kind == HITSTOP_SIGN;
+    }
+    assert(bosses == sizeof hitstop_boss_names / sizeof *hitstop_boss_names && signs == 1);
+    /* an unknown profile: its sword hits are the normal kinds (hit, strong, defeat), not the boss kind */
+    choose("Off");
+    for (int k = 0; k < 5; k++) kinds_on[k] = k != 3; /* bosses off: a boss-kind hit would keep its pause */
+    hitstop_kinds_changed();
+    {
+        fopAc_ac_c a = enemy; a.proc_name = 0x123;
+        request_pending = 2; qol_enemy_hit_freeze(&a, &hit); assert(request_pending == 0);  /* hit */
+        request_pending = 6; qol_enemy_hit_freeze(&a, &hit); assert(request_pending == 0);  /* strong */
+        a.health = 0; request_pending = 6; qol_enemy_hit_freeze(&a, &hit); assert(request_pending == 0); /* defeat */
+        a.health = 9; a.proc_name = 0xEE;
+        request_pending = 2; qol_enemy_hit_freeze(&a, &hit); assert(request_pending == 2);  /* a boss: kept */
+        /* and its own step's request is not watched */
+        a.proc_name = 0x123; kinds_on[3] = 1; kinds_on[4] = 1; hitstop_kinds_changed();
+        request_pending = 1; hitstop_actor_before(&a); request_pending = 8; qol_hit_freeze_actor_step(&a);
+        assert(request_pending == 8);
+    }
+    puts("hitstop: profile names (11 bosses, signposts) and unknown profiles passed");
     puts("hitstop: kinds (hits, strong, defeats, bosses, signs) and the bosses' and signposts' own requests passed");
-    puts("hitstop: actual observer guards, native combat-field isolation and 30/true60 duration contracts passed");
+    puts("hitstop: actual observer guards, native combat-field isolation and 30/60-Hz display duration contracts passed");
 }

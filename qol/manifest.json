@@ -154,7 +154,7 @@
     {
       "id": "hit_freeze_hits",
       "type": "bool",
-      "name": "Hit freeze: hits",
+      "name": "Hit freeze: hits (experimental)",
       "default": true,
       "menu": true,
       "live": true,
@@ -164,7 +164,7 @@
     {
       "id": "hit_freeze_strong",
       "type": "bool",
-      "name": "Hit freeze: strong hits",
+      "name": "Hit freeze: strong hits (experimental)",
       "default": true,
       "menu": true,
       "live": true,
@@ -174,7 +174,7 @@
     {
       "id": "hit_freeze_defeats",
       "type": "bool",
-      "name": "Hit freeze: defeats",
+      "name": "Hit freeze: defeats (experimental)",
       "default": true,
       "menu": true,
       "live": true,
@@ -184,7 +184,7 @@
     {
       "id": "hit_freeze_bosses",
       "type": "bool",
-      "name": "Hit freeze: bosses",
+      "name": "Hit freeze: bosses (experimental)",
       "default": true,
       "menu": true,
       "live": true,
@@ -194,7 +194,7 @@
     {
       "id": "hit_freeze_signs",
       "type": "bool",
-      "name": "Hit freeze: signs",
+      "name": "Hit freeze: signs (experimental)",
       "default": false,
       "menu": true,
       "live": true,

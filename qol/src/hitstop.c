@@ -9,19 +9,19 @@
  * actor/result before that early exit. Hammer/other attacks never qualify.
  * The active pause byte (101EACB6), menus and event pauses are not edited.
  *
- * Durations are native 30-Hz logical ticks. The play scene is unconverted in
- * true60::classify and executes only on full passes: never scale by display Hz.
+ * Durations are native 30-Hz logic ticks: the play scene steps once per 30-Hz
+ * logic tick at every display rate, so never scale them by the display rate.
  * Source: public CC0 wwhd_src, pin a874e1 (d_cc_uty.cpp, d_s_play.cpp).
  *
  * Kinds (options "hit_freeze_<kind>": which pauses the setting changes): a sword hit is a defeat when the enemy's
  * health is gone, strong when it asks for 4 or more steps (knocked down, a Darknut's armour, a Stalfos' head), else
  * a hit; any of them on a boss is the boss kind. Bosses and signposts also ask for the pause from their own step
  * (d_a_bmd_exec.cpp, d_a_bgn3.cpp, d_a_kanban_exec.cpp): that request is caught around fopAc_Execute by the
- * actor's execute function and changed the same way. Every other pause is left alone. With the default kinds
+ * actor's process name (its profile number, the same in every release) and changed the same way. Every other pause is left alone. With the default kinds
  * (hits, strong hits, defeats and bosses; not signs) the setting changes the sword-hit pauses it changed before,
  * plus the bosses' own pauses. "Original" (the default) changes nothing.
  * Kinds and the boss / signpost list from GreenNaugahyde/ZeldaWWHDRecompAndroid db65d60 (MPL-2.0),
- * mods/turbo.cpp hit_stop_step. */
+ * mods/turbo.cpp hit_stop_step (there by the USA execute functions; here by the process names of their profiles). */
 static int hitstop_mode; /* 0 original, 1 half (round up), 2 off */
 enum { HITSTOP_HIT = 1, HITSTOP_STRONG = 2, HITSTOP_DEFEAT = 4, HITSTOP_BOSS = 8, HITSTOP_SIGN = 16 };
 static int hitstop_kinds = HITSTOP_HIT | HITSTOP_STRONG | HITSTOP_DEFEAT | HITSTOP_BOSS; /* the kinds it changes */
@@ -41,23 +41,30 @@ static void hitstop_kinds_changed(void) {
 /* Native CcAtInfo prefix: pointers at 0/4; damage/dead/result bytes at 8/9/A. */
 typedef struct { u32 object, actor; u8 damage, dead, result, padding; } qol_hit_info;
 
-/* fopAc_ac_c::sub_method (its +8: the actor's execute function) */
-#define HITSTOP_SUB_METHOD 0xF0
-/* the bosses' executes (Helmaroc King and its parts, Puppet Ganon's three forms, Kalle Demos, Gohdan, Gohma,
- * Molgera, Phantom Ganon, Ganondorf) and daKanban_Execute (signposts), USA */
-static const u32 hitstop_boss_execute[] = {0x02066A38, 0x020729A8, 0x0207E7B4, 0x0208B6A4, 0x02090680, 0x020AEBCC,
-                                           0x020E54A0, 0x020F1494, 0x020FA614, 0x02134B28, 0x02154EE0};
-#define HITSTOP_KANBAN_EXECUTE 0x0218B234u
-static u32 hitstop_execute_of(const void* actor) {
-    u32 sub = *(const volatile u32*)((const u8*)actor + HITSTOP_SUB_METHOD);
-    if (!qol_guest_ptr(sub)) return 0;
-    return qol_ld32(sub + 8);
-}
-static int hitstop_kind_of_execute(u32 execute) {
-    if (!execute) return 0;
-    if (execute == HITSTOP_KANBAN_EXECUTE) return HITSTOP_SIGN;
-    for (u32 i = 0; i < sizeof hitstop_boss_execute / sizeof *hitstop_boss_execute; i++)
-        if (execute == hitstop_boss_execute[i]) return HITSTOP_BOSS;
+/* base_process_class::mProcName (+0x8, what fpcM_GetName reads): the actor's profile number, the same in USA and EU.
+ * Each listed profile is the only one using that actor's execute function (checked in both executables' profile
+ * lists). Public CC0 wwhd_src fpcNm_*_e: */
+#define HITSTOP_PROC_NAME 0x8
+static const s16 hitstop_boss_names[] = {
+    0xEE, /* BDK: Helmaroc King (daBdk_Execute) */
+    0xEF, /* BDKOBJ: its parts (daBdkobj_Execute) */
+    0xF3, /* BGN: Puppet Ganon, first form (daBgn_Execute) */
+    0xF4, /* BGN2: second form (daBgn2_Execute) */
+    0xF5, /* BGN3: third form (daBgn3_Execute) */
+    0xEB, /* BMD: Kalle Demos (daBmd_Execute) */
+    0xF0, /* BST: Gohdan (daBst_Execute) */
+    0xEA, /* BTD: Gohma (daBtd_Execute) */
+    0xD9, /* BWD: Molgera (daBwd_Execute) */
+    0xF1, /* FGANON: Phantom Ganon (daFganon_Execute) */
+    0xF6, /* GND: Ganondorf (daGnd_Execute) */
+};
+#define HITSTOP_KANBAN_NAME 0xB6 /* KANBAN: signposts (daKanban_Execute) */
+static int hitstop_kind_of_actor(const void* actor) {
+    if (!actor) return 0;
+    const s16 name = *(const volatile s16*)((const u8*)actor + HITSTOP_PROC_NAME);
+    if (name == HITSTOP_KANBAN_NAME) return HITSTOP_SIGN;
+    for (u32 i = 0; i < sizeof hitstop_boss_names / sizeof *hitstop_boss_names; i++)
+        if (name == hitstop_boss_names[i]) return HITSTOP_BOSS;
     return 0;
 }
 /* the request for a pause of `kind` as the setting has it (unchanged when that kind is not chosen); `before` is
@@ -78,7 +85,7 @@ WWHD_HOOK_RETURN(0x025192A8, qol_enemy_hit_freeze, (fopAc_ac_c* target, qol_hit_
     volatile u8* pending = &WWHD_GAME_DATA(0x101EACB7, u8);
     u8 duration = *pending;
     if (duration == 0 || duration > 127) return;
-    const int kind = hitstop_kind_of_execute(hitstop_execute_of(target)) == HITSTOP_BOSS ? HITSTOP_BOSS
+    const int kind = hitstop_kind_of_actor(target) == HITSTOP_BOSS ? HITSTOP_BOSS
                    : target->health <= 0 ? HITSTOP_DEFEAT
                    : duration >= 4 ? HITSTOP_STRONG : HITSTOP_HIT;
     *pending = hitstop_apply(kind, duration, 0);
@@ -92,7 +99,7 @@ static void hitstop_actor_before(void* actor) {
     hitstop_watch = 0;
     hitstop_sword_done = 0;
     if (!hitstop_mode || !actor || !(hitstop_kinds & (HITSTOP_BOSS | HITSTOP_SIGN))) return;
-    const int kind = hitstop_kind_of_execute(hitstop_execute_of(actor));
+    const int kind = hitstop_kind_of_actor(actor);
     if (!(hitstop_kinds & kind) || qol_event()) return;
     hitstop_watch = kind;
     hitstop_before = WWHD_GAME_DATA(0x101EACB7, u8);
