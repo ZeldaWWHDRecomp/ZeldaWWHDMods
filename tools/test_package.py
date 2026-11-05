@@ -89,7 +89,9 @@ with tempfile.TemporaryDirectory() as temporary:
     commands = [call.args[0] for call in compile_commands.call_args_list]
     assert len(commands) == 2  # one compile, one relocatable link
     assert commands[0][0] == 'clang-fixture' and commands[0][commands[0].index('-c') + 1] == str(source_dir / 'mod.c')
+    assert commands[0].count('-mstackrealign') == 1  # required at the PowerPC producer boundary
     assert commands[1][0] == 'lld-fixture'
+    assert '-mstackrealign' not in commands[1]  # this is not a linker option
     with zipfile.ZipFile(root / 'out/unity-mod.zip') as archive:
         for name, data in sources.items(): assert archive.read('src/' + name).decode() == data
     # The older root-level entrypoint uses the same packaged src/ layout.

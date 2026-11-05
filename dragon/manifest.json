@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "dragon",
   "name": "Call of the Sky",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "game_id": "wwhd",
   "kind": "guest",
   "guest": {
