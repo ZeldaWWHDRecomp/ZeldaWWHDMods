@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
@@ -135,6 +135,21 @@
       "live": true,
       "section": "Movement",
       "description": "Experimental: push and pull blocks faster while Link follows their native movement. Collision checks and final grid positions remain native. Not yet verified in Dragon Roost or Tower of the Gods puzzles at 30/60 fps."
+    },
+    {
+      "id": "enemy_hit_freeze",
+      "type": "enum",
+      "name": "Enemy hit freeze",
+      "choices": [
+        "Original",
+        "Half",
+        "Off"
+      ],
+      "default": "Original",
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Shorten or remove the short pause when Link's sword hits an enemy. Half shortens it (the shortest pauses stay as they are); Off removes it. Damage, parries and spin attacks work as before, and menus and cutscenes still pause as usual."
     }
   ],
   "setup": [

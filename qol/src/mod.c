@@ -21,6 +21,7 @@
 #include "picto_subjects.c"
 #include "songs.c"
 #include "one_hit.c"
+#include "hitstop.c"
 #include "kaboom.c"
 #include "minigames.c"
 #include "pages.c"
@@ -35,6 +36,7 @@ static qol_feature features[] = {
     {"picto_subjects", picto_option_changed, 0},
     {"song_touch", songs_option_changed, 0},
     {"one_hit_kills", one_hit_option_changed, 0},
+    {"enemy_hit_freeze", hitstop_option_changed, 0},
     {"minigame_touch", kaboom_option_changed, 0},
     {"minigame_touch", mg_option_changed, 0},
     {"album_pages", pg_option_changed, 0},
