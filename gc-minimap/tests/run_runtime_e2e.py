@@ -100,7 +100,7 @@ def main():
     source.add_argument('--synthetic-maps', action='store_true', help='Authored HUD smoke fixture only')
     parser.add_argument('--synthetic-marker-edge', choices=('left', 'right', 'top', 'bottom'), help='Authored boundary-clipping fixture; requires --synthetic-maps')
     parser.add_argument('--renderer', choices=('metal', 'vulkan'), required=True)
-    parser.add_argument('--mode', choices=('30', 'interp60', 'true60'), default='30')
+    parser.add_argument('--mode', choices=('30', 'interp60'), default='30')
     parser.add_argument('--first-frame', type=int, default=3000)
     parser.add_argument('--state-cycle', action='store_true', help='Save and restore a same-run native full state; verify post-restore HUD')
     parser.add_argument('--timeout', type=int, default=300)
@@ -152,7 +152,7 @@ def main():
     config = args.out / 'guest-sdk.json'
     config.write_text(json.dumps({'format_version': 1, 'python': [sys.executable], 'compiler': ['clang'], 'builder': str(args.sdk.resolve() / 'tools/guestmod/build_guest_mod.py'), 'include': str(args.sdk.resolve() / 'runtime/include')}))
     env = {key: value for key, value in os.environ.items() if not key.startswith('WWHD_')}
-    env.update(WWHD_CODE_MODS='1', WWHD_NO_AUDIO='1', WWHD_NO_HOST_INPUT='1', WWHD_HIDDEN_WINDOWS='1', WWHD_UNCAPPED='1', WWHD_RENDERER_RUNTIME=args.renderer, WWHD_MOD_MANAGER_DIR=str(manager), WWHD_TEST_TRUST_NATIVE_MODS='gc-minimap', WWHD_GUEST_BUILD_CONFIG=str(config), WWHD_SETTINGS=str(args.out / 'settings.ini'), WWHD_DISPLAY_SETTINGS=str(args.out / 'display.plist'), WWHD_CONTROLS=str(args.out / 'controls.json'), WWHD_SHADER_CACHE=str(args.out / 'shaders.bin'), WWHD_VK_SHADER_CACHE=str(args.out / 'vkshaders'), WWHD_VK_PIPELINE_CACHE=str(args.out / 'vkpipelines.bin'), WWHD_STATE_DIR=str(args.out / 'states'), WWHD_TEST_ORIGIN=str(args.first_frame - 50), WWHD_TEST_END='10', WWHD_DUMP_FRAMES=','.join(str(args.first_frame + n) for n in (0, 2, 4)), WWHD_DUMP_PRESENT='1', WWHD_SIM_SCREEN='1280x720', WWHD_PRESS=','.join('%d-%d:8000' % (frame, frame + 8) for frame in range(150, args.first_frame - 200, 30)), WWHD_TRUE60='1' if args.mode == 'true60' else '0', WWHD_INTERP='0', XDG_CONFIG_HOME=str(args.out / 'config'))
+    env.update(WWHD_CODE_MODS='1', WWHD_NO_AUDIO='1', WWHD_NO_HOST_INPUT='1', WWHD_HIDDEN_WINDOWS='1', WWHD_UNCAPPED='1', WWHD_RENDERER_RUNTIME=args.renderer, WWHD_MOD_MANAGER_DIR=str(manager), WWHD_TEST_TRUST_NATIVE_MODS='gc-minimap', WWHD_GUEST_BUILD_CONFIG=str(config), WWHD_SETTINGS=str(args.out / 'settings.ini'), WWHD_DISPLAY_SETTINGS=str(args.out / 'display.plist'), WWHD_CONTROLS=str(args.out / 'controls.json'), WWHD_SHADER_CACHE=str(args.out / 'shaders.bin'), WWHD_VK_SHADER_CACHE=str(args.out / 'vkshaders'), WWHD_VK_PIPELINE_CACHE=str(args.out / 'vkpipelines.bin'), WWHD_STATE_DIR=str(args.out / 'states'), WWHD_TEST_ORIGIN=str(args.first_frame - 50), WWHD_TEST_END='10', WWHD_DUMP_FRAMES=','.join(str(args.first_frame + n) for n in (0, 2, 4)), WWHD_DUMP_PRESENT='1', WWHD_SIM_SCREEN='1280x720', WWHD_PRESS=','.join('%d-%d:8000' % (frame, frame + 8) for frame in range(150, args.first_frame - 200, 30)), WWHD_INTERP='0', XDG_CONFIG_HOME=str(args.out / 'config'))
     if args.state_cycle:
         env.update(WWHD_STATE_SAVE_AT='%d:1' % (args.first_frame - 150),
                    WWHD_STATE_LOAD_AT='%d:1' % (args.first_frame - 80), WWHD_STATE_DUMP='3')
