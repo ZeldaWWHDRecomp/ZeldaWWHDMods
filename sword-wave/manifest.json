@@ -29,5 +29,6 @@
       "type": "build_guest_mod",
       "title": "Build Sword Wave for this installation"
     }
-  ]
+  ],
+  "experimental": true
 }

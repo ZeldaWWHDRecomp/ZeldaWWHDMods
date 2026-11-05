@@ -89,7 +89,7 @@ static void dispatch(Cpu* c) {
     }
     case GAME_END:
         own(p,16); assert(ld32(p+12));
-        st32(p+12,0); st8(p+5,1); ++ended; return;
+        st32(ld32(p+12)+0x1e4,0);st32(p+12,0); st8(p+5,1); ++ended; return;
     default: fprintf(stderr,"Unexpected native call %08X\n",c->pc); abort();
     }
 }
@@ -392,6 +392,13 @@ int main(int argc,char** argv) {
     /* A replaced particle pool invalidates all old addresses. */
     setup(); begin(0x55,1,3); ++epoch; st32(PLAY+0x5ab0,MANAGER+0x1000);
     frame(); assert(!ended);
+    /* Delete/save-load may be the first hook after a full-state restore. */
+    const unsigned cleanup_hooks[]={GAME_DELETE,GAME_LOAD};
+    for(unsigned i=0;i<2;++i) {
+        setup();begin(0x55,1,3);++epoch;hook(cleanup_hooks[i],2,LINK);assert(ended==3);
+        setup();begin(0x55,1,3);++epoch;st32(PLAY+0x5ab0,MANAGER+0x1000);
+        hook(cleanup_hooks[i],2,LINK);assert(!ended);
+    }
     /* Native fallback: without callbacks from this mod, finite max-frame and
      * unrenewed particles reach native deferred emitter deletion. */
     setup(); begin(0x55,1,3); particle_pass(0,11);

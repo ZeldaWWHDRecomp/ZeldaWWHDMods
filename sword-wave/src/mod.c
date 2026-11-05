@@ -325,7 +325,7 @@ WWHD_HOOK_RETURN(SW_LINK, after_execute, (daPy_lk_c* link)) {
         if(full() && wave.colors_ready==7 && wave.manager) launch(link);
     }
 }
-WWHD_HOOK(SW_DELETE, delete_link, (daPy_lk_c* link)) { if(link==wave.owner) reset(0); }
+WWHD_HOOK(SW_DELETE, delete_link, (daPy_lk_c* link)) { state_epoch(); if(link==wave.owner) reset(0); }
 /* Save deserialization may replace all actors/particle pools. Drop handles
  * before it runs; Link deletion also handles ordinary stage teardown. */
-WWHD_HOOK(SW_LOAD, load_save, (void)) { reset(0); }
+WWHD_HOOK(SW_LOAD, load_save, (void)) { state_epoch(); reset(0); }
