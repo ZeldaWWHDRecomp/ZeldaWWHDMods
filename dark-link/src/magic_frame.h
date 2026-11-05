@@ -173,7 +173,7 @@ static u32 dl_frame_image(u32 wnd,u32 wb,u32 mat,u32 mb,u32 txl,u32 tb,wwhd_game
     for(u32 i=0;i<W*H;++i) dl_art_pixels[i*4+3]=dl_art_pixels[i*4+3]*alpha/255;
     u32 bytes=dl_art_encode();if(!bytes) return dl_frame_fail("wnd-png-encode");
     const char* path=variant?"magic-1-border.png":"magic-0-border.png";
-    if(wwhd_file_write(path,dl_art_png,bytes)!=(s32)bytes) return dl_frame_fail("wnd-file-write");
+    if(!dl_magic_cache_write(path,bytes)) return dl_frame_fail("wnd-file-write");
     dl_frame_error="wnd-hud-texture";
     return wwhd_hud_texture(WWHD_HUD_DATA,path);
 }

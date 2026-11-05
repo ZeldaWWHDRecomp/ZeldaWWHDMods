@@ -58,7 +58,7 @@ def main():
     icon = (package / "assets/dark_link.png").read_bytes()
     assert icon[:8] == b"\x89PNG\r\n\x1a\n" and icon[24:26] == bytes([8, 6])
     width, height = struct.unpack_from(">II", icon, 16)
-    assert width == height and 0 < width <= 1536  # leave room for the gauge images
+    assert width == height and width == 256  # UI icon, not a full-resolution source illustration
     test = out / "test-state"
     subprocess.run(host + ["-I" + str(SOURCE), "-std=c11", "-O2", "-UNDEBUG", "-Wall", "-Wextra", "-Werror", str(TESTS / "test_state.c"), "-o", str(test)], check=True)
     subprocess.run([str(test)], check=True)
@@ -85,6 +85,7 @@ def main():
         translated = builder.translator_for((package / "mod.elf").read_bytes(), 0x7F000000, by_name(region))
         translated.emit("dark-link")
         check_startup_recovery(translated)
+        assert all(target != translated.game_address("game",0x0267598C) for _,target,_,_ in translated.hooks)
         # Exercise the actual install-time translator AND host compilation.
         result = builder.build(str(package), str(out / "cache"), 0x7F000000,
             host, str(ROOT / "runtime/include"), game_build=by_name(region))

@@ -23,6 +23,21 @@ static uint32_t magic_detail_handle;
 static unsigned magic_border_alpha=255;
 static unsigned magic_frame_count=1;
 static int magic_writes,magic_base_fill,magic_animated,magic_bad_animation,magic_long,magic_bad_geometry;
+/* Host-side Data files survive a guest-memory savestate restore. */
+static struct { char path[96]; unsigned size; unsigned char* data; } magic_cache[64];
+static int magic_write_failure;
+static int magic_cache_slot(const char* path) {
+    for(int i=0;i<64;++i) if(!magic_cache[i].path[0] || !strcmp(magic_cache[i].path,path)) return i;
+    abort();
+}
+static void magic_read(Cpu* c) {
+    const char* path=(const char*)ppc_ptr(c->r[3]);
+    if(strncmp(path,"magic-",6)) {c->r[3]=-1;return;}
+    int i=magic_cache_slot(path);
+    if(!magic_cache[i].path[0]) {c->r[3]=-1;return;}
+    unsigned n=magic_cache[i].size<c->r[5]?magic_cache[i].size:c->r[5];
+    memcpy(ppc_ptr(c->r[4]),magic_cache[i].data,n);c->r[3]=n;
+}
 static void magic_write(Cpu* c) {
     const char* path=(const char*)ppc_ptr(c->r[3]);
     const uint8_t* png=ppc_ptr(c->r[4]);
@@ -70,7 +85,11 @@ static void magic_write(Cpu* c) {
         assert(png[49]==png[50] && png[50]==png[51] && png[52]==255);
         assert(png[49+1*17+1*4+3]==0); /* native picture's open centre survives */
     }
-    ++magic_writes;c->r[3]=c->r[5];
+    ++magic_writes;
+    if(magic_write_failure) {c->r[3]=-1;return;}
+    int i=magic_cache_slot(path);strcpy(magic_cache[i].path,path);
+    magic_cache[i].size=c->r[5];magic_cache[i].data=realloc(magic_cache[i].data,c->r[5]);
+    assert(magic_cache[i].data);memcpy(magic_cache[i].data,png,c->r[5]);c->r[3]=c->r[5];
 }
 static void magic_texture(Cpu* c) {
     if(c->r[3]==0) { assert(!strcmp((const char*)ppc_ptr(c->r[4]),"assets/dark_link.png")); c->r[3]=0; return; } /* fallback tested here; combined test loads the icon */
@@ -563,6 +582,16 @@ static void test_magic(void) {
     magic_draws=0; read_hud(); assert(magic_draws==2);
     assert(magic_width>90 && magic_width<=96 && magic_x==62 && magic_y==98);
     int prior=magic_textures; read_hud(); assert(magic_textures==prior); /* reuse handles */
+    int cached_writes=magic_writes;
+    for(int load=0;load<3;++load) {++magic_generation;read_hud();hook(0x02675414,3,MAGIC_CTRL,0);read_hud();}
+    assert(magic_writes==cached_writes && magic_draws>0);
+    /* A failed write is attempted once per epoch, never every 60 HUD frames. */
+    for(int i=0;i<64;++i) {free(magic_cache[i].data);memset(&magic_cache[i],0,sizeof(magic_cache[i]));}
+    magic_write_failure=1;++magic_generation;read_hud();cached_writes=magic_writes;
+    for(int frame=0;frame<181;++frame) read_hud();
+    assert(magic_writes==cached_writes);
+    magic_write_failure=0;++magic_generation;read_hud();hook(0x02675414,3,MAGIC_CTRL,0);read_hud();
+    puts("Magic PNG cache: state-load reuse and no repeated failed writes passed");
     /* A coloured MagicBase is the full-width fill, not the smaller highlight. */
     magic_base_fill=1;st32(MAGIC_FLYT+20+20+32,0x20ff20ff);++magic_generation;
     read_hud();hook(0x02675414,3,MAGIC_CTRL,0);read_hud();
@@ -664,7 +693,7 @@ static void test_aura(void) {
     uint8_t original_save[0x40]; memcpy(original_save,ppc_ptr(SAVE),sizeof original_save);
     uint32_t flags=ld32(LINK+0x3bc); unsigned timer=ld16(LINK+0x699e);
     hook(0x0240b7f4,2,LINK,0);
-    assert((float)ldf32(AURA_ANM)>30 && (ld32(AURA_RS+0x1c)&0x1fff)==0x500);
+    assert((float)ldf32(AURA_ANM)>30 && ld32(AURA_RS+0x1c)==0x20010101);
     assert(ld32(LINK+0x3bc)==flags && ld16(LINK+0x699e)==timer);
     hook(0x0240b7f4,3,LINK,0); assert((float)ldf32(AURA_ANM)==0);
     hook(0x023dbbe4,2,LINK,0); assert((float)ldf32(AURA_ANM)>29);
@@ -674,11 +703,13 @@ static void test_aura(void) {
     assert((float)ldf32(AURA_ANM+0x100)==0 && (float)ldf32(AURA_VALUE+0x100)==0);
     assert((float)ldf32(LINK+0x5704+4)==0);
     assert(aura_notifications>=6 && !memcmp(original_save,ppc_ptr(SAVE),sizeof original_save));
+    shape_begin(AURA); assert((ld32(AURA_RS+0x1c)&0x1fff)==0x500);
+    shape_end(); assert(ld32(AURA_RS+0x1c)==0x20010101);
     st32(AURA_RS+0x1c,0x504); /* native non-separate alpha uses RGB equation */
-    hook(0x0240b7f4,2,LINK,0);
+    shape_begin(AURA);
     assert((ld32(AURA_RS+0x1c)&0x1fff)==0x500);
     assert((ld32(AURA_RS+0x1c)&(1u<<29)) && ((ld32(AURA_RS+0x1c)>>16)&0x1fff)==0x504);
-    hook(0x0240b7f4,3,LINK,0);
+    shape_end(); assert(ld32(AURA_RS+0x1c)==0x504);
     /* Return native separate-alpha fixture before restoration assertions. */
     st32(AURA_RS+0x1c,0x20010101);
     st32(LINK+0x3bc,flags|1); stf32(AURA_ANM,12);

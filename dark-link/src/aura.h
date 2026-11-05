@@ -51,8 +51,7 @@ static void dl_aura_frame_restore(DLAuraFrame* f) {
 static void dl_aura_restore(void) {
     for (u32 i=0;i<dl_aura_blend_count;++i) {
         DLAuraBlend* b=&dl_aura_blends[i];
-        if (!dl_owner || dl_player()!=dl_owner || dl_actor_id(dl_owner)!=dl_owner_id ||
-            dl_word(dl_owner,0x5700)!=b->model || !dl_game_span(b->model,0xb0) ||
+        if (!dl_game_span(b->model,0xb0) ||
             !dl_game_span(b->material,4) ||
             *(u32*)b->material!=b->resource || dl_relative(b->resource+0x20)!=b->state) continue;
         u32 array=dl_word((void*)b->model,0x34), count=*(u16*)(b->model+0x2a);
@@ -99,7 +98,6 @@ static void dl_aura_blend(daPy_lk_c* link) {
 WWHD_HOOK(0x0240B7F4, dl_aura_update_before, (daPy_lk_c* link)) {
     dl_aura_update_owner=0;
     if (!dl_aura_active(link)) return;
-    dl_aura_blend(link);
     /* A real Magic Armor/Tingle effect keeps its own activation and fading. */
     if ((dl_word(link,0x3bc)&1) || link->mTinkleShieldTimer) return;
     if (!dl_aura_frame((u32)link+0x5614,&dl_aura_update_frames[0]) ||

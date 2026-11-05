@@ -17,7 +17,7 @@ import build_guest_mod as builder
 from builds import by_name
 out=CHECKOUT/'build/shared-touch';out.mkdir(parents=True,exist_ok=True)
 peer=a.enhanced_root.resolve()
-for name in ('editor.h','editor_geometry.h','editor_view.h','editor_peer.h'):
+for name in ('editor.h','editor_geometry.h','editor_view.h'):
     assert (HERE.parent/"src"/name).read_bytes()==(peer/'enhanced-controls/src'/name).read_bytes(),name
 mods=[]
 for root,folder,base in ((CHECKOUT,'dark-link',0x7f000000),(peer,'enhanced-controls',0x7f200000)):

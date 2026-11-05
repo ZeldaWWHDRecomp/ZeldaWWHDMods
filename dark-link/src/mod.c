@@ -15,7 +15,6 @@ static wwhd_hud_element dl_element;
 #include "appearance_probe.h"
 static void dl_texture_restore_all(void);
 static void dl_aura_restore(void);
-static void dl_texture_resubmit(void* model);
 
 static int dl_limit(int v, int low, int high) { return v < low ? low : v > high ? high : v; }
 static void dl_options(void) {
@@ -166,3 +165,5 @@ WWHD_HOOK_RETURN(DL_CC_CHECK, dl_hit_after, (fopAc_ac_c* target, DLAttack* hit))
 #include "visuals.h"
 #include "textures.h"
 #include "aura.h"
+
+#include "draw_scope.h"

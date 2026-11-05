@@ -131,6 +131,6 @@ WWHD_HOOK_RETURN(DL_MODEL_ENTRY, dl_entry_after, (void* model)) { dl_visual_end(
 WWHD_HOOK(DL_MODEL_UPDATE, dl_update_before, (void* model, void* data)) { (void)data; dl_visual_begin(model); }
 WWHD_HOOK_RETURN(DL_MODEL_UPDATE, dl_update_after, (void* model, void* data)) { (void)data; dl_visual_end(); if (dl_diagnostics) dl_diag_submission(model); }
 WWHD_HOOK(DL_MODEL_VIEW, dl_view_before, (void* model)) { dl_visual_begin(model); }
-WWHD_HOOK_RETURN(DL_MODEL_VIEW, dl_view_after, (void* model)) { dl_texture_resubmit(model); dl_visual_end(); }
-WWHD_HOOK(DL_JOINT_ENTRY, dl_joint_before, (void* model, void* joint)) { (void)joint; dl_texture_resubmit(model); dl_visual_begin(model); }
+WWHD_HOOK_RETURN(DL_MODEL_VIEW, dl_view_after, (void* model)) { (void)model; dl_visual_end(); }
+WWHD_HOOK(DL_JOINT_ENTRY, dl_joint_before, (void* model, void* joint)) { (void)joint; dl_visual_begin(model); }
 WWHD_HOOK_RETURN(DL_JOINT_ENTRY, dl_joint_after, (void* model, void* joint)) { (void)model; (void)joint; dl_visual_end(); }

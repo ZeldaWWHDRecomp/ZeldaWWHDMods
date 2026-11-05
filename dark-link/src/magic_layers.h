@@ -59,7 +59,7 @@ static void dl_magic_load_details(u32 v,u32 base,u32 fill) {
         u32 bytes=dl_art_encode();if(!bytes) {dl_gauge_reason(pic->probe,"PNG-failed");continue;}
         u32 n=dl_magic_detail_count[v];char path[]="magic-0-detail-00.png";
         path[6]='0'+v;path[14]='0'+n/10;path[15]='0'+n%10;
-        if(wwhd_file_write(path,dl_art_png,bytes)!=(s32)bytes) {dl_gauge_reason(pic->probe,"write-failed");continue;}
+        if(!dl_magic_cache_write(path,bytes)) {dl_gauge_reason(pic->probe,"write-failed");continue;}
         u32 image=wwhd_hud_texture(WWHD_HUD_DATA,path);if(!image) {dl_gauge_reason(pic->probe,"texture-failed");continue;}
         dl_gauge_reason(pic->probe,"DETAIL");
         dl_magic_details[v][n].image=image;dl_magic_details[v][n].progress=progress;

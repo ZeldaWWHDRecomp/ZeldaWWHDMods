@@ -24,6 +24,7 @@ static int eye_indices[6]={1,2,3,4,5,6}, name_lookups, missing_color;
 static uint32_t missing_slots;
 static void shortcut_lookup(Cpu*);
 static void magic_write(Cpu*);
+static void magic_read(Cpu*);
 static void magic_setting(Cpu*);
 static void magic_texture(Cpu*);
 static void magic_epoch(Cpu*);
@@ -98,7 +99,6 @@ static void expect_hud(const char* expected) {
 }
 static void copy(Cpu* c) { memcpy(ppc_ptr(c->r[3]),ppc_ptr(c->r[4]),c->r[5]); }
 static void clear(Cpu* c) { memset(ppc_ptr(c->r[3]),c->r[4],c->r[5]); }
-static void no_file(Cpu* c) { c->r[3]=(uint32_t)-1; }
 static PpcFunc service(const char* name) {
     if (!strcmp(name,"wwhd_config_bool")) return config_bool;
     if (!strcmp(name,"wwhd_config_int")) return config_int;
@@ -110,7 +110,7 @@ static PpcFunc service(const char* name) {
     if (!strcmp(name,"wwhd_touch_register")) return reg_touch;
     if (!strcmp(name,"wwhd_touch_claim")) return claim;
     if (!strcmp(name,"wwhd_hud_emit")) return emit;
-    if (!strcmp(name,"wwhd_file_read")) return no_file;
+    if (!strcmp(name,"wwhd_file_read")) return magic_read;
     if (!strcmp(name,"wwhd_file_write")) return magic_write;
     if (!strcmp(name,"wwhd_setting_get")) return magic_setting;
     if (!strcmp(name,"wwhd_hud_texture")) return magic_texture;
@@ -123,7 +123,6 @@ static PpcFunc service(const char* name) {
 static void dispatch(Cpu* c) {
     switch (c->pc) {
         case 0x0200000c: shortcut_lookup(c); return; /* synthetic pane vtable slot */
-        case 0x0267598c: c->r[3]=ld32(c->r[3]); return;
         case 0x026fbb24: c->r[3]=magic_archive; return;
         case 0x027df40c: ++aura_notifications; return;
         case 0x02000008: c->r[3]=30; return; /* BRK resource getFrameMax */

@@ -3,7 +3,7 @@
  * Formats/tiling mirror runtime/src/mods/{game_layouts,lyt_build}.cpp. */
 #pragma once
 #define DL_ART_PIXELS 131072u
-static u8 dl_art_pixels[DL_ART_PIXELS*4];
+static u8 dl_art_pixels[DL_ART_PIXELS*4+4097];
 static u8 dl_art_png[DL_ART_PIXELS*4+4096];
 static u32 dl_art_width,dl_art_height;
 static u32 dl_art_be16(const u8* p) { return ((u32)p[0]<<8)|p[1]; }

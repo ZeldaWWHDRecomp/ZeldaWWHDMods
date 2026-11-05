@@ -1,6 +1,6 @@
 /* Execute TWO independently translated PPC modules at distinct loader bases.
- * The rendezvous dispatch mirrors ppc_mod_run: same original args per hook,
- * then the verified read-only native getter. No game assets or instructions. */
+ * Separate touch editors and isolated persistence, in both hook orders.
+ * No game assets or instructions. */
 #define _GNU_SOURCE
 #include "wwhd_guest_abi.h"
 #include <assert.h>
@@ -51,7 +51,6 @@ static void hooks(uint32_t target,Cpu* c) {
 }
 static void dispatch(Cpu* c) {
     switch(c->pc) {
-        case 0x0267598c: { uint32_t p=c->r[3];hooks(c->pc,c);c->r[3]=ld32(p);return; }
         case 0x025200d4:c->r[3]=PLAY;return;
         case 0x025986bc:case 0x025af2a4:case 0x023d794c:case 0x02443728:c->r[3]=0;return;
         default:fprintf(stderr,"unexpected native %08x\n",c->pc);abort();
@@ -106,7 +105,7 @@ static void emit(Cpu* c) {
     const char* text="";
     if(ld32(p)==1) {
         assert(own(ld32(p+64),ld32(p+68)));text=(const char*)ppc_ptr(ld32(p+64));
-        if(ld32(p+68)==4 && !memcmp(text,"Edit",4)) ++edits;
+        if((ld32(p+68)==4 && !memcmp(text,"Edit",4)) || (ld32(p+68)==7 && !memcmp(text,"DL Edit",7))) ++edits;
         if(ld32(p+68)==9 && !memcmp(text,"Dark Link",9)) ++tabs;
     }
     if(ld32(p)==2) {
@@ -159,32 +158,31 @@ int main(int argc,char** argv) {
     assert(mods[0]->mem_base+mods[0]->mem_size<=mods[1]->mem_base);
     st32(PLAY+0x5b2c,LINK);memcpy(ppc_ptr(PLAY+0x5134),"sea",4);st32(LINK,1);st32(LINK+4,7);
     st32(LINK+0x65f0,4);st16(LINK+0x69b0,0x103);st32(0x101f84dc,SAVE);st16(SAVE+0x20,80);st16(SAVE+0x22,80);
+    for(int i=0;i<2;++i) for(unsigned h=0;h<mods[i]->hook_count;++h)
+        assert(mods[i]->hooks[h].target!=0x0267598c);
     for(order=0;order<2;++order) {
-        memset(sizes,0,sizeof(sizes));reload();draw();assert(edits==1 && pictures==5);
-        assert(dark_x==348 && dark_y==-222 && claims[0]==1 && claims[1]==31);
-        tap(1,0,260);draw();assert(tabs==1 && edits==0 && claims[0]==0 && claims[1]==32);
-        pad(0,0x60000);assert(ld32(INPUT)==0);pad(1,0x4000);assert(ld32(INPUT)==0);
-        tap(1,400,305);drag(1,348,-222,450,-100);draw();assert(dark_x==450 && dark_y==-100);
-        /* Cancel restores both the peer and the coordinator's draft. */
+        memset(sizes,0,sizeof(sizes));reload();draw();assert(edits==2 && pictures==5);
+        assert(dark_x==348 && dark_y==-222 && claims[0]==3 && claims[1]==31);
+        tap(1,0,260);draw();assert(tabs==0 && edits==1 && claims[0]==3 && claims[1]==32);
+        pad(1,0x4000);assert(ld32(INPUT)==0);
         drag(1,-150,-180,-400,-200);action(1,9);draw();assert(dark_x==348 && dark_y==-222);
-        tap(1,0,260);tap(1,400,305);drag(1,348,-222,450,-100);action(1,10);draw();
-        assert(dark_x==450 && dark_y==-100 && edits==1);reload();draw();assert(dark_x==450 && dark_y==-100);
-        /* Short writes keep the shared editor open; cancel recovers exact save. */
-        tap(1,0,260);tap(1,400,305);drag(1,450,-100,300,-80);fail_write=1;action(1,10);draw();
-        assert(edits==0 && tabs==1 && dark_x==300);fail_write=0;action(1,9);draw();assert(dark_x==450);
-        reload();draw();assert(dark_x==450); /* valid alternating record survives */
-        /* Hidden peer remains selectable by tab; both owners suppress touches. */
-        tap(1,0,260);tap(1,400,305);action(1,6);action(1,10);draw();assert(pictures==4 && !claims[0]);
-        tap(1,0,260);draw();assert(pictures==5 && tabs==1);tap(1,400,305);action(1,6);action(1,10);draw();assert(pictures==5);
-        /* Both modules individually use the same UI and can persist layouts. */
+        assert(!sizes[0][0] && !sizes[0][1]);
+        tap(0,120,260);draw();assert(tabs==1 && edits==1 && claims[0]==4 && claims[1]==31);
+        pad(0,0x60000);assert(ld32(INPUT)==0);
+        drag(0,348,-222,450,-100);action(0,10);draw();
+        assert(dark_x==450 && dark_y==-100 && edits==2);reload();draw();assert(dark_x==450 && dark_y==-100);
+        assert(!sizes[1][0] && !sizes[1][1]);
+        /* Short writes keep only this editor open; cancel restores its save. */
+        tap(0,120,260);drag(0,450,-100,300,-80);fail_write=1;action(0,10);draw();
+        assert(edits==1 && tabs==1 && dark_x==300);fail_write=0;action(0,9);draw();assert(dark_x==450);
+        reload();draw();assert(dark_x==450);
+        tap(0,120,260);action(0,6);action(0,10);draw();assert(pictures==4 && claims[0]==2);
+        tap(0,120,260);draw();assert(pictures==5 && tabs==1);action(0,6);action(0,10);draw();assert(pictures==5);
         installed[1]=0;reload();draw();assert(edits==1 && pictures==1);
-        tap(0,0,260);drag(0,348,-222,250,-80);action(0,10);reload();draw();assert(dark_x==250 && dark_y==-80);
+        tap(0,120,260);drag(0,450,-100,250,-80);action(0,10);reload();draw();assert(dark_x==250 && dark_y==-80);
         installed[0]=0;installed[1]=1;reload();draw();assert(edits==1 && pictures==4);
         tap(1,0,260);draw();assert(tabs==0);action(1,9);
         installed[0]=1;
-        /* Foreign/native memory and wrong protocol version are ignored. */
-        uint32_t p=INPUT;memset(ppc_ptr(p),0,128);st32(p,0x45455443);st32(p+4,1);st32(p+8,80);st32(p+12,1);
-        Cpu c={0};c.r[1]=0x30020000;c.r[3]=p;hooks(0x0267598c,&c);assert(ld32(p+16)==0);
     }
-    assert(writes && textures[0] && textures[1]);puts("Shared touch: both load orders, separate ownership, five buttons, save/reload/cancel, short writes, hidden controls and standalone passed");
+    assert(writes && textures[0] && textures[1]);puts("Separate editors: both load orders, isolated saves, reload/cancel, short writes, hidden controls and standalone passed");
 }

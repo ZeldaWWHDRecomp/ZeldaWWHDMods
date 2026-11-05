@@ -37,7 +37,7 @@ static int dl_texture_model(u32 model) {
         dl_model_part(link, model) >= 0;
 }
 static int dl_binding_material_live(const DLTextureBinding* b) {
-    if (!dl_texture_model(b->model) || !dl_game_span(b->model, 0xb0) ||
+    if (!dl_game_span(b->model, 0xb0) ||
         dl_word((void*)b->model, 0x34) != b->materials) return 0;
     u32 count = *(u16*)(b->model + 0x2a);
     if (b->index >= count || count > DL_MAX_MATERIALS ||
@@ -243,51 +243,6 @@ static void dl_texture_apply(void* model) {
         if (probe) { ++dl_probe.views; dl_probe.eyes += (u32)eye; }
     }
 }
-/* viewCalc itself calls the base texture refresh (story_props.cpp documents
- * this nesting). Replacements after that refresh must be repaired at viewCalc
- * RETURN, not entry. Separate eye-joint entries retain their existing check.
- * Never rewrite published descriptors or snapshot our view as an original.
- * Cancellation restores the latest supported native animation frame. */
-static void dl_texture_resubmit(void* model) {
-    if (!dl_enabled || !dl_state.active || !dl_texture_model((u32)model) ||
-        (dl_word(dl_owner, 0x3bc) & 0x800)) return;
-    int probe = dl_diagnostics && (u32)model == dl_owner->mpCLModel;
-    if (probe) dl_probe_increment(&dl_probe.late_calls);
-    for (u32 i = 0; i < dl_binding_count; ++i) {
-        DLTextureBinding* b = &dl_bindings[i];
-        if (b->model != (u32)model) continue;
-        if (!dl_binding_live(b)) { if (probe) dl_probe_increment(&dl_probe.late_stale); continue; }
-        u32 current = *(u32*)b->slot;
-        if (current == b->view) continue;
-        if (probe) dl_probe_increment(&dl_probe.late_changed);
-        u32 view = dl_texture_view(current, b->surface);
-        if (!view) {
-            if (probe) {
-                if (!dl_probe.late_rejected) {
-                    dl_probe.late_pointer = current;
-                    dl_probe.late_word = dl_game_span(current, 4) ? *(u32*)current : 0;
-                }
-                dl_probe_increment(&dl_probe.late_rejected);
-            }
-            continue;
-        }
-        b->original = current;
-        b->view = view;
-        *(u32*)b->slot = view;
-        if (probe) dl_probe_increment(&dl_probe.rebound);
-    }
-}
-/* The runtime's native prop texture path uses this exact synchronous refresh
- * boundary. Bindings must survive the outer wrapper return: queued packets read
- * per-instance material references later. Restore before the next refresh so
- * texture animation always starts from its own live texture, never our view. */
-WWHD_HOOK(DL_TEXTURE_REFRESH, dl_texture_before, (void* model)) {
-    if (model && dl_texture_model((u32)model)) dl_texture_restore_model((u32)model);
-}
-WWHD_HOOK_RETURN(DL_TEXTURE_REFRESH, dl_texture_after, (void* model)) {
-    dl_texture_apply(model);
-}
-
 /* A retained binding is evidence about CPU submission only, not shader output. */
 static void dl_diag_submission(void* model) {
     if (!dl_state.active || !dl_enabled || !dl_texture_model((u32)model) || (u32)model != dl_owner->mpCLModel) return;
