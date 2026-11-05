@@ -394,12 +394,46 @@ static void stairs(void) {
     assert(!strcmp(key, "layout-pane:DungeonMapFloor_04/N_B1Down_01"));
     assert(strlen(key) < 64);
     /* the floor each marker leads to: the next one up or down; Forsaken Fortress's up leads outside */
-    char label[6];
-    assert(hdm_stair_label(4, 0x80, 0, label) == 2 && !strcmp(label, "B1"));
-    assert(hdm_stair_label(4, 0x7f, 1, label) == 2 && !strcmp(label, "1F"));
-    assert(hdm_stair_label(4, 0x7f, 0, label) == 2 && !strcmp(label, "B2"));
-    assert(hdm_stair_label(1, 0x81, 1, label) == 2 && !strcmp(label, "3F"));
-    assert(hdm_stair_label(0, 0x80, 1, label) == 4 && !strcmp(label, "Ext."));
+    int chars;
+    const char* label;
+    label = hdm_stair_label(4, 0x80, 0, &chars);
+    assert(label && chars == 2 && !strcmp(label, "B1"));
+    label = hdm_stair_label(4, 0x7f, 1, &chars);
+    assert(label && chars == 2 && !strcmp(label, "1F"));
+    label = hdm_stair_label(4, 0x7f, 0, &chars);
+    assert(label && chars == 2 && !strcmp(label, "B2"));
+    label = hdm_stair_label(1, 0x81, 1, &chars);
+    assert(label && chars == 2 && !strcmp(label, "3F"));
+    label = hdm_stair_label(0, 0x80, 1, &chars);
+    assert(label && chars == 4 && !strcmp(label, "Ext."));
+    /* past the last floor there is no label */
+    assert(!hdm_stair_label(4, 0x88, 1, &chars) && chars == 0);
+    assert(!hdm_stair_label(4, 0x78, 0, &chars) && chars == 0);
+    /* the constant labels are the floor tags of the art names, on every floor */
+    for (int floor = 0x77; floor <= 0x89; ++floor)
+        for (int up = 0; up < 2; ++up) {
+            char tag[3];
+            int has = hdm_floor_tag(floor + (up ? 1 : -1), tag);
+            label = hdm_stair_label(4, floor, up, &chars);
+            assert(has ? label && chars == 2 && !strcmp(label, tag) : !label && !chars);
+        }
+}
+static void retries(void) {
+    /* a failed picture is tried again a second later, a few times, then left alone until reset */
+    hdm_retry r = {0};
+    assert(hdm_retry_due(&r, 0));
+    unsigned long long step = 100;
+    int loads = 0;
+    for (int frame = 0; frame < 1000; ++frame, ++step)
+        if (hdm_retry_due(&r, step)) { ++loads; hdm_retry_failed(&r, step); }
+    assert(loads == HDM_RETRY_TRIES);
+    /* spaced out: not on the very next step */
+    hdm_retry s = {0};
+    hdm_retry_failed(&s, 10);
+    assert(!hdm_retry_due(&s, 11) && !hdm_retry_due(&s, 10 + HDM_RETRY_STEPS - 1) && hdm_retry_due(&s, 10 + HDM_RETRY_STEPS));
+    /* a reset (new chart, released images, state load) starts over */
+    r = (hdm_retry){0};
+    assert(hdm_retry_due(&r, step));
 }
 static void hud_follow(void) {
     /* the HUD's hearts decide: aiming with the HUD up keeps the map; a hidden HUD hides it */
@@ -430,6 +464,7 @@ int main(void) {
     hud_entry();
     hit_stop();
     hud_follow();
+    retries();
     stairs();
     sailing();
     captions();

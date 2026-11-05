@@ -57,7 +57,7 @@ WWHD_GAME_FUNC(0x0273A2E8, u32, chart_msg_text, (u32 data, u32 index));
 #define STTS0_HIDE (0x1000u | 0x2000u | 0x4000u | 0x20000u | 0x80000u | 0x200000u) /* aiming, first person, telescope */
 #define STTS0_SHIP 0x10000u
 #define STTS1_CONDUCT 0x1u
-#define PAUSE_TIMER 0x101EACB6      /* dScnPly_ply_c::pauseTimer (s8), set by a landed blow's hit-stop; same in USA and EU */
+#define PAUSE_TIMER 0x101EACB6      /* dScnPly_ply_c::pauseTimer (s8), set by a landed blow's hit-stop; mapped for EU by WWHD_GAME_DATA */
 #define UI_SCENE 0x101F8344         /* the game's UI scene: +0x178 the TV HUD, +0x218 the map screens */
 
 enum { MODE_NONE, MODE_SEA, MODE_DUNGEON };
@@ -129,7 +129,8 @@ static int initialized;
 /* images */
 static unsigned long long image_epoch;
 static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img_medli, img_makar, img_ship, img_base, img_door, img_boss;
-static u32 img_stair;     /* the floor-change markers' arrow (assets/floor-arrow.png) */
+static u32 img_stair;     /* the floor-change markers' arrow (assets/floor-arrow.png, from generate_art.py) */
+static hdm_retry stair_retry, chart_retry;  /* failed loads of the arrow and the chart picture */
 static u32 img_island, img_chart, img_ribbon, img_ribbon_shadow, img_chart_base, img_mark, img_mark_fill;
 static u32 img_searchlight[2];  /* searching, stopped */
 static int island_room = -1, chart_key = -1;
@@ -172,7 +173,7 @@ static void swap_room_cache(void) {
 /* The floor-change markers of a floor (DungeonMapFloor_0N's N_<floor>Up_0n / N_<floor>Down_0n), as the GamePad
  * draws them with DungeonMapUp_00 / DungeonMapDown_00: two floors cached, for the floor slide */
 typedef struct { float x, y, rotation; int up; } hdm_stair;
-static struct { int dungeon, floor, count; hdm_stair items[8]; } stair_cache[2] = {{-1, -1, 0}, {-1, -1, 0}};
+static struct { int dungeon, floor, count; hdm_stair items[8]; } stair_cache[2] = {{-1, -1, 0, {{0}}}, {-1, -1, 0, {{0}}}};
 static const hdm_stair* floor_stairs(int dungeon, int floor, int* count) {
     static wwhd_game_pane pane;
     static char key[64];
@@ -278,7 +279,7 @@ static void forget_images(void) {
     img_frame = img_wind = img_unknown = img_face = img_arrow = img_chest = img_medli = img_makar = img_ship = img_base = img_door = img_boss = 0;
     img_island = img_chart = img_ribbon = img_ribbon_shadow = img_chart_base = img_mark = img_mark_fill = 0; island_room = chart_key = -1;
     img_searchlight[0] = img_searchlight[1] = 0;
-    img_stair = 0;
+    img_stair = 0; stair_retry = (hdm_retry){0}; chart_retry = (hdm_retry){0};
     for (int i = 0; i < 4; ++i) img_feedback[i] = 0;
     for (int i = 0; i < HDM_ICON_COUNT; ++i) img_icons[i] = 0;
     for (int i = 0; i < room_count; ++i) rooms[i].image = 0;
@@ -298,6 +299,7 @@ static void release_dungeon_images(void) {
     spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
     drop(&img_door); drop(&img_chest); drop(&img_boss); drop(&img_medli); drop(&img_makar);
     drop(&img_searchlight[0]); drop(&img_searchlight[1]);
+    drop(&img_stair); stair_retry = (hdm_retry){0};
 }
 static void release_sea_images(void) {
     drop(&img_island); island_room = -1;
@@ -339,13 +341,17 @@ static void island_image(int room) {
         if (!img_island) img_island = game_image(name);
     }
 }
+/* a chart picture that fails to load is tried again a few times (hdm_retry), afresh for another chart */
 static void chart_image(int sea) {
     int key = sea * 4 + snap.chart_set;
-    if (chart_key == key && img_chart) return;  /* a failed load is retried */
+    unsigned long long step = wwhd_logic_step();
+    if (chart_key == key && (img_chart || !hdm_retry_due(&chart_retry, step))) return;
+    if (chart_key != key) chart_retry = (hdm_retry){0};
     drop(&img_chart);
     chart_key = key;
     hdm_chart_texture(name, sea, snap.chart_set);
     img_chart = game_image(name);
+    if (!img_chart) hdm_retry_failed(&chart_retry, step);
 }
 /* the floor plan: the room panes of the dungeon's layout whose art is on the floor */
 static void floor_rooms(int dungeon, int floor) {
@@ -682,9 +688,12 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         /* sized as on the expanded panel whatever the panel's size, so they stay readable on the compact one */
         float marker_side = opt.side_expanded > side ? opt.side_expanded : side;
         float unit = hdm_plan_view(marker_side * (1 - 12.0f / 256.0f), .04f).scale;
+        if (count && !img_stair && hdm_retry_due(&stair_retry, wwhd_logic_step())) {
+            img_stair = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/floor-arrow.png");
+            if (!img_stair) hdm_retry_failed(&stair_retry, wwhd_logic_step());
+        }
         for (int i = 0; i < count; ++i) {
             int up = stairs[i].up;
-            if (!img_stair) img_stair = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/floor-arrow.png");
             /* the GamePad draws the marker layouts at half their size on the plan (as the doors' 64 x 20 at 0.5) */
             float px, py, w = (up ? 24 : 30) * unit, h = 22.4f * unit;
             /* the arrow and its label share the marker's centre: the label on top of the arrow */
@@ -694,13 +703,9 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
             /* nudged 3 plan units left: the label's width is an estimate, and centred on the pane the arrow
              * looked a little right of its text (user's capture, 2026-11-05) */
             image(list, img_stair, ox + px - w / 2 - 3 * unit, oy + py - h / 2, w, h, r, 0xffffff, a * 100 / 255);
-            /* the HUD reads text after this callback returns: the labels must outlive it (static), one each
-             * for the two floors drawn while sliding (8 markers at most per floor) */
-            static char labels[32][6];
-            static unsigned next_label;
-            char* label = labels[next_label++ & 31];
-            int chars = hdm_stair_label(snap.dungeon, snap.floor, up, label);
-            if (!chars) continue;
+            int chars;
+            const char* label = hdm_stair_label(snap.dungeon, snap.floor, up, &chars);
+            if (!label) continue;
             /* centred on the arrow: the HUD draws text (ImGui, Arial) from its top-left; capitals and digits
              * advance about 0.52 x size, and their visual middle is about half the size down */
             float size = 20 * unit, tw = chars * size * HDM_LABEL_ADVANCE;

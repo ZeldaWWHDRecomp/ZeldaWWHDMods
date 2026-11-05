@@ -230,7 +230,8 @@
       ],
       "port_versions": {
         "minimum": "0.4.1"
-      }
+      },
+      "art_generator": "generate_art.py"
     },
     {
       "id": "qol",

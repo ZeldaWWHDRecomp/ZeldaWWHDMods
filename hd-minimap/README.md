@@ -97,13 +97,8 @@ with older installers; it does not import mandatory new host functions.
   still need gameplay validation. The
   unspecified Tower room omission is not confirmed resolved; a room/floor
   reproducer is still needed. Those limits are independent of the SDK integration.
-- The floor-change arrow is the mod's own plain triangle (`assets/floor-arrow.png`), not the game's
-  `MapFloorUpDown_00`: that texture is half an arrow which the game mirrors into a whole one through its
-  pane's UVs (0..2 on a mirrored texture), and the HUD service rejects mirrored UVs (an element with
-  `u1 < u0` drops the mod's whole draw list). See [SDK proposal](SDK-PROPOSAL.md#mirrored-uvs-for-native-half-art-floor-change-markers).
-- The floor-change labels are English (`B2`, `B1`, `1F`..`4F`, `Ext.`) in every language: the game
-  localizes them (Spanish `S1`, `PB`, `P1`..), but the SDK exposes neither layout message text nor the
-  running language. See [SDK proposal](SDK-PROPOSAL.md#localized-layout-text-floor-change-labels).
+- The floor-change markers use a plain triangle instead of the game's own arrow.
+- The floor-change labels are in English in every language.
 - This remains a bounded parity follow-up, not a full-playthrough equivalence claim.
 
 ## Checked in the game
@@ -119,7 +114,7 @@ the [parity report](PARITY.md) for the scenes checked and remaining gaps, and
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
 buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and framing,
-the Forsaken Fortress plan turn, its outside and searchlights, the dungeon zoom's turn, where a treasure chart's X goes, and the HUD's opacity the map and its icons follow when the HUD comes in. No game data is included.
+the Forsaken Fortress plan turn, its outside and searchlights, the dungeon zoom's turn, where a treasure chart's X goes and its title, the floor-change markers' panes and labels, hit-stop, following the HUD's visibility, bounded picture retries, and the HUD's opacity the map and its icons follow when the HUD comes in. No game data is included.
 
 ## Credits and licensing
 
@@ -140,7 +135,7 @@ MPL-2.0; adapted portions retain that MIT notice.
     drifting with the compass pieces, and the treasure chart's title is the game's own: its ribbon and
     shadow just above the chart, the name in the native colour at full size and centred.
   - A revoked compass lease no longer loses the map's images against the mod's image budget, and a
-    chart picture that fails to load is retried.
+    chart picture that fails to load is tried again a few times.
   - A sword blow that lands no longer hides the minimap and its D-pad icons: during the game's
     hit-stop (its play pause timer) the map keeps its last frame, as the HUD does.
   - While Medli or Makar are controlled the HUD keeps its D-pad hidden; the map no longer waits

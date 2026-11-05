@@ -96,14 +96,21 @@ static inline int hdm_floor_tag(int floor, char* tag) {
     tag[0] = 0;
     return 0;
 }
-/* The floor a marker leads to, as the GamePad labels it (DungeonMapUp_00 / DungeonMapDown_00's T_Floor_00,
- * English messages T_FloorU_00_* / T_FloorD_00_*): the next floor up or down; Forsaken Fortress's only
- * floor leads outside ("Ext."). 0 when there is none. */
 /* the HUD font's advance for the floor labels' capitals and digits, in text sizes (Arial: 0.6 / 1.117) */
 #define HDM_LABEL_ADVANCE .52f
-static inline int hdm_stair_label(int dungeon, int floor, int up, char* out) {
-    if (dungeon == 0 && up) { out[0] = 'E'; out[1] = 'x'; out[2] = 't'; out[3] = '.'; out[4] = 0; return 4; }
-    return hdm_floor_tag(floor + (up ? 1 : -1), out) ? 2 : 0;
+/* The floor a marker leads to, as the GamePad labels it (DungeonMapUp_00 / DungeonMapDown_00's T_Floor_00,
+ * English messages T_FloorU_00_* / T_FloorD_00_*): the next floor up or down; Forsaken Fortress's only
+ * floor leads outside ("Ext."). The text is a constant (the HUD reads it after the draw callback returns),
+ * the same tags as hdm_floor_tag; 0 with no chars when there is none. */
+static inline const char* hdm_stair_label(int dungeon, int floor, int up, int* chars) {
+    static const char tags[17][3] = {"B8", "B7", "B6", "B5", "B4", "B3", "B2", "B1",
+                                     "1F", "2F", "3F", "4F", "5F", "6F", "7F", "8F", "9F"};
+    *chars = 0;
+    if (dungeon == 0 && up) { *chars = 4; return "Ext."; }
+    int to = floor + (up ? 1 : -1);
+    if (to < 0x78 || to > 0x88) return 0;
+    *chars = 2;
+    return tags[to - 0x78];
 }
 /* Does a room texture ("MapKaze1F_05^t", "MapKami1F_03_2F_04^t") belong to the floor tag? */
 static inline int hdm_texture_on_floor(const char* texture, const char* tag) {
@@ -481,6 +488,18 @@ static inline void hdm_panel_corner(int compass_lease, int marine, float x, floa
 }
 /* MenuMap_00's chart title: a 312 x 47 ribbon, a 312 x 25 shadow whose top is 2 above the ribbon's bottom,
  * and a 296-wide text box. As in Minimap HD 1.3 it is 0.94 x the chart's side, 0.03 x side above it. */
+/* A picture that fails to load (image budget full, art not ready) is tried again a few times, a second
+ * apart, then left alone until its cache is reset: each failure leaves a note in the port's Mods tab. */
+#define HDM_RETRY_TRIES 3
+#define HDM_RETRY_STEPS 30
+typedef struct { int tries; unsigned long long next; } hdm_retry;
+static inline int hdm_retry_due(const hdm_retry* r, unsigned long long step) {
+    return r->tries < HDM_RETRY_TRIES && step >= r->next;
+}
+static inline void hdm_retry_failed(hdm_retry* r, unsigned long long step) {
+    ++r->tries;
+    r->next = step + HDM_RETRY_STEPS;
+}
 typedef struct { float x, y, w, h, shadow_y, shadow_h; } hdm_chart_title;
 static inline hdm_chart_title hdm_chart_title_box(float x, float y, float side) {
     hdm_chart_title t;
