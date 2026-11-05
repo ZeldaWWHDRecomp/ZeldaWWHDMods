@@ -185,13 +185,13 @@ int main(void) {
     assert(pad(0x1000)==0x1000); /* default off preserves physical input */
     touch_enabled=1;next();assert(claim_count==6);
     assert(claim[4][0]==-48 && claim[4][2]==48);
-    call(hud_fn,1); assert(hud_count>10 && image_count==1 && texture_calls==1);
-    call(hud_fn,1); assert(texture_calls==1); /* cached, not decoded per frame */
-    ++epoch; call(hud_fn,1); assert(texture_calls==2 && releases==0);
+    call(hud_fn,1); assert(hud_count==10 && image_count==4 && texture_calls==4);
+    call(hud_fn,1); assert(texture_calls==4); /* cached, not decoded per frame */
+    ++epoch; call(hud_fn,1); assert(texture_calls==8 && releases==0);
     fail_texture=1; ++epoch; hud_count=0; call(hud_fn,1);
-    assert(hud_count>10 && texture_calls==3); /* text fallback */
-    call(hud_fn,1); assert(texture_calls==3); /* no repeated failed loads */
-    fail_texture=0; ++epoch; call(hud_fn,1); assert(texture_calls==4);
+    assert(hud_count==10 && texture_calls==12); /* text fallback */
+    call(hud_fn,1); assert(texture_calls==12); /* no repeated failed loads */
+    fail_texture=0; ++epoch; call(hud_fn,1); assert(texture_calls==16);
     int n=claim_count; next(); call(hud_fn,1); assert(claim_count==n);
     /* Real Y survives the macro; repeated reads do not advance its clock. */
     touch(0,-150,-180); assert(pad(0x1000)==(0x1000|0x80));
@@ -276,7 +276,8 @@ int main(void) {
     int old_writes=writes, old_reads=reads;
     touch(0,-150,-180); touch(1,-400,-240); touch(2,-400,-240);
     action(EE_LARGER); action(EE_OPACITY); action(EE_SHAPE); action(EE_FILL); action(EE_GRID);
-    action(EE_ICONS);call(hud_fn,1); /* vector icon switches to its text label */
+    int jump_releases=releases;action(EE_ICONS);call(hud_fn,1);
+    assert(releases==jump_releases+1); /* image switches to its text label */
     tab(3);int released_before=releases;action(EE_ICONS);call(hud_fn,1);assert(releases==released_before+1);
     action(EE_ICONS);tab(0);
     action(EE_VISIBLE); /* hidden still selectable via tabs */

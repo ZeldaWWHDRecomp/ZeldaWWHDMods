@@ -179,10 +179,10 @@ static void filter(wwhd_input_state* pad) {
     pad->buttons |= ec_buttons(&state);
     ec_stick(&state,&pad->lx,&pad->ly);
 }
-/* Only the original boot uses a package image (256x256 RGBA, 256 KiB).
- * The three generic sword symbols are drawn by combat_icons.h. */
+/* Four 256x256 RGBA medallions use 1 MiB of decoded texture memory. */
 static const char* const icon_paths[] = {
-    0, 0, 0, "assets/combat_dodge.png"
+    "assets/combat_jump_attack.png", "assets/combat_vertical_slash.png",
+    "assets/combat_spin_attack.png", "assets/combat_dodge.png"
 };
 static u32 icons[4];
 static unsigned icon_attempts;
@@ -195,7 +195,7 @@ static void sync_icons(void) {
     }
     for(int i=0;i<4;++i) {
         EcPlacement p=(editor.open?editor.draft:editor.saved).button[i];
-        int needed=touch_enabled && i==EC_DODGE && p.icons && (p.visible || editor.open);
+        int needed=touch_enabled && p.icons && (p.visible || editor.open);
         if(!needed) { if(icons[i]) wwhd_hud_release(icons[i]); icons[i]=0; icon_attempts&=~(1u<<i); }
         else if(!(icon_attempts&(1u<<i))) {
             icons[i]=wwhd_hud_texture(WWHD_HUD_PACKAGE,icon_paths[i]); icon_attempts|=1u<<i;
@@ -203,14 +203,11 @@ static void sync_icons(void) {
     }
 }
 #include "editor_view.h"
-#include "combat_icons.h"
 static void editor_button(u32 list,int i) {
     if(i>=4) return; /* rendered by its owning mod */
     EcPlacement p=(editor.open?editor.draft:editor.saved).button[i];
-    int vector=p.icons && i<EC_DODGE;
-    ee_draw_button(list,p,vector?"":names[i],icons[i],
+    ee_draw_button(list,p,names[i],icons[i],
         editor.open,editor.selected==i,state.macro==i);
-    if(vector) ec_combat_icon(list,p,i,editor.open,state.macro==i);
 }
 static void hud(u32 list) {
     refresh(); if(!ready) return;

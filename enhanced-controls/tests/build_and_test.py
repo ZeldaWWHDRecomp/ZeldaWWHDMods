@@ -56,10 +56,11 @@ def build(out, clang, lld):
              'README.md': MOD/'README.md', 'LICENSE': MOD/'LICENSE',
              'src/mod.c': HERE/'mod.c', 'src/core.h': HERE/'core.h',
              'src/editor.h': HERE/'editor.h',
-             'assets/NOTICE.md': MOD/'assets/NOTICE.md'}
-    for header in ("editor_geometry.h","editor_view.h","combat_icons.h"):
+             'assets/NOTICE.md': MOD/'assets/NOTICE.md',
+             'assets/ASSETS.md': MOD/'assets/ASSETS.md'}
+    for header in ("editor_geometry.h","editor_view.h"):
         files[f"src/{header}"]=HERE/header
-    for name in ('combat_dodge',):
+    for name in ('combat_jump_attack','combat_vertical_slash','combat_spin_attack','combat_dodge'):
         files[f'assets/{name}.png']=MOD/'assets'/f'{name}.png'
         import struct
         assert struct.unpack_from('>II',files[f'assets/{name}.png'].read_bytes(),16)==(256,256)
