@@ -9,7 +9,10 @@ static u32 one_hit_count;  /* enemies held at 1 so far (log) */
 
 static void one_hit_option_changed(void) { one_hit_on = wwhd_config_bool("one_hit_kills", 0); }
 
+static void hitstop_actor_before(void* actor); /* hitstop.c: the hit freezes' watch of this step */
+
 WWHD_HOOK(WWHD_ADDR_fopAc_Execute, qol_actor_step, (void* actor)) {
+    hitstop_actor_before(actor);
     if (!one_hit_on || !actor) return;
     fopAc_ac_c* a = (fopAc_ac_c*)actor;
     if (a->group != ONE_HIT_ENEMY || a->health <= 1) return;

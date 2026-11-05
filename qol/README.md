@@ -6,11 +6,14 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 
 | Extra | Section | What it does |
 | --- | --- | --- |
+| **Faster block pushing** | Movement | Off (default), 1.5x or 2x. Both pushing and pulling finish sooner; Link follows the block's actual native movement. |
 | **Link's clothes** | Link | The Hero's clothes or the casual clothes (the lobster shirt) at any time. "As in the story" gives Link the clothes the story gave him. |
 | **Replay conducted songs** | Songs | After you conduct a song, Link plays it back before its effect, as on the GameCube (the HD version skips the replay for songs you played before). |
 | **Songs by touch** | Songs | While Link holds up the Wind Waker: a button for each song he knows (a tap plays it, as if conducted; a scene that waits for one song shows only that one) and four note pads to conduct by touch. |
 | **Sing the songs** (experimental) | Songs | While Link holds up the Wind Waker, sing, hum or whistle a song's notes into the microphone and he plays it, as if conducted (any key, any octave, any tempo; only songs he knows). A line at the top shows what is heard. |
 | **One-hit kills** | Combat | Every enemy goes down with any hit. Bosses that count their hits are not changed. |
+| **Enemy hit freeze** | Combat | Original (default), Half or Off: how long the game pauses for a moment when Link's sword hits an enemy. Half shortens that pause (the shortest pauses stay as they are); Off removes it. Damage, parries and spin attacks work as before, and menus and cutscenes still pause as usual. |
+| **Hit freeze: hits, strong hits, defeats, bosses, signs** (experimental) | Combat | Which pauses Enemy hit freeze changes: an ordinary sword hit, a strong hit an enemy survives (knocked down, a Darknut's armour, a Stalfos' head), the hit that defeats an enemy, the pauses in boss fights (the hits on a boss and the pauses the boss asks for itself) and cutting a signpost. All on except signs. Idea from the GreenNaugahyde Android fork. |
 | **Minigames by touch** | Minigames | Sploosh Kaboom: tap a square to aim there and fire. The Cabana's picture puzzles: tap a piece in the gap's row or column, or drag it towards the gap, and it slides there (with the pieces between). Mail sorting at the Rito post: tap a slot to throw the letter there. Spectacle Island's cannon game: drag to turn the cannon (sideways: left and right; up and down: farther and nearer), tap to fire. The auction: tap anywhere to press A (each tap raises your gauge; the bid's number is entered with the port's **Talks, answers and shops by touch**). The Nintendo Gallery: while you look at a figurine, keep a finger on the picture and move it to turn the figurine, pinch to zoom (the mouse wheel on a computer). |
 | **Picto subjects** | Picto Box | In the Picto Box album, a label over the picto says whether it is good for a Nintendo Gallery figurine, and if not, why: black and white, turned away or out of view, partly hidden, or no figurine subject. A figurine subject is named ("Good for a figurine: Sturgeon"), in the language your game shows: the name comes from the game's own text for that figurine. |
 | **Album pages** | Picto Box | More pages of 12 pictos in the Picto Box album. In the album, **L** turns to the next page and **ZL** back (or tap the arrows at the top of the album). Turning past the last page starts a new, empty page; an empty page at the end goes again when you leave it. |
@@ -62,3 +65,16 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
   keeps its own choice.
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod. The figurine's
   name on the Picto subjects label and More figurine orders are ideas from @gogokfen (issue #276); thanks!
+
+## Faster block pushing
+
+Choose 1.5x or 2x to push and pull blocks faster while Link follows their movement: one push or pull of a crate
+takes about 14 steps of the game's logic at 1.5x and 10 at 2x instead of 20, and Link's pushing and pulling
+animation plays 1.5 or 2 times as fast to match. The block still checks its own collision and stops exactly on
+its square.
+
+Tested with the crates in the Tower of the Gods (pushing and pulling, at 30 fps and with 60 fps frame
+interpolation): faster with both settings, every move ends on the grid, and Link stays at the crate.
+Still experimental (default Off): block puzzles that end on a switch (Dragon Roost Cavern, Earth Temple and
+others), the heavy blocks you move with the Power Bracelets, and blocks moved during cutscenes have not been
+tried yet.

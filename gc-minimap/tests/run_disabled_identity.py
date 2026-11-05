@@ -96,7 +96,7 @@ def case_environment(case, renderer, mode, first_frame, frames):
                WWHD_TEST_END='10', WWHD_DUMP_FRAMES=','.join(map(str, frames)), WWHD_DUMP_PRESENT='1',
                WWHD_SIM_SCREEN='1280x720',
                WWHD_PRESS=','.join('%d-%d:8000' % (frame, frame + 8) for frame in range(150, first_frame - 200, 30)),
-               WWHD_TRUE60='1' if mode == 'true60' else '0', WWHD_INTERP='0',
+               WWHD_INTERP='0',
                WWHD_RNG_TRACE=str(case / 'rng-trace.txt'), WWHD_LOGIC_TIMELINE=str(case / 'logic-timeline.txt'),
                WWHD_SAVEINFO_DUMP=str(case / 'save-info.bin'), XDG_CONFIG_HOME=str(case / 'config'))
     if mode == 'interp60':
@@ -201,7 +201,7 @@ def main():
     for name in ('binary', 'game', 'save', 'sdk', 'package', 'out'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--renderer', choices=('metal', 'vulkan'), required=True)
-    parser.add_argument('--mode', choices=('30', 'interp60', 'true60'), default='30')
+    parser.add_argument('--mode', choices=('30', 'interp60'), default='30')
     parser.add_argument('--first-frame', type=int, default=3000)
     parser.add_argument('--timeout', type=int, default=300)
     parser.add_argument('--pairs', type=int, choices=range(1, 5), default=2)

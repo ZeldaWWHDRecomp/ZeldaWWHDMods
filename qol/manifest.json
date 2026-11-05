@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.3.0",
+  "version": "0.5.1",
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
@@ -13,7 +13,7 @@
     "heap_size": 1048576
   },
   "author": "ZeldaWWHDRecomp contributors",
-  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch.",
+  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch. Optional faster block pushing and pulling.",
   "options": [
     {
       "id": "clothes",
@@ -120,6 +120,86 @@
       "live": true,
       "section": "Minigames",
       "description": "Sploosh Kaboom, the Cabana's puzzles, mail sorting, the cannon game, the auction and the Nintendo Gallery's figurines by touch or mouse."
+    },
+    {
+      "id": "block_push_speed",
+      "type": "enum",
+      "name": "Faster block pushing (experimental)",
+      "choices": [
+        "Off",
+        "1.5x",
+        "2x"
+      ],
+      "default": "Off",
+      "menu": true,
+      "live": true,
+      "section": "Movement",
+      "description": "Experimental: push and pull blocks faster; Link's animation keeps pace and the block still stops exactly on its square. Tested with the Tower of the Gods crates at 30 and 60 fps; block puzzles with switches, heavy blocks and cutscene pushes not yet tried."
+    },
+    {
+      "id": "enemy_hit_freeze",
+      "type": "enum",
+      "name": "Enemy hit freeze",
+      "choices": [
+        "Original",
+        "Half",
+        "Off"
+      ],
+      "default": "Original",
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Shorten or remove the short pause when Link's sword hits an enemy. Half shortens it (the shortest pauses stay as they are); Off removes it. Damage, parries and spin attacks work as before, and menus and cutscenes still pause as usual."
+    },
+    {
+      "id": "hit_freeze_hits",
+      "type": "bool",
+      "name": "Hit freeze: hits (experimental)",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the pause of an ordinary sword hit."
+    },
+    {
+      "id": "hit_freeze_strong",
+      "type": "bool",
+      "name": "Hit freeze: strong hits (experimental)",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the longer pause of a strong hit an enemy survives: knocked down, a Darknut's armour, a Stalfos' head."
+    },
+    {
+      "id": "hit_freeze_defeats",
+      "type": "bool",
+      "name": "Hit freeze: defeats (experimental)",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the pause of the hit that defeats an enemy."
+    },
+    {
+      "id": "hit_freeze_bosses",
+      "type": "bool",
+      "name": "Hit freeze: bosses (experimental)",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the pauses in boss fights: the sword hits on a boss and the pauses the boss asks for itself."
+    },
+    {
+      "id": "hit_freeze_signs",
+      "type": "bool",
+      "name": "Hit freeze: signs (experimental)",
+      "default": false,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the short pause when Link cuts a signpost."
     }
   ],
   "setup": [
