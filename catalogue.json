@@ -318,6 +318,64 @@
         "minimum": "0.5.0"
       },
       "experimental": true
+    },
+    {
+      "id": "sword-wave",
+      "name": "Sword Wave",
+      "description": "At full hearts, sword Spin Attacks launch a forward wave using native Spin Attack particles and sword collision. Inspired by Dawnlight's Great Spin projectile.",
+      "version": "1.0.0",
+      "kind": "guest",
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Sword Wave for this installation"
+        }
+      ],
+      "authors": [
+        "BeZide93"
+      ],
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true
+    },
+    {
+      "id": "enhanced-controls",
+      "name": "Enhanced Controls",
+      "description": "Four optional combat buttons with their own touch layout editor.",
+      "version": "1.0.0",
+      "kind": "guest",
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Enhanced Controls for this installation"
+        }
+      ],
+      "authors": [
+        "BeZide93"
+      ],
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true
     }
   ]
 }
