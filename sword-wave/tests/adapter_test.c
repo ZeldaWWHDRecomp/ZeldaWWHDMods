@@ -102,12 +102,15 @@ static void hook(unsigned target,unsigned kind,unsigned actor) {
     assert(found);
 }
 static void original(Cpu* c,uint32_t a) { (void)c;(void)a; assert(!"observer only"); }
+static uint64_t epoch=1;
+static void svc_epoch(Cpu* c) { c->r[3]=(uint32_t)(epoch>>32); c->r[4]=(uint32_t)epoch; }
 static void svc_step(Cpu* c) { c->r[3]=(uint32_t)(step>>32); c->r[4]=(uint32_t)step; }
 static void svc_dt(Cpu* c) { c->f[1].ps0=dt; }
 static void svc_bool(Cpu* c) { assert(!strcmp((char*)ppc_ptr(c->r[3]),"enabled")); c->r[3]=enabled; }
 static void svc_copy(Cpu* c) { memcpy(ppc_ptr(c->r[3]),ppc_ptr(c->r[4]),c->r[5]); }
 static void svc_set(Cpu* c) { memset(ppc_ptr(c->r[3]),c->r[4],c->r[5]); }
 static PpcFunc service(const char* s) {
+    if(!strcmp(s,"wwhd_hud_epoch")) return svc_epoch;
     if(!strcmp(s,"wwhd_logic_step")) return svc_step;
     if(!strcmp(s,"wwhd_logic_dt")) return svc_dt;
     if(!strcmp(s,"wwhd_config_bool")) return svc_bool;
@@ -331,7 +334,7 @@ int main(int argc,char** argv) {
     mod=init(&host); assert(mod && mod->hook_count==10);
     for(unsigned i=0;i<mod->hook_count;++i) assert(mod->hooks[i].kind!=1);
     setup(); begin(0x55,1,3); assert(spawned==3 && !collisions);
-    for(int i=0;i<3;++i) { assert(ld16(callbacks[i]+6)==12); own(ld32(callbacks[i]+8),12*12); assert(near(ldf32(emitters[i]+0x238),1.5)); assert(ld32(emitters[i]+0x5c)==0); }
+    for(int i=0;i<3;++i) { assert(ld16(callbacks[i]+6)==12); own(ld32(callbacks[i]+8),12*12); assert(near(ldf32(emitters[i]+0x238),1.5)); assert(ld32(emitters[i]+0x5c)>0 && !(ld32(emitters[i]+0x254)&0x40)); }
     unsigned char before[0x9000]; memcpy(before,ppc_ptr(LINK),sizeof(before));
     for(int i=0;i<5;++i) frame(); assert(!collisions);
     frame(); assert(collisions==1 && near(last_z,240));
@@ -381,6 +384,21 @@ int main(int argc,char** argv) {
     assert(ldf32(capsule+0x7c)>0 && ldf32(capsule+0x80)>0 && ldf32(capsule+0x84)>0);
     setup(); failing=1; begin(0x55,1,3); assert(spawned==3); frame(); enabled=0; frame(); assert(!ended);
     puts("30/60-Hz range, elevated lock-on and particle allocation failure passed");
+    /* Full-state epoch changes can arrive before Link executes. The first
+     * particle hook must end the restored wave, not renew it indefinitely. */
+    setup(); begin(0x55,1,3); ++epoch;
+    hook(GAME_PARTICLES,2,emitters[0]); assert(ended==3);
+    frame(); assert(spawned==3);
+    /* A replaced particle pool invalidates all old addresses. */
+    setup(); begin(0x55,1,3); ++epoch; st32(PLAY+0x5ab0,MANAGER+0x1000);
+    frame(); assert(!ended);
+    /* Native fallback: without callbacks from this mod, finite max-frame and
+     * unrenewed particles reach native deferred emitter deletion. */
+    setup(); begin(0x55,1,3); particle_pass(0,11);
+    uint32_t e=emitters[0]; assert(ld32(e+0x5c)>0 && !(ld32(e+0x254)&0x40));
+    float age=ldf32(ld32(e+0x1ac)+0x78), life=ldf32(ld32(e+0x1ac)+0x7c);
+    assert(age+4>=life && ld32(e+0x5c)<16);
+    puts("Full-state epoch, replaced particle pool and bounded native expiry passed");
     test_open_arc();
     test_stripe_edges();
     puts("Sword Wave translated integration: all checks passed");

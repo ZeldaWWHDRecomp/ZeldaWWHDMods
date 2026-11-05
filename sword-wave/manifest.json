@@ -10,8 +10,7 @@
   "kind": "guest",
   "guest": {
     "api_version": 1,
-    "elf": "mod.elf",
-    "heap_size": 65536
+    "elf": "mod.elf"
   },
   "options": [
     {

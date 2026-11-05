@@ -11,7 +11,7 @@
 static struct {
     daPy_lk_c* owner;
     u32 owner_id, manager;
-    unsigned long long step;
+    unsigned long long step, epoch;
     int active, attempted, armed, executing, initialized;
     s8 room;
     s16 heading;
@@ -127,12 +127,28 @@ static void effects(void) {
         wave.effects[i].count=wave.effects[i].emitter && !(wave.seeded&(1u<<i))?POINTS+1:0;
     }
 }
+/* Full states restore the guest arena and emitter pool together. Detect their
+ * new host epoch before renewing particles, even if Link has not executed yet.
+ * Only detach emitters in the restored manager with our exact callback. */
+static void state_epoch(void) {
+    unsigned long long epoch=wwhd_hud_epoch();
+    if (wave.epoch==epoch) return;
+    u8* play=wwhd_play_get();
+    int same=play && word(play,0x5ab0)==wave.manager;
+    for(int i=0;i<3;++i) {
+        void* e=wave.effects[i].emitter;
+        if(!same || !e || word(e,0x1e4)!=(u32)&wave.effects[i])
+            wave.effects[i].emitter=0;
+    }
+    reset(0); wave.epoch=epoch;
+}
 /* The native stripe renderer connects the entire emitter particle list. Never
  * append another arc (or an automatic anchor particle) to that list: it creates
  * an end-to-start chord and a trail across the back. Seed once, then move those
  * same particles. Native allocation, shader setup and deferred deletion remain
  * in charge; no particle/list/GPU objects are copied, freed or relinked here. */
 static int owned_emitter(void* emitter) {
+    state_epoch();
     if(!wave.active || !emitter) return -1;
     for(int i=0;i<3;++i) if(wave.effects[i].emitter==emitter &&
         word(emitter,0x1e4)==(u32)&wave.effects[i]) return i;
@@ -172,6 +188,10 @@ static void place_arc(void* emitter, int renew) {
 WWHD_HOOK(0x0281FBD8, before_particles, (void* emitter)) {
     int index=owned_emitter(emitter);
     if(index<0) return;
+    /* Rolling finite lease: without this mod the native emitter and the
+     * unrenewed particles expire on their own. Never set Immortal. */
+    put_word(emitter,0x5c,(u32)real(emitter,0x194)+8);
+    put_word(emitter,0x254,word(emitter,0x254)&~0x40u);
     wave.seeded|=1u<<index;
     wave.effects[index].count=0;
     place_arc(emitter,1);
@@ -209,10 +229,9 @@ static void launch(daPy_lk_c* link) {
         void* emitter=particle_set((void*)wave.manager,1,effect_ids[i],&wave.pos,&rotation,0,255,
             &wave.effects[i],wave.room,&wave.colors[i][0],&wave.colors[i][1],0);
         if(emitter) {
-            /* Zero means no timed expiry in JPABaseEmitter::doTerminationProcess.
-             * The native end callback later sets -1 and detaches ownership.
-             * A normal spin resource must not expire while our callback lives. */
-            put_word(emitter,0x5c,0);
+            /* Finite native fallback even before the first particle pass. */
+            put_word(emitter,0x5c,(u32)real(emitter,0x194)+8);
+            put_word(emitter,0x254,word(emitter,0x254)&~0x40u);
             /* Stop only automatic emission; native cut-turn manual creation
              * still seeds the open arc with the real spin materials. */
             put_word(emitter,0x254,word(emitter,0x254)|1);
@@ -251,6 +270,7 @@ static void update(u8* play, daPy_lk_c* link) {
     collision_set(play+0x26a4,&wave.capsule);
 }
 static void begin_spin(daPy_lk_c* link) {
+    state_epoch();
     u8* play=wwhd_play_get();
     if(link!=player(play)) return;
     if(!same_world(play,link)) { reset(word(play,0x5ab0)!=wave.manager); remember(play,link); }
@@ -272,6 +292,7 @@ WWHD_HOOK(SW_PARTICLE, capture_colors, (void* manager,u8 group,u16 id,const cXyz
     }
 }
 WWHD_HOOK(SW_LINK, before_execute, (daPy_lk_c* link)) {
+    state_epoch();
     u8* play=wwhd_play_get();
     if(link!=player(play)) return;
     if(!same_world(play,link)) { reset(word(play,0x5ab0)!=wave.manager); remember(play,link); }
