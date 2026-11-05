@@ -149,7 +149,7 @@
       "menu": true,
       "live": true,
       "section": "Combat",
-      "description": "Shorten or remove the brief freeze when Link hits an enemy with his sword. Half rounds up to at least one logical tick, so ordinary one-tick hits stay unchanged. Off removes the freeze. Damage, parries and spin attacks keep their native calculations; menu and scripted pauses stay unchanged."
+      "description": "Shorten or remove the short pause when Link's sword hits an enemy. Half shortens it (the shortest pauses stay as they are); Off removes it. Damage, parries and spin attacks work as before, and menus and cutscenes still pause as usual."
     }
   ],
   "setup": [
