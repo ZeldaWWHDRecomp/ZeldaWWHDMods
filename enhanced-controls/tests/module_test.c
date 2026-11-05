@@ -15,7 +15,7 @@ static const WWHDGuestModuleV1* mod;
 static Cpu cpu;
 static uint32_t touch_fn, filter_fn, hud_fn;
 static uint64_t step=1, epoch=1;
-static int editor_visible=1, claim_count, hud_count;
+static int touch_enabled, editor_visible=1, claim_count, hud_count;
 static int spins, equip_animation, guard_animation;
 static int texture_calls, image_count, releases, fail_texture;
 static float editor_x,editor_y=260;
@@ -55,6 +55,7 @@ static void call(uint32_t fn, uint32_t arg) {
     fprintf(stderr,"unknown callback %08x\n",fn); abort();
 }
 static void dispatch(Cpu* c) {
+    if(c->pc==PLAY_GET) {c->r[3]=PLAY;return;}
     if(c->pc==SPIN) {
         assert(c->r[3]==LINK && c->r[4]==1);
         ++spins; st32(LINK+0x65F0,0x55); c->r[3]=1; return;
@@ -113,6 +114,7 @@ static void s_epoch(Cpu* c) { u64(c,epoch); }
 static void s_dt(Cpu* c) { c->f[1].ps0=1./30; }
 static void s_bool(Cpu* c) {
     const char* name=string(c->r[3]); assert(own(c->r[3],1));
+    if(!strcmp(name,"touch-enabled")) {assert(c->r[4]==0);c->r[3]=touch_enabled;return;}
     assert(!strcmp(name,"editor-visible")); c->r[3]=editor_visible;
 }
 static void s_number(Cpu* c) {
@@ -178,15 +180,18 @@ int main(void) {
     st32(PLAY+0x5B2C,LINK); st32(LINK,1); st32(LINK+4,7); st16(LINK+0x69B0,0x103);
     st32(LINK+0x65F0,4);
     st32(SAVE_PTR,SAVE); st16(SAVE+0x20,12); st16(SAVE+0x22,12);
-    hook(LINK_EXECUTE,LINK); assert(touch_fn && filter_fn && hud_fn && claim_count==6);
+    hook(LINK_EXECUTE,LINK);assert(touch_fn && filter_fn && hud_fn);
+    call(hud_fn,1);assert(claim_count==0 && hud_count==0 && texture_calls==0);
+    assert(pad(0x1000)==0x1000); /* default off preserves physical input */
+    touch_enabled=1;next();assert(claim_count==6);
     assert(claim[4][0]==-48 && claim[4][2]==48);
-    call(hud_fn,1); assert(hud_count==10 && image_count==4 && texture_calls==4);
-    call(hud_fn,1); assert(texture_calls==4); /* cached, not decoded per frame */
-    ++epoch; call(hud_fn,1); assert(texture_calls==8 && releases==0);
+    call(hud_fn,1); assert(hud_count>10 && image_count==1 && texture_calls==1);
+    call(hud_fn,1); assert(texture_calls==1); /* cached, not decoded per frame */
+    ++epoch; call(hud_fn,1); assert(texture_calls==2 && releases==0);
     fail_texture=1; ++epoch; hud_count=0; call(hud_fn,1);
-    assert(hud_count==10 && texture_calls==12); /* text fallback */
-    call(hud_fn,1); assert(texture_calls==12); /* no repeated failed loads */
-    fail_texture=0; ++epoch; call(hud_fn,1); assert(texture_calls==16);
+    assert(hud_count>10 && texture_calls==3); /* text fallback */
+    call(hud_fn,1); assert(texture_calls==3); /* no repeated failed loads */
+    fail_texture=0; ++epoch; call(hud_fn,1); assert(texture_calls==4);
     int n=claim_count; next(); call(hud_fn,1); assert(claim_count==n);
     /* Real Y survives the macro; repeated reads do not advance its clock. */
     touch(0,-150,-180); assert(pad(0x1000)==(0x1000|0x80));
@@ -271,7 +276,9 @@ int main(void) {
     int old_writes=writes, old_reads=reads;
     touch(0,-150,-180); touch(1,-400,-240); touch(2,-400,-240);
     action(EE_LARGER); action(EE_OPACITY); action(EE_SHAPE); action(EE_FILL); action(EE_GRID);
-    action(EE_ICONS); call(hud_fn,1); assert(releases>0);
+    action(EE_ICONS);call(hud_fn,1); /* vector icon switches to its text label */
+    tab(3);int released_before=releases;action(EE_ICONS);call(hud_fn,1);assert(releases==released_before+1);
+    action(EE_ICONS);tab(0);
     action(EE_VISIBLE); /* hidden still selectable via tabs */
     tab(1); action(EE_SMALLER); tab(0);
     if(getenv("EC_HUD_DUMP")) {
@@ -311,6 +318,12 @@ int main(void) {
     assert(claim[4][0]==claim[4][2] && claim[5][0]==claim[5][2]);
     editor_visible=1; next(); (void)pad(0); open_editor(); action(EE_RESET); action(EE_SAVE); (void)pad(0);
     assert(claim[0][0]==-194 && claim[1][0]==-94); /* defaults saved */
+    /* Master switch releases all claims even while editing, immediately
+     * returning controller input and hiding all HUD controls. */
+    open_editor();touch_enabled=0;next();
+    for(int i=0;i<6;++i)assert(claim[i][0]==claim[i][2]);
+    assert(pad(0x1000)==0x1000);int before_hidden=hud_count;call(hud_fn,1);assert(hud_count==before_hidden);
+    touch_enabled=1;next();
     /* All four can be hidden; launcher is still reachable and tabs restore them. */
     open_editor(); for(int i=0;i<4;++i) { tab(i); action(EE_VISIBLE); } action(EE_SAVE); (void)pad(0);
     for(int i=0;i<4;++i) assert(claim[i][0]==claim[i][2]);

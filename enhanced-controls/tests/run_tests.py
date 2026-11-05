@@ -31,7 +31,7 @@ def main():
         assert z.read('src/mod.c')==(HERE.parent/'src/mod.c').read_bytes()
         assert z.read('src/core.h')==(HERE.parent/'src/core.h').read_bytes()
         assert z.read('src/editor.h')==(HERE.parent/'src/editor.h').read_bytes()
-        assert {o['id'] for o in manifest['options']}=={'editor-visible','editor-x','editor-y'}
+        assert {o['id'] for o in manifest['options']}=={'touch-enabled','editor-visible','editor-x','editor-y'}
     run(CC+['-std=c11','-Wall','-Wextra','-Werror',HERE/'core_test.c','-lm','-o',OUT/'core-test'])
     run([OUT/'core-test'])
     run(CC+['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-function',HERE/'editor_test.c','-o',OUT/'editor-test'])
@@ -39,7 +39,7 @@ def main():
     run(CXX+['-std=c++20','-O1','-I',REPO/'runtime/src','-c',HERE/'hud_bridge.cpp','-o',OUT/'hud-bridge.o'])
     for region in ('USA','EU'):
         b=by_name(region)
-        defs={'PLAY':b.data(0x1046f0b0),'SAVE_PTR':b.data(0x101f84dc),
+        defs={'PLAY_GET':b.code(0x025200d4),'PLAY':b.data(0x1046f0b0),'SAVE_PTR':b.data(0x101f84dc),
               'MENU_FLAG':b.data(0x101ea069),'LINK_EXECUTE':b.code(0x0240ebb0),
               'SPIN':b.code(0x023e6380),'EQUIPPING':b.code(0x023d794c),
               'GUARDING':b.code(0x02443728),'CURSE':b.data(0x101cef16)}

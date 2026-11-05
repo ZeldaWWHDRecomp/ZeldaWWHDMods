@@ -7,13 +7,22 @@
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
   "author": "BeZide93",
-  "description": "Four combat buttons with their own touch layout editor. Standalone guest mod; no APK changes.",
+  "description": "Four optional combat buttons with their own touch layout editor.",
   "guest": {
     "api_version": 1,
     "elf": "mod.elf",
     "heap_size": 262144
   },
   "options": [
+    {
+      "id": "touch-enabled",
+      "name": "Enable touch controls",
+      "type": "bool",
+      "default": false,
+      "live": true,
+      "menu": true,
+      "section": "Macro editor"
+    },
     {
       "id": "editor-visible",
       "name": "Show editor button",
@@ -54,5 +63,6 @@
       "type": "build_guest_mod",
       "title": "Build Enhanced Controls for this installation"
     }
-  ]
+  ],
+  "experimental": true
 }

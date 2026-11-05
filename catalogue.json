@@ -293,7 +293,7 @@
     {
       "id": "enhanced-controls",
       "name": "Enhanced Controls",
-      "description": "Four combat buttons with their own touch layout editor. Standalone guest mod; no APK changes.",
+      "description": "Four optional combat buttons with their own touch layout editor.",
       "version": "1.0.0",
       "kind": "guest",
       "setup": [
@@ -316,7 +316,8 @@
       "requires": [],
       "port_versions": {
         "minimum": "0.5.0"
-      }
+      },
+      "experimental": true
     }
   ]
 }

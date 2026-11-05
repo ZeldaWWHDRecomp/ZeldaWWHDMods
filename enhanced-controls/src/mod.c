@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: MPL-2.0 */
 #include "wwhd_guest.h"
 #include "wwhd/functions.h"
+#include "wwhd/link.h"
+#include "wwhd/data.h"
 #include "core.h"
 #include "editor.h"
 
@@ -8,7 +10,7 @@
 WWHD_GAME_FUNC(0x023E6380, s32, spin_attack, (void*, s32));
 WWHD_GAME_FUNC(0x023D794C, s32, equipping, (void*));
 WWHD_GAME_FUNC(0x02443728, s32, guarding, (void*));
-#define PLAY ((u8*)&WWHD_GAME_DATA(0x1046F0B0,u8))
+#define PLAY (wwhd_play_get())
 #define U16(p,o) (*(volatile u16*)((u8*)(p)+(o)))
 #define U32(p,o) (*(volatile u32*)((u8*)(p)+(o)))
 
@@ -18,7 +20,7 @@ static EcRect rects[6], claimed[6];
 static EcEditor editor;
 static EcLayoutFile layout_file[2]; /* host services require mod-owned buffers */
 static const char* const layout_names[]={"macro-layout-a.bin","macro-layout-b.bin"};
-static int editor_visible=1, release_input;
+static int editor_visible=1, touch_enabled, release_input;
 static void load_layout(void) {
     editor.saved=ee_defaults(); editor.sequence=0; editor.available=15; ee_close(&editor);
     for(int i=0;i<2;++i) {
@@ -68,17 +70,18 @@ static int is_menu(void) {
 }
 static int playable(void) {
     u8* p=PLAY;
-    u32 link=U32(p,0x5B2C);
+    if (!p) return 0;
+    u32 link=U32(p,WWHD_PLAY_PLAYER_OFFSET);
     if (!object(link,0x8284) || !U32(link,0) || !U32(link,4) || U32(link,4)==0xffffffff) return 0;
-    if (!p[0x5134] || (p[0x5134]=='s' && p[0x5135]=='e' && p[0x5136]=='a' && p[0x5137]=='_' && p[0x5138]=='T') ||
-        (p[0x5134]=='N' && p[0x5135]=='a' && p[0x5136]=='m' && p[0x5137]=='e')) return 0;
-    if (p[0x514C] || p[0x5292] || p[0x5BB2] || p[0x5BB3] || WWHD_GAME_DATA(0x101F36CC,u32) || is_menu()) return 0;
-    u32 save=WWHD_GAME_DATA(0x101F84DC,u32);
+    if (!p[WWHD_PLAY_START_STAGE_NAME_OFFSET] || (p[WWHD_PLAY_START_STAGE_NAME_OFFSET]=='s' && p[WWHD_PLAY_START_STAGE_NAME_OFFSET+1]=='e' && p[WWHD_PLAY_START_STAGE_NAME_OFFSET+2]=='a' && p[WWHD_PLAY_START_STAGE_NAME_OFFSET+3]=='_' && p[WWHD_PLAY_START_STAGE_NAME_OFFSET+4]=='T') ||
+        (p[WWHD_PLAY_START_STAGE_NAME_OFFSET]=='N' && p[WWHD_PLAY_START_STAGE_NAME_OFFSET+1]=='a' && p[WWHD_PLAY_START_STAGE_NAME_OFFSET+2]=='m' && p[WWHD_PLAY_START_STAGE_NAME_OFFSET+3]=='e')) return 0;
+    if (p[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET] || p[WWHD_PLAY_EVENT_RUNNING_OFFSET] || p[0x5BB2] || p[0x5BB3] || WWHD_GAME_DATA(0x101F36CC,u32) || is_menu()) return 0;
+    u32 save=WWHD_GAME_DATA(WWHD_ADDR_dComIfG_save_info_pointer,u32);
     if (!object(save,0x24) || !U16(save,0x22)) return 0;
     /* Stop during first-person aiming, climbing, swimming, sailing and conducting. */
     const u32 special0=0x100|0x1000|0x2000|0x4000|0x10000|0x20000|0x80000|0x100000|0x200000|0x400000|0x800000|0x2000000|0x4000000|0x8000000;
     if (U32(p,0x5CD8)&special0 || U32(p,0x5CDC)&(1|8|0x20|0x400)) return 0;
-    if (U32(link,0x6A70)&(0x20|0x200|0x800|0x2000|0x10000|0x40000|0x100000|0x200000|0x400000|0x800000|0x1000000|0x20000000)) return 0;
+    if (((daPy_lk_c*)link)->mModeFlg&(0x20|0x200|0x800|0x2000|0x10000|0x40000|0x100000|0x200000|0x400000|0x800000|0x1000000|0x20000000)) return 0;
     return 1;
 }
 static void clear_claims(void) {
@@ -115,13 +118,15 @@ static void refresh(void) {
             else ee_close(&editor);
         } else ec_tick(&state,wwhd_logic_dt());
         last_step=step; hud_epoch=epoch;
+        touch_enabled=wwhd_config_bool("touch-enabled",0);
+        if (!touch_enabled) release_input=0;
         editor_visible=wwhd_config_bool("editor-visible",1);
         if(!editor_visible && editor.open) ee_close(&editor);
         rects[4]=(EcRect){number("editor-x",0,-570,570),number("editor-y",260,-320,320),96,48};
         rects[5]=(EcRect){0,0,1280,720};
     }
-    int next=playable();
-    u32 id=next ? U32(U32(PLAY,0x5B2C),4) : 0;
+    int next=touch_enabled && playable();
+    u32 id=next ? U32(U32(PLAY,WWHD_PLAY_PLAYER_OFFSET),4) : 0;
     if (!next || id!=player_id) { ec_cancel(&state); ee_close(&editor); }
     editor.available=15; /* four local macro buttons only */
     mask=0;
@@ -152,7 +157,7 @@ static void touch(const wwhd_touch_event* event) {
             if(hit>=0 && hit<4) {
                 wwhd_input_read(&sampled);
                 /* Attack macros need a drawn sword; dodge works without it. */
-                if(hit==EC_DODGE || U16(U32(PLAY,0x5B2C),0x69B0)==0x103) {
+                if(hit==EC_DODGE || ((daPy_lk_c*)U32(PLAY,WWHD_PLAY_PLAYER_OFFSET))->mEquipItem==0x103) {
                     if(hit!=EC_SPIN || state.macro!=EC_SPIN || !ec_active(&state))
                         ec_start(&state,hit,sampled.lx);
                 }
@@ -174,11 +179,10 @@ static void filter(wwhd_input_state* pad) {
     pad->buttons |= ec_buttons(&state);
     ec_stick(&state,&pad->lx,&pad->ly);
 }
-/* Package-owned images: four 1024x1024 RGBA icons fit the SDK's 16 MiB
- * per-mod pixel limit. Retry missing images only after a HUD epoch change. */
+/* Only the original boot uses a package image (256x256 RGBA, 256 KiB).
+ * The three generic sword symbols are drawn by combat_icons.h. */
 static const char* const icon_paths[] = {
-    "assets/combat_jump_attack.png", "assets/combat_vertical_slash.png",
-    "assets/combat_spin_attack.png", "assets/combat_dodge.png"
+    0, 0, 0, "assets/combat_dodge.png"
 };
 static u32 icons[4];
 static unsigned icon_attempts;
@@ -191,7 +195,7 @@ static void sync_icons(void) {
     }
     for(int i=0;i<4;++i) {
         EcPlacement p=(editor.open?editor.draft:editor.saved).button[i];
-        int needed=p.icons && (p.visible || editor.open);
+        int needed=touch_enabled && i==EC_DODGE && p.icons && (p.visible || editor.open);
         if(!needed) { if(icons[i]) wwhd_hud_release(icons[i]); icons[i]=0; icon_attempts&=~(1u<<i); }
         else if(!(icon_attempts&(1u<<i))) {
             icons[i]=wwhd_hud_texture(WWHD_HUD_PACKAGE,icon_paths[i]); icon_attempts|=1u<<i;
@@ -199,10 +203,14 @@ static void sync_icons(void) {
     }
 }
 #include "editor_view.h"
+#include "combat_icons.h"
 static void editor_button(u32 list,int i) {
     if(i>=4) return; /* rendered by its owning mod */
-    ee_draw_button(list,(editor.open?editor.draft:editor.saved).button[i],names[i],icons[i],
+    EcPlacement p=(editor.open?editor.draft:editor.saved).button[i];
+    int vector=p.icons && i<EC_DODGE;
+    ee_draw_button(list,p,vector?"":names[i],icons[i],
         editor.open,editor.selected==i,state.macro==i);
+    if(vector) ec_combat_icon(list,p,i,editor.open,state.macro==i);
 }
 static void hud(u32 list) {
     refresh(); if(!ready) return;
@@ -215,10 +223,10 @@ static void hud(u32 list) {
  * WAIT_TURN and MOVE_TURN. Never interrupt damage, jumps, rolls, another attack,
  * item use or scripted actions. Recheck at consumption, not in the pad callback.
  * procCutTurn_init(link, 1) is the native quick-spin path in checkNextAction. */
-static int can_spin(void* link) {
-    u32 proc=U32(link,0x65F0);
+static int can_spin(daPy_lk_c* link) {
+    u32 proc=link->mCurProc;
     if(proc!=4 && proc!=6 && proc!=7 && proc!=8 && proc!=9 && proc!=0x17 && proc!=0x18) return 0;
-    if(U16(link,0x69B0)!=0x103 || U32(link,0x8260) ||
+    if(link->mEquipItem!=0x103 || U32(link->m8260,0) ||
        U32(link,0x65A4) || U32(link,0x6594) || (U32(link,0x3B8)&0x20) ||
        WWHD_GAME_DATA(0x101CEF16,u16)==1) return 0;
     return !equipping(link) && !guarding(link);
@@ -228,13 +236,13 @@ WWHD_HOOK(WWHD_ADDR_daPy_Execute,enhanced_register,(void* link)) {
         ec_init(&state); load_layout(); last_step=~0ull;
         wwhd_touch_register(touch); wwhd_input_filter_register(filter);
         wwhd_hud_register(hud,WWHD_HUD_TV); registered=1;
-        wwhd_log("Enhanced Controls: guest mod ready");
+        wwhd_log("Enhanced Controls: experimental guest mod ready");
     }
     refresh();
     /* Execute once on Link's game update, never from a touch/HUD/input callback.
      * A refused request is discarded instead of firing later after recovery. */
     if(ec_take_spin(&state)) {
-        if(editor.open || !ready || (u32)link!=U32(PLAY,0x5B2C) || !can_spin(link) || !spin_attack(link,1))
+        if(editor.open || !ready || (u32)link!=U32(PLAY,WWHD_PLAY_PLAYER_OFFSET) || !can_spin(link) || !spin_attack(link,1))
             state.macro=EC_NONE;
     }
 }

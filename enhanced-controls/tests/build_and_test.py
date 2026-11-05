@@ -57,10 +57,12 @@ def build(out, clang, lld):
              'src/mod.c': HERE/'mod.c', 'src/core.h': HERE/'core.h',
              'src/editor.h': HERE/'editor.h',
              'assets/NOTICE.md': MOD/'assets/NOTICE.md'}
-    for header in ("editor_geometry.h","editor_view.h"):
+    for header in ("editor_geometry.h","editor_view.h","combat_icons.h"):
         files[f"src/{header}"]=HERE/header
-    for name in ('combat_jump_attack','combat_vertical_slash','combat_spin_attack','combat_dodge'):
+    for name in ('combat_dodge',):
         files[f'assets/{name}.png']=MOD/'assets'/f'{name}.png'
+        import struct
+        assert struct.unpack_from('>II',files[f'assets/{name}.png'].read_bytes(),16)==(256,256)
     with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as z:
         for name, path in sorted(files.items()):
             info = zipfile.ZipInfo(name, (2026,1,1,0,0,0))
