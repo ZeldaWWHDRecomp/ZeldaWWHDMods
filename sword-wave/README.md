@@ -20,6 +20,6 @@ code-mod setup if requested. Requires mod manager 1.6.0 or later; supports USA/E
 - Pauses with gameplay; clears on death, cutscenes, stage/room changes, save
   loading or disabling the option.
 
-Version **1.0.0**. Final visual and savestate acceptance checks in the game are
+Version **1.0.0**.
 
 Enable **Show experimental mods** in the mod manager to find this mod.
