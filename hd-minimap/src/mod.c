@@ -189,11 +189,6 @@ static const hdm_stair* floor_stairs(int dungeon, int floor, int* count) {
             if (!wwhd_game_pane_get(key, &pane)) continue;
             hdm_stair* st = &stair_cache[0].items[stair_cache[0].count++];
             st->x = pane.x; st->y = pane.y; st->rotation = pane.rotation; st->up = up;
-            if (opt.debug) {
-                /* TEMP diagnostics: each floor-change marker read, once per floor */
-                wwhd_log(key); wwhd_log_float("stair.x", pane.x); wwhd_log_float("stair.y", pane.y);
-                wwhd_log_float("stair.rotation", pane.rotation); wwhd_log_hex("stair.flags", pane.flags);
-            }
         }
     *count = stair_cache[0].count;
     return stair_cache[0].items;
@@ -1314,12 +1309,6 @@ static void capture(fopAc_ac_c* actor) {
      * readable HUD it falls back to Link's aiming, first-person and telescope flags. Aiming still blocks
      * the map's buttons. */
     int aiming = (status0 & STTS0_HIDE) != 0, hearts = hud_hearts();
-    if (opt.debug) {
-        /* TEMP diagnostics: the HUD hearts and Link's flags, on change */
-        static u32 last = ~0u;
-        u32 now = (u32)(hearts + 1) | (status0 & STTS0_HIDE) << 2;
-        if (now != last) { last = now; wwhd_log_int("hide.hearts", hearts); wwhd_log_hex("hide.status0", status0); }
-    }
     if (busy || (status1 & STTS1_CONDUCT) || hdm_hud_hides_map(hearts, aiming)) {
         handle_input(HDM_ALL_BUTTONS, 0);
         return;
