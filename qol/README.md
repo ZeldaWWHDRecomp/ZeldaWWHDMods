@@ -68,5 +68,13 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 
 ## Faster block pushing
 
-Choose 1.5x or 2x to push and pull blocks faster while Link follows their movement.
-This experimental option defaults to Off; Dragon Roost and Tower of the Gods puzzles at 30/60 fps still need gameplay testing.
+Choose 1.5x or 2x to push and pull blocks faster while Link follows their movement: one push or pull of a crate
+takes about 14 steps of the game's logic at 1.5x and 10 at 2x instead of 20, and Link's pushing and pulling
+animation plays 1.5 or 2 times as fast to match. The block still checks its own collision and stops exactly on
+its square.
+
+Tested with the crates in the Tower of the Gods (pushing and pulling, at 30 fps and with 60 fps frame
+interpolation): faster with both settings, every move ends on the grid, and Link stays at the crate.
+Still experimental (default Off): block puzzles that end on a switch (Dragon Roost Cavern, Earth Temple and
+others), the heavy blocks you move with the Power Bracelets, and blocks moved during cutscenes have not been
+tried yet.
