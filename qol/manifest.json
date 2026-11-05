@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
@@ -150,6 +150,56 @@
       "live": true,
       "section": "Combat",
       "description": "Shorten or remove the short pause when Link's sword hits an enemy. Half shortens it (the shortest pauses stay as they are); Off removes it. Damage, parries and spin attacks work as before, and menus and cutscenes still pause as usual."
+    },
+    {
+      "id": "hit_freeze_hits",
+      "type": "bool",
+      "name": "Hit freeze: hits (experimental)",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the pause of an ordinary sword hit."
+    },
+    {
+      "id": "hit_freeze_strong",
+      "type": "bool",
+      "name": "Hit freeze: strong hits (experimental)",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the longer pause of a strong hit an enemy survives: knocked down, a Darknut's armour, a Stalfos' head."
+    },
+    {
+      "id": "hit_freeze_defeats",
+      "type": "bool",
+      "name": "Hit freeze: defeats (experimental)",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the pause of the hit that defeats an enemy."
+    },
+    {
+      "id": "hit_freeze_bosses",
+      "type": "bool",
+      "name": "Hit freeze: bosses (experimental)",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the pauses in boss fights: the sword hits on a boss and the pauses the boss asks for itself."
+    },
+    {
+      "id": "hit_freeze_signs",
+      "type": "bool",
+      "name": "Hit freeze: signs (experimental)",
+      "default": false,
+      "menu": true,
+      "live": true,
+      "section": "Combat",
+      "description": "Enemy hit freeze changes the short pause when Link cuts a signpost."
     }
   ],
   "setup": [
