@@ -4,7 +4,7 @@
 No game, normal saves, full states, screenshots or fixture bytes are distributed.
 --write-plan creates the coverage checklist and deliberately unready route template.
 --validate-only checks a private route without starting a game. Run one case per
-USA/EU x Metal/Vulkan x 30/interp60/true60 combination. The harness starts one owned
+USA/EU x Metal/Vulkan x 30/interp60 combination. The harness starts one owned
 process and terminates only that process. It never builds the host runtime;
 the runtime may compile its installed guest package through the normal mod flow. A full state can only be
 created and loaded within this run, with the current binary and mod package.
@@ -38,7 +38,7 @@ COVERAGE = {
     'full-state': 'Create current-base full states during dialogue, song, pickup and flight; restore them in this same run and verify mod state/actors/callbacks/input ownership recover.',
     'failure-recovery': 'Explicit private instrumented fixture only: native request failure/timeout, competing PTMF, actor deletion, stage/event interruption. Never normal-flow proof.',
 }
-MODES = ('30', 'interp60', 'true60')
+MODES = ('30', 'interp60')
 
 
 def sha256(path):
@@ -211,10 +211,7 @@ def inspect_outputs(directory, route, mode, enabled=True):
             if len(columns) == 18:
                 rows.append({'step': int(columns[1]), 'full': int(columns[3]), 'dt': float(columns[4]), 'proc': int(columns[5]), 'position': list(map(float, columns[6:9]))})
     checks['link_trace'] = bool(rows)
-    if mode == 'true60':
-        checks['true60_half_passes'] = any(row['full'] == 0 for row in rows)
-    else:
-        checks['no_true60_half_passes'] = not any(row['full'] == 0 for row in rows)
+    checks['full_logic_steps'] = not any(row['full'] == 0 for row in rows)
     for proc in route['expect'].get('link_procs', []):
         checks['link_proc:' + str(proc)] = any(row['proc'] == proc for row in rows)
     for _, slot in route.get('full_save', []):
@@ -225,7 +222,7 @@ def inspect_outputs(directory, route, mode, enabled=True):
     if mode == 'interp60':
         checks['interpolation_enabled'] = '[interp] frame interpolation on (60 fps)' in log
         checks['interpolation_two_frames'] = bool(re.search(r'\[interp\].*\(60 fps, 2\.00 frames per step\)', log))
-    return checks, actual_progress, {'rows': len(rows), 'half_passes': sum(row['full'] == 0 for row in rows), 'observed_procs': sorted({row['proc'] for row in rows})}
+    return checks, actual_progress, {'rows': len(rows), 'observed_procs': sorted({row['proc'] for row in rows})}
 
 
 def continue_progress(source, destination, identity):
@@ -344,7 +341,7 @@ def main():
         WWHD_TEST_STICK=timed_input(route.get('stick', []), 'stick'), WWHD_TEST_RSTICK=timed_input(route.get('rstick', []), 'stick'),
         WWHD_DUMP_FRAMES=','.join(map(str, capture_frames(route, args.mode))), WWHD_DUMP_PRESENT='1', WWHD_SIM_SCREEN='1280x720',
         WWHD_LINK_TRACE='link.txt', WWHD_CAM_TRACE='camera.txt', WWHD_SE_TRACE='sounds.txt', WWHD_PROC_DIGEST='digest.txt', WWHD_SAVEINFO_DUMP='saveinfo.bin',
-        WWHD_TRUE60='1' if args.mode == 'true60' else '0', WWHD_INTERP='0', WWHD_INTERP_FPS='60', WWHD_INTERP_PACED='0', XDG_CONFIG_HOME=str(args.out / 'config'))
+        WWHD_INTERP='0', WWHD_INTERP_FPS='60', WWHD_INTERP_PACED='0', XDG_CONFIG_HOME=str(args.out / 'config'))
     if args.mode == 'interp60':
         env['WWHD_INTERP_AT_STEP'] = str(route['origin_frame'] - 190)
         env['WWHD_DISPLAY_HZ'] = '60'
