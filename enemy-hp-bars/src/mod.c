@@ -68,11 +68,9 @@ static void prepare(void) {
     for(int i=0;i<8;++i) stage[i]=name[i];
     room=link->current.roomNo; link_id=key(link).id;
     player=(EhpVec){link->current.pos.x,link->current.pos.y,link->current.pos.z};
-    /* Hyrule Survivors 0.2.x uses synthetic HP and a native health sentinel.
-     * Its isolated labyrinth stage is not a source of real native HP. */
     int allowed=(bars || numbers) && vector_ok(player) &&
         !play[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET] && !play[WWHD_PLAY_EVENT_RUNNING_OFFSET] &&
-        !play[0x5BB2] && !play[0x5BB3] && !equal8(stage,"Znpfl81");
+        !play[0x5BB2] && !play[0x5BB3];
     if (reset || !allowed || !active) ehp_clear(&state);
     active=allowed;
     if (active) ehp_tick(&state,(float)wwhd_logic_dt());

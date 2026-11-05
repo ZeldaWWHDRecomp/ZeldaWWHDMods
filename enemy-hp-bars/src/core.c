@@ -38,7 +38,6 @@ void ehp_observe(EhpState *s, EhpKey key, EhpVec position, int hp, int maximum, 
         if (!e->used && !free_slot) free_slot=e;
     }
     if (hp < 0) hp=0;
-    if (hp > 127 || maximum > 127) return;
     if (!found) {
         if (!free_slot || !hp) return;
         found=free_slot;

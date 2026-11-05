@@ -183,7 +183,7 @@ int main(int argc,char **argv) {
     st8(PLAY+0x5292,1); frame(); draw(); assert(!emissions); /* event */
     st8(PLAY+0x5292,0); st8(PLAY+0x514C,1); frame(); draw(); assert(!emissions); /* transition */
     setup(); execute(6); st8(LINK+0x326,1); frame(); draw(); assert(!emissions); /* room */
-    setup(); memcpy(ppc_ptr(PLAY+0x5134),"Znpfl81",8); frame(); execute(6); draw(); assert(!emissions);
+    setup(); memcpy(ppc_ptr(PLAY+0x5134),"Znpfl81",8); frame(); execute(6); draw(); assert(emissions);
     setup(); st16(ENEMY+0xE,0xE3); st32(ENEMY+0xB0,6);
     hook(GAME_OCTOROK,2,ENEMY); hook(GAME_OCTOROK,3,ENEMY); draw(); assert(!emissions); /* rock */
     setup(); stf32(ENEMY+0x314,5000); execute(6); draw(); assert(!emissions); /* distance */
