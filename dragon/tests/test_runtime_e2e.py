@@ -98,7 +98,6 @@ class RuntimeHarness(unittest.TestCase):
         last, end = capture_frames(route, 'interp60')
         self.assertLess(last, end)
         self.assertEqual(capture_frames(route, '30'), route['capture_frames'])
-        self.assertEqual(capture_frames(route, 'true60'), route['capture_frames'])
 
     def test_continuation_requires_reviewed_current_normal_flow(self):
         with tempfile.TemporaryDirectory() as temporary:

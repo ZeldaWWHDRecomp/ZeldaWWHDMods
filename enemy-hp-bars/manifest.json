@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "id": "enemy-hp-bars",
+  "name": "Enemy HP Bars",
+  "version": "1.0.0",
+  "author": "BeZide93",
+  "description": "Floating enemy health bars and fading damage numbers for supported native enemies. Live size, distance and visibility settings. Bosses and Stalfos split health are not supported in this version.",
+  "game_id": "wwhd",
+  "minimum_manager_version": "1.6.0",
+  "kind": "guest",
+  "guest": {
+    "api_version": 1,
+    "elf": "mod.elf",
+    "heap_size": 65536
+  },
+  "options": [
+    {
+      "id": "enabled",
+      "type": "bool",
+      "name": "Enable Enemy HP Bars",
+      "default": true,
+      "live": true,
+      "menu": true,
+      "section": "Enemy HP Bars"
+    },
+    {
+      "id": "hp_bars",
+      "type": "bool",
+      "name": "Show HP bars",
+      "default": true,
+      "live": true,
+      "menu": true,
+      "section": "Enemy HP Bars"
+    },
+    {
+      "id": "damage_numbers",
+      "type": "bool",
+      "name": "Show damage numbers",
+      "default": true,
+      "live": true,
+      "menu": true,
+      "section": "Enemy HP Bars"
+    },
+    {
+      "id": "display_mode",
+      "type": "enum",
+      "name": "HP bar visibility",
+      "choices": [
+        "Always",
+        "After damage"
+      ],
+      "default": "Always",
+      "live": true,
+      "menu": true,
+      "section": "Enemy HP Bars",
+      "description": "After damage shows a bar for four seconds after the enemy loses HP."
+    },
+    {
+      "id": "show_values",
+      "type": "bool",
+      "name": "Show current / maximum HP",
+      "default": false,
+      "live": true,
+      "menu": true,
+      "section": "Enemy HP Bars"
+    },
+    {
+      "id": "scale",
+      "type": "number",
+      "name": "Display size (%)",
+      "default": 100,
+      "min": 50,
+      "max": 200,
+      "step": 10,
+      "live": true,
+      "menu": true,
+      "section": "Enemy HP Bars"
+    },
+    {
+      "id": "distance",
+      "type": "number",
+      "name": "Maximum distance (game units)",
+      "default": 2000,
+      "min": 300,
+      "max": 6000,
+      "step": 100,
+      "live": true,
+      "menu": true,
+      "section": "Enemy HP Bars"
+    }
+  ],
+  "setup": [
+    {
+      "id": "build",
+      "type": "build_guest_mod",
+      "title": "Build Enemy HP Bars for this installation"
+    }
+  ],
+  "experimental": true
+}

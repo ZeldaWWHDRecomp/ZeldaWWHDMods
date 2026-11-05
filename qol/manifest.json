@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
@@ -134,7 +134,7 @@
       "menu": true,
       "live": true,
       "section": "Movement",
-      "description": "Experimental: push and pull blocks faster while Link follows their native movement. Collision checks and final grid positions remain native. Not yet verified in Dragon Roost or Tower of the Gods puzzles at 30/60 fps."
+      "description": "Experimental: push and pull blocks faster; Link's animation keeps pace and the block still stops exactly on its square. Tested with the Tower of the Gods crates at 30 and 60 fps; block puzzles with switches, heavy blocks and cutscene pushes not yet tried."
     },
     {
       "id": "enemy_hit_freeze",

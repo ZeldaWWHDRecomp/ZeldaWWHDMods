@@ -1,0 +1,68 @@
+{
+  "format_version": 1,
+  "id": "enhanced-controls",
+  "name": "Enhanced Controls",
+  "version": "1.0.0",
+  "game_id": "wwhd",
+  "minimum_manager_version": "1.6.0",
+  "kind": "guest",
+  "author": "BeZide93",
+  "description": "Four optional combat buttons with their own touch layout editor.",
+  "guest": {
+    "api_version": 1,
+    "elf": "mod.elf",
+    "heap_size": 262144
+  },
+  "options": [
+    {
+      "id": "touch-enabled",
+      "name": "Enable touch controls",
+      "type": "bool",
+      "default": false,
+      "live": true,
+      "menu": true,
+      "section": "Macro editor"
+    },
+    {
+      "id": "editor-visible",
+      "name": "Show editor button",
+      "type": "bool",
+      "default": true,
+      "live": true,
+      "menu": true,
+      "section": "Macro editor"
+    },
+    {
+      "id": "editor-x",
+      "name": "Editor button horizontal position",
+      "type": "number",
+      "default": 0,
+      "min": -570,
+      "max": 570,
+      "step": 10,
+      "live": true,
+      "menu": true,
+      "section": "Macro editor"
+    },
+    {
+      "id": "editor-y",
+      "name": "Editor button vertical position",
+      "type": "number",
+      "default": 260,
+      "min": -320,
+      "max": 320,
+      "step": 10,
+      "live": true,
+      "menu": true,
+      "section": "Macro editor"
+    }
+  ],
+  "setup": [
+    {
+      "id": "build",
+      "type": "build_guest_mod",
+      "title": "Build Enhanced Controls for this installation"
+    }
+  ],
+  "experimental": true
+}
