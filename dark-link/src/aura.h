@@ -67,13 +67,13 @@ static void dl_aura_restore(void) {
     }
     dl_aura_blend_count=0;
 }
-static void dl_aura_blend(daPy_lk_c* link) {
+static void dl_aura_blend(daPy_lk_c* link, u32 index) {
     dl_aura_restore();
     u32 model=dl_word(link,0x5700);
     if (!dl_game_span(model,0xb0)) return;
     u32 count=*(u16*)(model+0x2a), materials=dl_word((void*)model,0x34);
-    if (!count || count>16 || !dl_game_span(materials,count*0x3c)) return;
-    for (u32 i=0;i<count;++i) {
+    if (!count || count>16 || index>=count || !dl_game_span(materials,count*0x3c)) return;
+    for (u32 i=index;i<index+1;++i) {
         u32 material=materials+i*0x3c, res=*(u32*)material;
         if (!dl_game_span(res,0x24) || *(u32*)res!=0x464d4154) continue;
         u32 state=dl_relative(res+0x20);

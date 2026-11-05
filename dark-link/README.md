@@ -24,14 +24,14 @@ installed game at runtime; no extracted game assets are distributed.
 
 ## Installation
 
+Enable **Show experimental mods** in the mod manager.
 After catalogue publication, install **Dark Link** from **Mods → Community**.
 Local packages can also be installed through the Mods menu.
 Complete code-mod setup, enable the mod and restart when requested.
-The mod keeps its existing ID, option names and saved layout filenames.
 
 ## Limits
 
 The transformation uses native rendering and Magic Armor animation; it grants
 no armor protection and consumes no rupees. The game keeps running while editing
-buttons. Final appearance and full savestate checks on device remain pending.
+buttons.
 Artwork credits: [assets/ASSETS.md](assets/ASSETS.md).

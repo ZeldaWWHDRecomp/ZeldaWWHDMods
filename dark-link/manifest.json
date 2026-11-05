@@ -153,5 +153,6 @@
       "type": "build_guest_mod",
       "title": "Build Dark Link for this installation"
     }
-  ]
+  ],
+  "experimental": true
 }

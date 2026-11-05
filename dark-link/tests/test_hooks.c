@@ -13,7 +13,7 @@ enum { PLAY=0x11000000, LINK=0x11010000, SAVE=0x11020000, ENEMY=0x11030000,
        INSTANCES=0x110f0000, MATERIAL_COUNT=8 };
 static const WWHDGuestModuleV1* module;
 static uint32_t filter, hud, touch, step=1, revision=1;
-static int diagnostics=1,show_gauge=1;
+static int diagnostics=1,show_gauge=1, player_lookups;
 static double test_dt=1.0/30;
 static char hud_text[8192];
 static FILE* hud_trace;
@@ -127,7 +127,7 @@ static void dispatch(Cpu* c) {
         case 0x027df40c: ++aura_notifications; return;
         case 0x02000008: c->r[3]=30; return; /* BRK resource getFrameMax */
         case 0x02000004: return; /* synthetic frame interpolation: identity in f1 */
-        case 0x025200d4: c->r[3]=PLAY; return;
+        case 0x025200d4: ++player_lookups; c->r[3]=PLAY; return;
         case 0x025986bc: c->r[3]=menu; return;
         case 0x025af2a4: c->r[3]=paused; return;
         case 0x027f9f0c:
@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
     st8(SAVE+0x33,0);show_gauge=1;++revision;tick();buttons(0);
 
     buttons(0); assert(claim_active);
-    elements=0; read_hud(); assert(elements>=5); expect_hud("Skip=NO_REFRESH");
+    elements=0; read_hud(); assert(elements>=5); expect_hud("Skip=NO_DRAW");
     for (int i=0; i<20; ++i) hit(0);
     buttons(0x60000); tick(); assert(damage(3)==3); /* blocked hits give no charge */
     buttons(0);

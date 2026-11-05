@@ -1,8 +1,8 @@
 # Original artwork
 
-These existing, project-owner-approved icons were created for BeZide93 with OpenAI image generation. They are fan-made illustrations, not extracted game textures.
+This icon was created for BeZide93 with OpenAI image generation. It is a fan-made illustration, not extracted game textures.
 
-| File | Creator / project owner | Distribution licence |
+| File | Creator / author | Distribution licence |
 | --- | --- | --- |
 | `dark_link.png` | BeZide93 (AI-assisted artwork) | MPL-2.0; see `../LICENSE` |
 

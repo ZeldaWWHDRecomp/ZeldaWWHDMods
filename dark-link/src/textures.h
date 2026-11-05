@@ -1,10 +1,9 @@
-/* Per-instance albedo views, applied AFTER native texture animation/refresh.
- * Evidence: story_prop_textures.cpp / story_props.cpp (NNS material bindings,
- * native 027F50F8), d_a_obj_ftree.cpp (J3D -> NNS material index), export_glb.py
+/* Immutable albedo views, applied only during the selected shape draw.
+ * Evidence: story_prop_textures.cpp / story_props.cpp (NNS material bindings),
+ * d_a_obj_ftree.cpp (J3D -> NNS material index), export_glb.py
  * (_a0 albedo sampler), and Cemu GX2_Texture / LatteReg (RGB component selectors).
  * No image data is copied or changed. Published descriptors are immutable. */
 #pragma once
-#define DL_TEXTURE_REFRESH 0x027F50F8
 #define DL_TEXTURE_BYTES 0xa0u
 #define DL_TEXTURE_CACHE 512u
 #define DL_TEXTURE_BINDINGS (DL_MAX_MATERIALS * DL_MODEL_PARTS)
@@ -43,11 +42,6 @@ static int dl_binding_material_live(const DLTextureBinding* b) {
     if (b->index >= count || count > DL_MAX_MATERIALS ||
         !dl_game_span(b->materials, count * 0x3c)) return 0;
     return dl_word((void*)(b->materials + b->index * 0x3c), 0) == b->resource;
-}
-static int dl_binding_live(const DLTextureBinding* b) {
-    return dl_binding_material_live(b) &&
-        dl_word((void*)(b->materials + b->index * 0x3c), 0x2c) == b->refs &&
-        dl_game_span(b->slot, 4);
 }
 /* Attenuate the final shader RGB, including contributions that bypass TEV.
  * RenderPipelineState::bind (027E220C) binds the FMAT blend constant too.
@@ -89,8 +83,9 @@ static void dl_texture_restore_model(u32 model) {
         DLTextureBinding* b = &dl_bindings[i];
         if (model && b->model != model) { ++i; continue; }
         /* Native animation or another mod may already have changed this slot.
-         * Restore only a still-live binding that contains OUR exact view. */
-        if (dl_binding_live(b) && *(u32*)b->slot == b->view) *(u32*)b->slot = b->original;
+         * A replaced model/material array must not strand a pointer to mod memory.
+         * Restore any addressable slot that still contains OUR exact view. */
+        if (dl_game_span(b->slot,4) && *(u32*)b->slot == b->view) *(u32*)b->slot = b->original;
         /* Replaced texture-reference storage does not invalidate the still-live
          * FMAT state: restore it even when the old texture slots are stale. */
         if (dl_binding_material_live(b)) dl_body_restore(b);
@@ -121,7 +116,7 @@ static u32 dl_texture_view(u32 texture, u32 surface) {
     /* Neutral albedo lets the body's nonzero ambient/diffuse palette and
      * native toon lighting reach the shader. A zero sample would multiply
      * those colours back to black. Eyes stay red; the aura keeps its old
-     * black view. Include this distinction in cache AND late-rebind state. */
+     * black view. Include this distinction in the immutable view cache. */
     u32 r = surface == DL_SURFACE_BODY || surface == DL_SURFACE_EYE ? 5u : 4u;
     u32 gb = surface == DL_SURFACE_BODY ? 5u : 4u;
     cached->view[0x88 / 4] = (source[0x88 / 4] & 0xffu) | (r << 24) | (gb << 16) | (gb << 8);
@@ -172,18 +167,16 @@ static void dl_probe_samplers(u32 resource, char out[48]) {
     if (count > 3) out[n++] = '+';
     out[n] = 0;
 }
-static void dl_texture_apply(void* model) {
-    if (!dl_enabled || !dl_state.active || !dl_texture_model((u32)model)) return;
+/* Called only for an owner-validated model; native_index is this shape's binding. */
+static void dl_texture_apply(void* model, u32 native_index) {
     int body = (u32)model == dl_owner->mpCLModel;
     int probe = dl_diagnostics && body;
     int part = dl_model_part(dl_owner, (u32)model);
-    if (dl_diagnostics) dl_probe_increment(&dl_probe.refresh[part < 3 ? part : 3]);
+    if (dl_diagnostics) dl_probe_increment(&dl_probe.shapes[part < 3 ? part : 3]);
     if (probe) {
         dl_probe.materials = dl_probe.native_materials = dl_probe.albedo = dl_probe.views = dl_probe.eyes = dl_probe.eye_materials = 0;
-        dl_probe.reason = DL_PROBE_OK; dl_probe.skipped = dl_probe.kept = dl_probe.lost = dl_probe.rebound = 0;
+        dl_probe.reason = DL_PROBE_OK; dl_probe.skipped = 0;
         dl_probe.body_samplers[0] = dl_probe.eye_samplers[0] = 0;
-        dl_probe.late_calls = dl_probe.late_changed = dl_probe.late_stale = dl_probe.late_rejected = 0;
-        dl_probe.late_pointer = dl_probe.late_word = 0;
     }
     if (dl_word(dl_owner, 0x3bc) & 0x800) { if (probe) dl_probe_skip(DL_PROBE_FROZEN); return; }
     u8* data = (u8*)dl_word(model, 0xac);
@@ -191,7 +184,7 @@ static void dl_texture_apply(void* model) {
     u32 count = dl_word(data, 0xc), materials = dl_word(data, 0x10);
     u32 native_count = *(u16*)((u8*)model + 0x2a), native_materials = dl_word(model, 0x34);
     if (probe) { dl_probe.materials = count; dl_probe.native_materials = native_count; }
-    if (!count || count > DL_MAX_MATERIALS || !native_count || native_count > DL_MAX_MATERIALS ||
+    if (!count || count > DL_MAX_MATERIALS || !native_count || native_count > DL_MAX_MATERIALS || native_index>=native_count ||
         !dl_game_span(materials, count * 0x39c) || !dl_game_span(native_materials, native_count * 0x3c)) {
         if (probe) dl_probe_skip(DL_PROBE_MATERIALS);
         return;
@@ -203,6 +196,7 @@ static void dl_texture_apply(void* model) {
         if (dl_binding_count == DL_TEXTURE_BINDINGS) { if (probe) dl_probe_skip(DL_PROBE_CAPACITY); break; }
         u8* material = (u8*)(materials + i * 0x39c);
         u32 resource = dl_word(material, 0);
+        if (!dl_game_span(resource,0x10) || *(u16*)(resource+0xc)!=native_index) continue;
         int eye = 0;
         if (body) {
             for (u32 e = 0; e < DL_EYE_COUNT; ++e) if ((s32)i == eyes[e]) eye = 1;
@@ -243,27 +237,16 @@ static void dl_texture_apply(void* model) {
         if (probe) { ++dl_probe.views; dl_probe.eyes += (u32)eye; }
     }
 }
-/* A retained binding is evidence about CPU submission only, not shader output. */
-static void dl_diag_submission(void* model) {
-    if (!dl_state.active || !dl_enabled || !dl_texture_model((u32)model) || (u32)model != dl_owner->mpCLModel) return;
-    dl_probe.kept = dl_probe.lost = 0;
-    for (u32 i = 0; i < dl_binding_count; ++i) {
-        const DLTextureBinding* b = &dl_bindings[i];
-        if (b->model != (u32)model) continue;
-        if (dl_binding_live(b) && *(u32*)b->slot == b->view) ++dl_probe.kept;
-        else ++dl_probe.lost;
-    }
-}
 static void dl_diag_hud(u32 list) {
-    static const char* const reasons[] = {"OK", "NO_REFRESH", "FROZEN", "MODEL_DATA",
+    static const char* const reasons[] = {"OK", "NO_DRAW", "FROZEN", "MODEL_DATA",
         "MATERIALS", "FMAT", "SAMPLERS", "NO_ALBEDO", "INDEX", "RESOURCE", "REFS", "TEXTURE", "CAPACITY", "DUPLICATE"};
-    u32 lengths[5], n = 0;
+    u32 lengths[4], n=0;
 #define DL_S(s) n = dl_probe_append(line, n, s)
 #define DL_N(v) n = dl_probe_number(line, n, v)
     char* line = dl_probe_lines[0];
     DL_S("DL 1.0.0 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
-    DL_S("  Draw="); DL_N(dl_probe.draws); DL_S("  Refresh B/H/Hair/Gear=");
-    DL_N(dl_probe.refresh[0]); DL_S("/"); DL_N(dl_probe.refresh[1]); DL_S("/"); DL_N(dl_probe.refresh[2]); DL_S("/"); DL_N(dl_probe.refresh[3]);
+    DL_S("  Draw="); DL_N(dl_probe.draws); DL_S("  Shape B/H/Hair/Gear=");
+    DL_N(dl_probe.shapes[0]); DL_S("/"); DL_N(dl_probe.shapes[1]); DL_S("/"); DL_N(dl_probe.shapes[2]); DL_S("/"); DL_N(dl_probe.shapes[3]);
     DL_S(" Magic="); DL_N((dl_magic_images[0][0]!=0)+(dl_magic_images[0][1]!=0)+(dl_magic_images[1][0]!=0)+(dl_magic_images[1][1]!=0));
     DL_S(" Pos="); DL_N(dl_magic_position_valid ? 1 : dl_magic_authored_valid ? 2 : 0);
     DL_S(" Aura="); DL_N(dl_owner && dl_word(dl_owner,0x5700)!=0); lengths[0] = n;
@@ -272,22 +255,15 @@ static void dl_diag_hud(u32 list) {
     DL_S("  Albedo="); DL_N(dl_probe.albedo); DL_S("  Views="); DL_N(dl_probe.views); DL_S("  Eyes found/bound="); DL_N(dl_probe.eye_materials); DL_S("/"); DL_N(dl_probe.eyes); lengths[1] = n;
     line = dl_probe_lines[2]; n = 0;
     DL_S("Skip="); DL_S(reasons[dl_probe.reason]); DL_S("  Count="); DL_N(dl_probe.skipped);
-    DL_S("  Kept="); DL_N(dl_probe.kept); DL_S("  Lost="); DL_N(dl_probe.lost); DL_S("  Rebound="); DL_N(dl_probe.rebound);
     lengths[2] = n;
     line = dl_probe_lines[3]; n = 0;
     DL_S("Samplers body: "); DL_S(dl_probe.body_samplers[0] ? dl_probe.body_samplers : "?");
     DL_S("  eyes: "); DL_S(dl_probe.eye_samplers[0] ? dl_probe.eye_samplers : "?");
     DL_S(" Fill=");DL_N((u32)(dl_gauge_fraction()*100+0.5f));DL_S("%");
     DL_S(" Full=");DL_N(dl_magic_animation_ok[0]);DL_S("/");DL_N(dl_magic_animation_ok[1]);lengths[3] = n;
-    line = dl_probe_lines[4]; n = 0;
-    DL_S("Late calls="); DL_N(dl_probe.late_calls); DL_S(" changed="); DL_N(dl_probe.late_changed);
-    DL_S(" stale="); DL_N(dl_probe.late_stale); DL_S(" rejected="); DL_N(dl_probe.late_rejected);
-    DL_S(" ptr="); n = dl_probe_hex(line, n, dl_probe.late_pointer);
-    DL_S(" word="); n = dl_probe_hex(line, n, dl_probe.late_word);
-    lengths[4] = n;
 #undef DL_S
 #undef DL_N
     dl_gauge_probe_hud(list);
-    dl_rect(list, 20, 110, 1240, 123, 0x101018ef);
-    for (u32 i = 0; i < 5; ++i) dl_text(list, 28, 116 + i * 23, dl_probe_lines[i], lengths[i], 0xffffffff, 17);
+    dl_rect(list, 20, 110, 1240, 100, 0x101018ef);
+    for (u32 i = 0; i < 4; ++i) dl_text(list, 28, 116 + i * 23, dl_probe_lines[i], lengths[i], 0xffffffff, 17);
 }

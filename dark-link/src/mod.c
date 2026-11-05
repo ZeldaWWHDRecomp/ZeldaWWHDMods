@@ -39,7 +39,7 @@ static void dl_options(void) {
     dl_touch_x = dl_limit(wwhd_config_int("touch_x", 940), 0, 1184);
     dl_touch_y = dl_limit(wwhd_config_int("touch_y", 560), 0, 676);
     int diagnostics = wwhd_config_bool("appearance_diagnostics", 0);
-    if (diagnostics != dl_diagnostics) dl_probe = (DLAppearanceProbe){.reason=DL_PROBE_NO_REFRESH};
+    if (diagnostics != dl_diagnostics) dl_probe = (DLAppearanceProbe){.reason=DL_PROBE_NO_DRAW};
     dl_diagnostics = diagnostics;
     if (!dl_enabled) { dl_texture_restore_all(); dl_reset(&dl_state); }
 }
@@ -124,7 +124,7 @@ WWHD_HOOK(WWHD_ADDR_daPy_Execute, dl_execute, (daPy_lk_c* link)) {
     dl_sync_magic_capacity(&dl_state,*((u8*)save+0x33));
     int was_active = dl_state.active;
     dl_tick(&dl_state, &dl_config, (f32)wwhd_logic_dt(), request, dl_gameplay);
-    if (!was_active && dl_state.active) dl_probe = (DLAppearanceProbe){.reason=DL_PROBE_NO_REFRESH};
+    if (!was_active && dl_state.active) dl_probe = (DLAppearanceProbe){.reason=DL_PROBE_NO_DRAW};
     if (!dl_state.active) dl_texture_restore_all();
 }
 WWHD_HOOK(WWHD_ADDR_daPy_Delete, dl_delete, (daPy_lk_c* link)) {

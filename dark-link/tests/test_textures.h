@@ -30,9 +30,13 @@ static uint32_t texture_slot(int material) {
     return TEX_REFS+(MATERIAL_COUNT-1-material)*0x20+4; /* _a0 is slot ONE */
 }
 enum { SHAPE_PACKET=0x11150000, OTHER_PACKET=0x11150100 };
-static void shape_begin(uint32_t model) {
-    st32(SHAPE_PACKET+0x9c,model); hook(0x027f16e8,2,SHAPE_PACKET,0);
+static void shape_material_begin(uint32_t model,int material) {
+    st32(SHAPE_PACKET+0x9c,model);st32(SHAPE_PACKET+0x98,SHAPE_PACKET+0x200);
+    st32(SHAPE_PACKET+0x200,SHAPE_PACKET+0x220);
+    st16(SHAPE_PACKET+0x22e,model==MODEL?MATERIAL_COUNT-1-material:material);
+    hook(0x027f16e8,2,SHAPE_PACKET,0);
 }
+static void shape_begin(uint32_t model) { shape_material_begin(model,0); }
 static void shape_end(void) { hook(0x027f16e8,3,SHAPE_PACKET,0); }
 static void texture_originals(void) {
     for (int m=0;m<MATERIAL_COUNT;++m) assert(ld32(texture_slot(m))==TEX_ORIGINAL);
@@ -57,13 +61,15 @@ static void texture_view_check(uint32_t view, uint32_t original, int surface) {
         assert(samples[p][selector]==expected);
     }
 }
-static void texture_tinted(void) {
+static void texture_tinted(int selected) {
     for (int m=0;m<MATERIAL_COUNT;++m) {
         uint32_t slot=texture_slot(m);
-        assert(ld32(slot-4)==TEX_ORIGINAL); /* toon sampler stays original */
-        texture_view_check(ld32(slot),TEX_ORIGINAL,m>=1 && m<=6);
-        if (m==0 || m==7) body_state_tinted(m);
-        else for(int k=0;k<12;++k) assert(ld32(body_state(m)+4*k)==body_native[m][k]);
+        assert(ld32(slot-4)==TEX_ORIGINAL);
+        if(m==selected) {
+            texture_view_check(ld32(slot),TEX_ORIGINAL,m>=1 && m<=6);
+            if(m==0 || m==7) {body_state_tinted(m);continue;}
+        } else assert(ld32(slot)==TEX_ORIGINAL); /* no other material rebound */
+        for(int k=0;k<12;++k) assert(ld32(body_state(m)+4*k)==body_native[m][k]);
     }
 }
 static void test_textures(void) {
@@ -104,33 +110,44 @@ static void test_textures(void) {
         st32(native,res); st32(native+0x2c,TEX_REFS+index*0x20);
         st32(texture_slot(m)-4,TEX_ORIGINAL); st32(texture_slot(m),TEX_ORIGINAL);
     }
-    /* Actual draw observes tinted resources; every return restores native CPU
-     * pointers/state before a frame-boundary snapshot can be captured. */
-    shape_begin(MODEL); texture_tinted();
-    uint32_t body_view=ld32(texture_slot(0)), eye_view=ld32(texture_slot(1));
-    memcpy(old_view,ppc_ptr(eye_view),sizeof old_view);
-    shape_end(); texture_originals();
-    for(int frame=0;frame<3;++frame) {
-        shape_begin(MODEL); texture_tinted(); shape_end(); texture_originals();
+    /* Every shape touches only its selected material, including all eyes. */
+    for(int frame=0;frame<3;++frame) for(int m=0;m<MATERIAL_COUNT;++m) {
+        shape_material_begin(MODEL,m);texture_tinted(m);shape_end();texture_originals();
     }
-    /* Latest native eye/mouth animation is sampled at draw time. */
-    st32(texture_slot(0),TEX_NEXT); st32(texture_slot(1),TEX_NEXT);
-    shape_begin(MODEL);
-    texture_view_check(ld32(texture_slot(0)),TEX_NEXT,0);
-    texture_view_check(ld32(texture_slot(1)),TEX_NEXT,1);
-    shape_end(); assert(ld32(texture_slot(0))==TEX_NEXT && ld32(texture_slot(1))==TEX_NEXT);
-    assert(!memcmp(old_view,ppc_ptr(eye_view),sizeof old_view));
-    st32(texture_slot(0),TEX_ORIGINAL); st32(texture_slot(1),TEX_ORIGINAL);
-    /* An unrelated nested draw sharing the same FMAT must see native state. */
-    shape_begin(MODEL); texture_tinted();
-    st32(OTHER_PACKET+0x9c,MODEL+0x3000);
-    hook(0x027f16e8,2,OTHER_PACKET,0); texture_originals();
-    hook(0x027f16e8,3,OTHER_PACKET,0); texture_tinted();
-    shape_end(); texture_originals();
-    /* Preparation has the same scoped lifetime, without retained references. */
-    hook(0x027f1fa8,2,SHAPE_PACKET,0); texture_tinted();
-    hook(0x027f1fa8,3,SHAPE_PACKET,0); texture_originals();
+    shape_material_begin(MODEL,1);uint32_t eye_view=ld32(texture_slot(1));
+    memcpy(old_view,ppc_ptr(eye_view),sizeof old_view);shape_end();
+    shape_begin(MODEL);uint32_t body_view=ld32(texture_slot(0));shape_end();
     assert(body_view!=eye_view);
+    /* Latest native animation is sampled independently for each shape. */
+    for(int m=0;m<2;++m) {
+        st32(texture_slot(m),TEX_NEXT);shape_material_begin(MODEL,m);
+        texture_view_check(ld32(texture_slot(m)),TEX_NEXT,m);
+        shape_end();assert(ld32(texture_slot(m))==TEX_NEXT);st32(texture_slot(m),TEX_ORIGINAL);
+    }
+    assert(!memcmp(old_view,ppc_ptr(eye_view),sizeof old_view));
+    /* An unrelated nested draw sharing FMAT sees native state. */
+    shape_begin(MODEL);texture_tinted(0);
+    st32(OTHER_PACKET+0x9c,MODEL+0x3000);
+    hook(0x027f16e8,2,OTHER_PACKET,0);texture_originals();
+    hook(0x027f16e8,3,OTHER_PACKET,0);texture_tinted(0);shape_end();texture_originals();
+    /* Nested shapes of this same model switch just their selected binding. */
+    shape_begin(MODEL);texture_tinted(0);shape_material_begin(MODEL,1);texture_tinted(1);
+    shape_end();texture_tinted(0);shape_end();texture_originals();
+    shape_begin(MODEL);shape_end(); /* restore packet selector to body */
+    hook(0x027f1fa8,2,SHAPE_PACKET,0);texture_tinted(0);
+    hook(0x027f1fa8,3,SHAPE_PACKET,0);texture_originals();
+    /* Restore a mod pointer even if the material/refs no longer validate. */
+    const unsigned member=MATERIAL_COUNT-1;
+    shape_begin(MODEL);st32(TEX_MATS+member*0x3c+0x2c,TEX_REFS+0x1000);shape_end();
+    assert(ld32(texture_slot(0))==TEX_ORIGINAL);body_states_restored();
+    st32(TEX_MATS+member*0x3c+0x2c,TEX_REFS+member*0x20);
+    shape_begin(MODEL);st32(MODEL+0x34,TEX_MATS+0x1000);shape_end();
+    assert(ld32(texture_slot(0))==TEX_ORIGINAL);
+    st32(MODEL+0x34,TEX_MATS);
+    for(int k=0;k<12;++k)st32(body_state(0)+4*k,body_native[0][k]);
+    /* Another owner replacing the slot must keep its new pointer. */
+    shape_begin(MODEL);st32(texture_slot(0),TEX_NEXT);shape_end();
+    assert(ld32(texture_slot(0))==TEX_NEXT);st32(texture_slot(0),TEX_ORIGINAL);
     /* Shared resource identity changes BETWEEN draws never leave old state. */
     st32(LINK+4,43); shape_begin(MODEL); texture_originals(); shape_end();
     st32(LINK+4,42);
@@ -152,15 +169,20 @@ static void test_textures(void) {
     /* State captured while transformed has ordinary refs, even if the next
      * process runs without this module: no cleanup hook is needed on load. */
     unsigned char saved_refs[MATERIAL_COUNT*0x20], saved_states[MATERIAL_COUNT*0x200];
-    shape_begin(MODEL); texture_tinted(); shape_end();
+    shape_begin(MODEL); texture_tinted(0); shape_end();
     memcpy(saved_refs,ppc_ptr(TEX_REFS),sizeof saved_refs);
     memcpy(saved_states,ppc_ptr(TEX_RES),sizeof saved_states);
     enabled=0; ++revision; tick();
     memcpy(ppc_ptr(TEX_REFS),saved_refs,sizeof saved_refs);
     memcpy(ppc_ptr(TEX_RES),saved_states,sizeof saved_states);
-    texture_originals(); shape_begin(MODEL); texture_originals(); shape_end();
-    enabled=1; free_mode=1; ++revision; tick(); buttons(0); buttons(0x60000); tick();
-    shape_begin(MODEL); texture_tinted(); shape_end(); texture_originals();
+    texture_originals();
+    int lookups=player_lookups;
+    for(int i=0;i<100;++i) {shape_begin(MODEL);shape_end();}
+    assert(player_lookups==lookups);texture_originals();
+    enabled=1; free_mode=1; ++revision; tick();
+    lookups=player_lookups;shape_begin(MODEL);shape_end();assert(player_lookups==lookups);
+    buttons(0);buttons(0x60000);tick();
+    shape_begin(MODEL); texture_tinted(0); shape_end(); texture_originals();
     assert(!memcmp(asset,ppc_ptr(TEX_ORIGINAL),sizeof asset));
     for(int m=0;m<MATERIAL_COUNT;++m) st32(MATERIALS+m*0x39c,0);
     st32(MODEL+0x34,0); st16(MODEL+0x2a,0);

@@ -63,6 +63,7 @@ static void filter_register(Cpu* c) { assert(own(c->r[3],4));callbacks[current][
 static void hud_register(Cpu* c) { assert(own(c->r[3],4));callbacks[current][2]=c->r[3];c->r[3]=1; }
 static void boolean(Cpu* c) {
     const char* key=str(c->r[3]);
+    if(current && !strcmp(key,"touch-enabled")) {c->r[3]=1;return;}
     c->r[3]=!strcmp(key,"show_hud") || !strcmp(key,"appearance_diagnostics")?0:
         !strcmp(key,"free_transform")?1:c->r[4];
 }
@@ -161,7 +162,7 @@ int main(int argc,char** argv) {
     for(int i=0;i<2;++i) for(unsigned h=0;h<mods[i]->hook_count;++h)
         assert(mods[i]->hooks[h].target!=0x0267598c);
     for(order=0;order<2;++order) {
-        memset(sizes,0,sizeof(sizes));reload();draw();assert(edits==2 && pictures==5);
+        memset(sizes,0,sizeof(sizes));reload();draw();assert(edits==2 && pictures==2);
         assert(dark_x==348 && dark_y==-222 && claims[0]==3 && claims[1]==31);
         tap(1,0,260);draw();assert(tabs==0 && edits==1 && claims[0]==3 && claims[1]==32);
         pad(1,0x4000);assert(ld32(INPUT)==0);
@@ -176,11 +177,11 @@ int main(int argc,char** argv) {
         tap(0,120,260);drag(0,450,-100,300,-80);fail_write=1;action(0,10);draw();
         assert(edits==1 && tabs==1 && dark_x==300);fail_write=0;action(0,9);draw();assert(dark_x==450);
         reload();draw();assert(dark_x==450);
-        tap(0,120,260);action(0,6);action(0,10);draw();assert(pictures==4 && claims[0]==2);
-        tap(0,120,260);draw();assert(pictures==5 && tabs==1);action(0,6);action(0,10);draw();assert(pictures==5);
+        tap(0,120,260);action(0,6);action(0,10);draw();assert(pictures==1 && claims[0]==2);
+        tap(0,120,260);draw();assert(pictures==2 && tabs==1);action(0,6);action(0,10);draw();assert(pictures==2);
         installed[1]=0;reload();draw();assert(edits==1 && pictures==1);
         tap(0,120,260);drag(0,450,-100,250,-80);action(0,10);reload();draw();assert(dark_x==250 && dark_y==-80);
-        installed[0]=0;installed[1]=1;reload();draw();assert(edits==1 && pictures==4);
+        installed[0]=0;installed[1]=1;reload();draw();assert(edits==1 && pictures==1);
         tap(1,0,260);draw();assert(tabs==0);action(1,9);
         installed[0]=1;
     }
