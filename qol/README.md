@@ -6,6 +6,7 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 
 | Extra | Section | What it does |
 | --- | --- | --- |
+| **Faster block pushing** | Movement | Off (default), 1.5x or 2x. Both pushing and pulling finish sooner; Link follows the block's actual native movement. |
 | **Link's clothes** | Link | The Hero's clothes or the casual clothes (the lobster shirt) at any time. "As in the story" gives Link the clothes the story gave him. |
 | **Replay conducted songs** | Songs | After you conduct a song, Link plays it back before its effect, as on the GameCube (the HD version skips the replay for songs you played before). |
 | **Songs by touch** | Songs | While Link holds up the Wind Waker: a button for each song he knows (a tap plays it, as if conducted; a scene that waits for one song shows only that one) and four note pads to conduct by touch. |
@@ -62,3 +63,8 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
   keeps its own choice.
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod. The figurine's
   name on the Picto subjects label and More figurine orders are ideas from @gogokfen (issue #276); thanks!
+
+## Faster block pushing
+
+Choose 1.5x or 2x to push and pull blocks faster while Link follows their movement.
+This experimental option defaults to Off; Dragon Roost and Tower of the Gods puzzles at 30/60 fps still need gameplay testing.

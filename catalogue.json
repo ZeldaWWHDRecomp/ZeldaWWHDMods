@@ -235,11 +235,11 @@
     {
       "id": "qol",
       "name": "QoL extras",
-      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch.",
+      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch. Optional faster block pushing and pulling.",
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.1",
+      "version": "0.4.0",
       "kind": "guest",
       "licences": [
         "MPL-2.0"

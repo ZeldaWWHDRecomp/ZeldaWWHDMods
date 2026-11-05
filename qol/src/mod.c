@@ -16,6 +16,7 @@
  * Ideas from the GreenNaugahyde Android fork (MPL-2.0), reimplemented as a guest mod. */
 #include "qol.h"
 #include "clothes.c"
+#include "block_push.c"
 #include "replay.c"
 #include "picto_subjects.c"
 #include "songs.c"
@@ -28,6 +29,7 @@
 #include "sing.c"
 
 static qol_feature features[] = {
+    {"block_push_speed", block_push_option_changed, 0},
     {"clothes", clothes_option_changed, 0},
     {"replay_songs", replay_option_changed, 0},
     {"picto_subjects", picto_option_changed, 0},
