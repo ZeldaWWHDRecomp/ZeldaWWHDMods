@@ -16,10 +16,12 @@
  * Ideas from the GreenNaugahyde Android fork (MPL-2.0), reimplemented as a guest mod. */
 #include "qol.h"
 #include "clothes.c"
+#include "block_push.c"
 #include "replay.c"
 #include "picto_subjects.c"
 #include "songs.c"
 #include "one_hit.c"
+#include "hitstop.c"
 #include "kaboom.c"
 #include "minigames.c"
 #include "pages.c"
@@ -28,11 +30,18 @@
 #include "sing.c"
 
 static qol_feature features[] = {
+    {"block_push_speed", block_push_option_changed, 0},
     {"clothes", clothes_option_changed, 0},
     {"replay_songs", replay_option_changed, 0},
     {"picto_subjects", picto_option_changed, 0},
     {"song_touch", songs_option_changed, 0},
     {"one_hit_kills", one_hit_option_changed, 0},
+    {"enemy_hit_freeze", hitstop_option_changed, 0},
+    {"hit_freeze_hits", hitstop_kinds_changed, 0},
+    {"hit_freeze_strong", hitstop_kinds_changed, 0},
+    {"hit_freeze_defeats", hitstop_kinds_changed, 0},
+    {"hit_freeze_bosses", hitstop_kinds_changed, 0},
+    {"hit_freeze_signs", hitstop_kinds_changed, 0},
     {"minigame_touch", kaboom_option_changed, 0},
     {"minigame_touch", mg_option_changed, 0},
     {"album_pages", pg_option_changed, 0},

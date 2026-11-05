@@ -9,7 +9,7 @@ Older ports still lack these two services; their existing behavior is retained.
 Native alternatives were investigated first; see [NATIVE-CALLS.md](NATIVE-CALLS.md).
 Chart names use the existing native message loader, so no message SDK addition is needed. The guest mod must not write native HUD memory.
 
-The last two sections are new proposals from minimap 0.2.3 (floor-change markers); they are not implemented.
+The last two sections are new proposals from minimap 0.2.4 (floor-change markers); they are not implemented.
 
 ## Boat compass ownership (gap 13)
 
@@ -59,7 +59,7 @@ before commit, replacement during animation and later GamePad input.
 
 ## Mirrored UVs for native half art (floor-change markers)
 
-Status: proposed (HD minimap 0.2.3).
+Status: proposed (HD minimap 0.2.4).
 
 The GamePad's floor-change markers (`DungeonMapUp_00`, `DungeonMapDown_00`) draw
 `MapFloorUpDown_00^t` in the picture pane `P_Up_00` with UVs from 0 to 2 on a mirrored
@@ -67,7 +67,7 @@ texture: the texture is half an arrow and the hardware mirror makes the whole on
 guest can reproduce that only by drawing the texture twice, the second copy with
 `u0 = 1, u1 = 0`. `wwhd_hud_emit` rejects that element (`geometry()` requires
 `u1 >= u0` and `v1 >= v0`) and marks the mod's whole draw list invalid ("HUD draw list
-dropped"), so the map and its icons vanish. Minimap 0.2.3 therefore draws its own plain
+dropped"), so the map and its icons vanish. Minimap 0.2.4 therefore draws its own plain
 triangle (`assets/floor-arrow.png`) with the game's size, rotation and alpha.
 
 Proposal, either of:
@@ -81,13 +81,13 @@ minimap would use the game's own arrow art and drop the packaged triangle.
 
 ## Localized layout text (floor-change labels)
 
-Status: proposed (HD minimap 0.2.3).
+Status: proposed (HD minimap 0.2.4).
 
 The same markers label the floor they lead to with `T_Floor_00`, whose text comes from
 the layout's message file (`DungeonMapUp_00_msbt` / `DungeonMapDown_00_msbt`, labels
 `T_FloorU_00_<floor>` / `T_FloorD_00_<floor>`), different per language (English `B1`,
 `1F`; Spanish `S1`, `PB`; French, German and Italian their own). The guest has no way to
-read a layout message or to know the running language, so 0.2.3 writes English labels.
+read a layout message or to know the running language, so 0.2.4 writes English labels.
 
 Proposal: a read-only structured query, like `layout-pane:`, returning a layout
 message's UTF-8 text for the running language, e.g. key

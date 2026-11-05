@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "story-notebook",
   "name": "The Story Notebook",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "game_id": "wwhd",
   "kind": "guest",
   "guest": {

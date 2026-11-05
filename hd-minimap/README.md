@@ -87,7 +87,7 @@ These features are optional. Older ports keep the map above the compasses and
 follow eligible GamePad caption changes in one direction. The package still loads
 with older installers; it does not import mandatory new host functions.
 
-## Known limits (0.2.3)
+## Known limits (0.2.4)
 
 - Native localized chart names retain a numeric fallback if a message is missing.
 - Link and boat markers are never drawn on treasure charts.
@@ -133,7 +133,7 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
-- **0.2.3:**
+- **0.2.4:**
   - The treasure chart shows its whole art, as the game's chart screen does, with the X where the
     treasure is; before, the X stayed in the middle and the art was moved off the chart.
   - While sailing, the map that replaces the boat compasses stays in its on-foot corner instead of

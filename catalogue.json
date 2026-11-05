@@ -8,7 +8,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.1.0",
+      "version": "0.1.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -36,7 +36,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -90,7 +90,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -120,7 +120,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.6.1",
+      "version": "0.6.2",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -149,7 +149,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -180,7 +180,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.1.1",
+      "version": "0.1.2",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -210,7 +210,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.2.3",
+      "version": "0.2.4",
       "kind": "guest",
       "licences": [
         "MPL-2.0",
@@ -235,11 +235,11 @@
     {
       "id": "qol",
       "name": "QoL extras",
-      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch.",
+      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch. Optional faster block pushing and pulling.",
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.5.0",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -254,6 +254,35 @@
           "id": "build",
           "type": "build_guest_mod",
           "title": "Build the QoL extras for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true
+    },
+    {
+      "id": "haunted-sea",
+      "name": "Haunted sea",
+      "description": "Now and then, at night far out at sea, the wind dies, fog rolls in and the sea turns on Link: Gyorgs, Seahats, Kargarocs, cannon boats, Poes and the Ghost Ship.",
+      "authors": [
+        "asadsi"
+      ],
+      "version": "0.1.1",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Haunted sea for this installation"
         }
       ],
       "port_versions": {
