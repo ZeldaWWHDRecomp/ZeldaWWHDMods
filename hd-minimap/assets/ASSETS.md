@@ -1,6 +1,6 @@
 # Assets
 
-These files are Minimap HD artwork by Chironeyes. They were rasterised to PNG from the SVG sources at
+Most of these files are Minimap HD artwork by Chironeyes; `floor-arrow.png` is this mod's own. The Minimap HD files were rasterised to PNG from the SVG sources at
 <https://github.com/Chironeyes/The.Wind.Waker.HD-Minimap.HD/tree/main/assets> (version 1.2.1). The
 licence text follows (also in the source repository's `hd-minimap/NOTICE.md`). None of them is game material.
 
@@ -13,6 +13,7 @@ licence text follows (also in the source repository's `hd-minimap/NOTICE.md`). N
 | `hide-undiscovered.png` | faded folded map (`map-hide-undiscovered.svg`) | Chironeyes | MIT |
 | `zoom.png` | open map with plus: expand (`map-zoom.svg`) | Chironeyes | MIT |
 | `reduce.png` | open map with minus: reduce (`map-reduce.svg`) | Chironeyes | MIT |
+| `floor-arrow.png` | plain triangle for the floor-change markers, drawn by this mod's code (generated, 128 × 112). It stands in for the game's `MapFloorUpDown_00`, a half arrow that only mirrored UVs make whole, which the HUD service does not accept (see `../SDK-PROPOSAL.md`) | HD minimap contributors | MPL-2.0 |
 
 ## MIT licence of Minimap HD
 

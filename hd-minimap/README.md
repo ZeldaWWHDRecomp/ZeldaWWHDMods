@@ -97,6 +97,13 @@ with older installers; it does not import mandatory new host functions.
   still need gameplay validation. The
   unspecified Tower room omission is not confirmed resolved; a room/floor
   reproducer is still needed. Those limits are independent of the SDK integration.
+- The floor-change arrow is the mod's own plain triangle (`assets/floor-arrow.png`), not the game's
+  `MapFloorUpDown_00`: that texture is half an arrow which the game mirrors into a whole one through its
+  pane's UVs (0..2 on a mirrored texture), and the HUD service rejects mirrored UVs (an element with
+  `u1 < u0` drops the mod's whole draw list). See [SDK proposal](SDK-PROPOSAL.md#mirrored-uvs-for-native-half-art-floor-change-markers).
+- The floor-change labels are English (`B2`, `B1`, `1F`..`4F`, `Ext.`) in every language: the game
+  localizes them (Spanish `S1`, `PB`, `P1`..), but the SDK exposes neither layout message text nor the
+  running language. See [SDK proposal](SDK-PROPOSAL.md#localized-layout-text-floor-change-labels).
 - This remains a bounded parity follow-up, not a full-playthrough equivalence claim.
 
 ## Checked in the game
@@ -141,6 +148,9 @@ MPL-2.0; adapted portions retain that MIT notice.
   - The map shows and hides with the game's HUD, as Minimap HD 1.3 does: aiming the bow, the
     hookshot or the boomerang (first person or Z-targeting) keeps it while the HUD stays, and the map's
     buttons wait until the aim ends. Without a readable HUD it still hides while aiming.
+  - Dungeon plans show the floor-change markers the GamePad shows: an arrow where the plan's stairs and
+    ladders lead up or down, labelled with the floor they lead to (blue up, pink down). Their places,
+    sizes and colours are the game's; the arrow picture and the label text are not yet (see Known limits).
 - **0.2.2:**
   - After loading a save, the minimap and its D-pad icons wait for the game's HUD: the icons fade in
     with the HUD's own icons and the map slides in as the HUD comes in, instead of showing on the

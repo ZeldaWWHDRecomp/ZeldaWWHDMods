@@ -386,6 +386,21 @@ static void sailing(void) {
     assert(long_size < t.h * .75f && fabsf(60 * long_size * HDM_TITLE_ADVANCE - t.w * 296.0f / 312.0f) < 1e-2f);
     assert(fabsf(hdm_chart_title_size(&t, 0) - t.h * .75f) < 1e-4f);
 }
+static void stairs(void) {
+    char key[64];
+    hdm_stair_pane_key(key, 1, "2F", 1, 0);
+    assert(!strcmp(key, "layout-pane:DungeonMapFloor_01/N_2FUp_00"));
+    hdm_stair_pane_key(key, 4, "B1", 0, 1);
+    assert(!strcmp(key, "layout-pane:DungeonMapFloor_04/N_B1Down_01"));
+    assert(strlen(key) < 64);
+    /* the floor each marker leads to: the next one up or down; Forsaken Fortress's up leads outside */
+    char label[6];
+    assert(hdm_stair_label(4, 0x80, 0, label) == 2 && !strcmp(label, "B1"));
+    assert(hdm_stair_label(4, 0x7f, 1, label) == 2 && !strcmp(label, "1F"));
+    assert(hdm_stair_label(4, 0x7f, 0, label) == 2 && !strcmp(label, "B2"));
+    assert(hdm_stair_label(1, 0x81, 1, label) == 2 && !strcmp(label, "3F"));
+    assert(hdm_stair_label(0, 0x80, 1, label) == 4 && !strcmp(label, "Ext."));
+}
 static void hud_follow(void) {
     /* the HUD's hearts decide: aiming with the HUD up keeps the map; a hidden HUD hides it */
     assert(hdm_pane_shown(1, 255) && !hdm_pane_shown(0, 255) && !hdm_pane_shown(1, 0) && hdm_pane_shown(3, 1));
@@ -415,6 +430,7 @@ int main(void) {
     hud_entry();
     hit_stop();
     hud_follow();
+    stairs();
     sailing();
     captions();
     animation();

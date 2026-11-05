@@ -129,6 +129,7 @@ static int initialized;
 /* images */
 static unsigned long long image_epoch;
 static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img_medli, img_makar, img_ship, img_base, img_door, img_boss;
+static u32 img_stair;     /* the floor-change markers' arrow (assets/floor-arrow.png) */
 static u32 img_island, img_chart, img_ribbon, img_ribbon_shadow, img_chart_base, img_mark, img_mark_fill;
 static u32 img_searchlight[2];  /* searching, stopped */
 static int island_room = -1, island_full = -1, chart_key = -1;
@@ -167,6 +168,35 @@ static void swap_room_cache(void) {
     SWAP_FIELD(floor_min_x, spare_rooms.min_x, float); SWAP_FIELD(floor_min_y, spare_rooms.min_y, float);
     SWAP_FIELD(floor_max_x, spare_rooms.max_x, float); SWAP_FIELD(floor_max_y, spare_rooms.max_y, float);
 #undef SWAP_FIELD
+}
+/* The floor-change markers of a floor (DungeonMapFloor_0N's N_<floor>Up_0n / N_<floor>Down_0n), as the GamePad
+ * draws them with DungeonMapUp_00 / DungeonMapDown_00: two floors cached, for the floor slide */
+typedef struct { float x, y, rotation; int up; } hdm_stair;
+static struct { int dungeon, floor, count; hdm_stair items[8]; } stair_cache[2] = {{-1, -1, 0}, {-1, -1, 0}};
+static const hdm_stair* floor_stairs(int dungeon, int floor, int* count) {
+    static wwhd_game_pane pane;
+    static char key[64];
+    char tag[3];
+    *count = 0;
+    if (!hdm_floor_tag(floor, tag)) return 0;
+    for (int s = 0; s < 2; ++s)
+        if (stair_cache[s].dungeon == dungeon && stair_cache[s].floor == floor) { *count = stair_cache[s].count; return stair_cache[s].items; }
+    stair_cache[1] = stair_cache[0];
+    stair_cache[0].dungeon = dungeon; stair_cache[0].floor = floor; stair_cache[0].count = 0;
+    for (int up = 0; up < 2; ++up)
+        for (int n = 0; n < 4 && stair_cache[0].count < 8; ++n) {
+            hdm_stair_pane_key(key, dungeon, tag, up, n);
+            if (!wwhd_game_pane_get(key, &pane)) continue;
+            hdm_stair* st = &stair_cache[0].items[stair_cache[0].count++];
+            st->x = pane.x; st->y = pane.y; st->rotation = pane.rotation; st->up = up;
+            if (opt.debug) {
+                /* TEMP diagnostics: each floor-change marker read, once per floor */
+                wwhd_log(key); wwhd_log_float("stair.x", pane.x); wwhd_log_float("stair.y", pane.y);
+                wwhd_log_float("stair.rotation", pane.rotation); wwhd_log_hex("stair.flags", pane.flags);
+            }
+        }
+    *count = stair_cache[0].count;
+    return stair_cache[0].items;
 }
 /* the point Forsaken Fortress's later markers turn about (read with its plan) */
 static float forsaken_cx = HDM_FORSAKEN_CENTRE_X, forsaken_cy = HDM_FORSAKEN_CENTRE_Y;
@@ -253,6 +283,7 @@ static void forget_images(void) {
     img_frame = img_wind = img_unknown = img_face = img_arrow = img_chest = img_medli = img_makar = img_ship = img_base = img_door = img_boss = 0;
     img_island = img_chart = img_ribbon = img_ribbon_shadow = img_chart_base = img_mark = img_mark_fill = 0; island_room = island_full = chart_key = -1;
     img_searchlight[0] = img_searchlight[1] = 0;
+    img_stair = 0;
     for (int i = 0; i < 4; ++i) img_feedback[i] = 0;
     for (int i = 0; i < HDM_ICON_COUNT; ++i) img_icons[i] = 0;
     for (int i = 0; i < room_count; ++i) rooms[i].image = 0;
@@ -572,6 +603,23 @@ static void place(float lx, float ly, float* px, float* py) {
     *px = dlink_px + dx * c - dy * s;
     *py = dlink_py + dx * s + dy * c + floor_shift;
 }
+/* text as the game's floor labels draw it: white letters with a thick edge of the label's colour (the font
+ * material's black colour), made of copies around it */
+static void outlined_text(u32 list, const char* text, u32 bytes, float x, float y, float size, u32 edge, float alpha) {
+    static const float around[12][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-.7f, -.7f}, {.7f, -.7f}, {-.7f, .7f}, {.7f, .7f},
+                                        {-.92f, -.38f}, {.92f, -.38f}, {-.92f, .38f}, {.92f, .38f}};
+    float d = size * .14f;
+    if (d < 1.5f) d = 1.5f;
+    for (int k = 0; k <= 12; ++k) {
+        element = (wwhd_hud_element){0};
+        element.kind = WWHD_HUD_TEXT; element.anchor = WWHD_HUD_TOP_LEFT;
+        element.x = x + (k < 12 ? around[k][0] * d : 0); element.y = y + (k < 12 ? around[k][1] * d : 0);
+        element.size = size; element.thickness = 1; element.u1 = element.v1 = 1;
+        element.rgba = ((k < 12 ? edge : 0xffffffu) << 8) | (u32)(alpha * 255.0f + .5f);
+        element.text = text; element.text_bytes = bytes;
+        wwhd_hud_emit(list, &element);
+    }
+}
 static void draw_dungeon(u32 list, float x, float y, float side, float a) {
     floor_rooms(snap.dungeon, snap.floor);
     if (!room_count) return;
@@ -625,6 +673,44 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         float px, py, w = rooms[i].w * dview.scale, h = rooms[i].h * dview.scale;
         place(rooms[i].x, rooms[i].y, &px, &py);
         image(list, rooms[i].image, ox + px - w / 2, oy + py - h / 2, w, h, dturn, rgb, current || visited ? a : a * .7f);
+    }
+    {
+        /* the floor-change markers as DungeonMapUp_00 / DungeonMapDown_00 draw them, in the plan's units at its
+         * whole-view scale (as doors): P_Up_00 (80 x 56 up, 100 x 56 down, at 0.6 x 0.8; the down one turned
+         * 180 degrees) at alpha 100; T_Floor_00 above it, the floor it leads to in blue (up) or pink (down),
+         * outlined in white. The game's MapFloorUpDown_00 is half an arrow that P_Up_00's UVs (0..2) mirror into
+         * a whole one; the HUD takes no reversed UVs (an element with u1 < u0 drops the whole list), so the
+         * arrow is the mod's own whole triangle */
+        int count = 0;
+        const hdm_stair* stairs = floor_stairs(snap.dungeon, snap.floor, &count);
+        /* sized as on the expanded panel whatever the panel's size, so they stay readable on the compact one */
+        float marker_side = opt.side_expanded > side ? opt.side_expanded : side;
+        float unit = hdm_plan_view(marker_side * (1 - 12.0f / 256.0f), .04f).scale;
+        for (int i = 0; i < count; ++i) {
+            int up = stairs[i].up;
+            if (!img_stair) img_stair = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/floor-arrow.png");
+            /* the GamePad draws the marker layouts at half their size on the plan (as the doors' 64 x 20 at 0.5) */
+            float px, py, w = (up ? 24 : 30) * unit, h = 22.4f * unit;
+            /* the arrow and its label share the marker's centre: the label on top of the arrow */
+            place(stairs[i].x, stairs[i].y, &px, &py);
+            /* upright on screen like its label, also when the zoomed plan turns: up points up, down points down */
+            float r = up ? 0 : pi;
+            /* nudged 3 plan units left: the label's width is an estimate, and centred on the pane the arrow
+             * looked a little right of its text (user's capture, 2026-11-05) */
+            image(list, img_stair, ox + px - w / 2 - 3 * unit, oy + py - h / 2, w, h, r, 0xffffff, a * 100 / 255);
+            /* the HUD reads text after this callback returns: the labels must outlive it (static), one each
+             * for the two floors drawn while sliding (8 markers at most per floor) */
+            static char labels[32][6];
+            static unsigned next_label;
+            char* label = labels[next_label++ & 31];
+            int chars = hdm_stair_label(snap.dungeon, snap.floor, up, label);
+            if (!chars) continue;
+            /* centred on the arrow: the HUD draws text (ImGui, Arial) from its top-left; capitals and digits
+             * advance about 0.52 x size, and their visual middle is about half the size down */
+            float size = 20 * unit, tw = chars * size * HDM_LABEL_ADVANCE;
+            outlined_text(list, label, (u32)chars, ox + px - tw / 2, oy + py - size / 2, size,
+                          up ? 0x1e64b4u : 0xff0064u, a);
+        }
     }
     if (snap.outdoor) {
         /* the searchlights at their part panes, as the GamePad's Valid animation leaves them: searching, the

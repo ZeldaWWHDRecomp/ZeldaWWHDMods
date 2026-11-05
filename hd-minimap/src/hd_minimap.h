@@ -69,6 +69,16 @@ static inline void hdm_room_pane_key(char* out, int dungeon, int pane) {
     i = hdm_put(out, i, "/P_Room_");
     hdm_put2(out, i, pane);
 }
+/* a floor-change marker's place on its floor plan: "layout-pane:DungeonMapFloor_01/N_2FUp_00" (up) or
+ * ".../N_3FDown_01" (down); the plans have at most two of each per floor */
+static inline void hdm_stair_pane_key(char* out, int dungeon, const char* tag, int up, int index) {
+    int i = hdm_put(out, 0, "layout-pane:DungeonMapFloor_");
+    i = hdm_put2(out, i, dungeon);
+    i = hdm_put(out, i, "/N_");
+    i = hdm_put(out, i, tag);
+    i = hdm_put(out, i, up ? "Up_" : "Down_");
+    hdm_put2(out, i, index);
+}
 /* "DungeonMapFloor_05/MapKaze1F_05^t#P_Room_07": a room's art with its own material */
 static inline void hdm_room_texture(char* out, int dungeon, const char* texture, int pane) {
     int i = hdm_put(out, 0, "DungeonMapFloor_");
@@ -85,6 +95,15 @@ static inline int hdm_floor_tag(int floor, char* tag) {
     if (floor >= 0x78 && floor < 0x80) { tag[0] = 'B'; tag[1] = (char)('0' + 0x80 - floor); tag[2] = 0; return 1; }
     tag[0] = 0;
     return 0;
+}
+/* The floor a marker leads to, as the GamePad labels it (DungeonMapUp_00 / DungeonMapDown_00's T_Floor_00,
+ * English messages T_FloorU_00_* / T_FloorD_00_*): the next floor up or down; Forsaken Fortress's only
+ * floor leads outside ("Ext."). 0 when there is none. */
+/* the HUD font's advance for the floor labels' capitals and digits, in text sizes (Arial: 0.6 / 1.117) */
+#define HDM_LABEL_ADVANCE .52f
+static inline int hdm_stair_label(int dungeon, int floor, int up, char* out) {
+    if (dungeon == 0 && up) { out[0] = 'E'; out[1] = 'x'; out[2] = 't'; out[3] = '.'; out[4] = 0; return 4; }
+    return hdm_floor_tag(floor + (up ? 1 : -1), out) ? 2 : 0;
 }
 /* Does a room texture ("MapKaze1F_05^t", "MapKami1F_03_2F_04^t") belong to the floor tag? */
 static inline int hdm_texture_on_floor(const char* texture, const char* tag) {
