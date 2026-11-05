@@ -55,7 +55,6 @@ static void call(uint32_t fn, uint32_t arg) {
     fprintf(stderr,"unknown callback %08x\n",fn); abort();
 }
 static void dispatch(Cpu* c) {
-    if(c->pc==RENDEZVOUS) { c->r[3]=ld32(c->r[3]); return; }
     if(c->pc==SPIN) {
         assert(c->r[3]==LINK && c->r[4]==1);
         ++spins; st32(LINK+0x65F0,0x55); c->r[3]=1; return;
@@ -173,7 +172,7 @@ int main(void) {
     assert(memory==PPC_MEM_BASE);
     WWHDGuestHostV1 host={sizeof(host),WWHD_GUEST_ABI_VERSION,dispatch,unavailable,trap,timebase,
         reciprocal,rsqrt,preempt,preempt_flags,original,service};
-    mod=wwhd_guest_module_v1(&host); assert(mod && mod->hook_count==2);
+    mod=wwhd_guest_module_v1(&host); assert(mod && mod->hook_count==1);
     memcpy(ppc_ptr(mod->mem_base),mod->image,mod->image_size);
     memcpy(ppc_ptr(PLAY+0x5134),"sea",4);
     st32(PLAY+0x5B2C,LINK); st32(LINK,1); st32(LINK+4,7); st16(LINK+0x69B0,0x103);

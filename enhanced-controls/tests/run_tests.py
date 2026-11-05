@@ -42,7 +42,7 @@ def main():
         defs={'PLAY':b.data(0x1046f0b0),'SAVE_PTR':b.data(0x101f84dc),
               'MENU_FLAG':b.data(0x101ea069),'LINK_EXECUTE':b.code(0x0240ebb0),
               'SPIN':b.code(0x023e6380),'EQUIPPING':b.code(0x023d794c),
-              'RENDEZVOUS':b.code(0x0267598c),'GUARDING':b.code(0x02443728),'CURSE':b.data(0x101cef16)}
+              'GUARDING':b.code(0x02443728),'CURSE':b.data(0x101cef16)}
         (OUT/'fixture.h').write_text(''.join(f'#define {k} 0x{v:08X}u\n' for k,v in defs.items()))
         objects=[]
         for source in (OUT/f'translated-{region}.c',HERE/'module_test.c'):

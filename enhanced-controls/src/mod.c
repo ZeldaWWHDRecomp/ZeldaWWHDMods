@@ -3,7 +3,6 @@
 #include "wwhd/functions.h"
 #include "core.h"
 #include "editor.h"
-#include "editor_peer.h"
 
 /* Only verified public game calls. Data bases use SDK relocations for USA/EU. */
 WWHD_GAME_FUNC(0x023E6380, s32, spin_attack, (void*, s32));
@@ -107,12 +106,6 @@ static void update_claims(void) {
 static float number(const char* id,float fallback,float lo,float hi) {
     return ec_clamp((float)wwhd_config_float(id,fallback),lo,hi);
 }
-WWHD_HOOK(0x0267598C,enhanced_editor_peer,(EeExchange* q)) {
-    if(!registered || !ee_packet(q,1)) return;
-    q->ready=ready; q->open=editor.open; q->selected=editor.selected;
-    q->placement=(editor.open?editor.draft:editor.saved).button[4];
-    q->answered=0x54434f4bu;
-}
 static void refresh(void) {
     unsigned long long step=wwhd_logic_step(), epoch=wwhd_hud_epoch();
     if (step!=last_step || epoch!=hud_epoch) {
@@ -130,12 +123,7 @@ static void refresh(void) {
     int next=playable();
     u32 id=next ? U32(U32(PLAY,0x5B2C),4) : 0;
     if (!next || id!=player_id) { ec_cancel(&state); ee_close(&editor); }
-    int peer=ee_ask(2);
-    unsigned available=peer?31u:15u;
-    if(available!=editor.available) {
-        ee_close(&editor); editor.available=available;
-        if(peer && !editor.sequence) editor.saved.button[4]=ee_query.placement;
-    }
+    editor.available=15; /* four local macro buttons only */
     mask=0;
     for(int i=0;i<4;++i) {
         EcPlacement p=(editor.open?editor.draft:editor.saved).button[i];

@@ -42,6 +42,7 @@ def build(out, clang, lld):
     for region in ('USA', 'EU'):
         man, elf = builder.package_elf(staging)
         t = builder.translator_for(elf, 0x7f000000, by_name(region))
+        assert all(target != by_name(region).code(0x0267598C) for _,target,_,_ in t.hooks)
         source = t.emit(man['id'])  # fails on unsupported PPC instructions
         (out / f'translated-{region}.c').write_text(source)
         report = builder.inspect_package(staging, 0x7f000000, by_name(region))
@@ -56,7 +57,7 @@ def build(out, clang, lld):
              'src/mod.c': HERE/'mod.c', 'src/core.h': HERE/'core.h',
              'src/editor.h': HERE/'editor.h',
              'assets/NOTICE.md': MOD/'assets/NOTICE.md'}
-    for header in ("editor_geometry.h","editor_view.h","editor_peer.h"):
+    for header in ("editor_geometry.h","editor_view.h"):
         files[f"src/{header}"]=HERE/header
     for name in ('combat_jump_attack','combat_vertical_slash','combat_spin_attack','combat_dodge'):
         files[f'assets/{name}.png']=MOD/'assets'/f'{name}.png'
