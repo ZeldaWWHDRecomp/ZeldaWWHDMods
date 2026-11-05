@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "id": "sword-wave",
+  "name": "Sword Wave",
+  "version": "1.0.0",
+  "author": "BeZide93",
+  "description": "At full hearts, sword Spin Attacks launch a forward wave using native Spin Attack particles and sword collision. Inspired by Dawnlight's Great Spin projectile.",
+  "game_id": "wwhd",
+  "minimum_manager_version": "1.6.0",
+  "kind": "guest",
+  "guest": {
+    "api_version": 1,
+    "elf": "mod.elf"
+  },
+  "options": [
+    {
+      "id": "enabled",
+      "type": "bool",
+      "name": "Enable Sword Wave",
+      "default": true,
+      "live": true,
+      "menu": true,
+      "section": "Sword Wave"
+    }
+  ],
+  "setup": [
+    {
+      "id": "build",
+      "type": "build_guest_mod",
+      "title": "Build Sword Wave for this installation"
+    }
+  ],
+  "experimental": true
+}
