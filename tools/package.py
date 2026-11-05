@@ -127,7 +127,7 @@ def build(sdk, out, clang, lld, base_url, channel='devel', revision=None):
         if manifest.get('kind')!='guest' or manifest.get('id')!=name: raise ValueError('Invalid declared guest folder')
         source_file, sources = guest_sources(folder)
         obj, elf = out / (name + '.o'), out / (name + '.elf')
-        subprocess.run([clang, '--target=powerpc-unknown-eabi', '-mcpu=750', '-O2', '-ffreestanding',
+        subprocess.run([clang, '--target=powerpc-unknown-eabi', '-mcpu=750', '-mstackrealign', '-O2', '-ffreestanding',
                         '-fno-builtin', '-nostdlib', '-fno-jump-tables', '-ffunction-sections', '-fdata-sections',
                         '-I' + str(sdk / 'runtime/guest/include'), '-I'+str(source_file.parent), '-c', str(source_file), '-o', str(obj)], check=True)
         subprocess.run([lld, '-m', 'elf32ppc', '-r', str(obj), '-o', str(elf)], check=True)
