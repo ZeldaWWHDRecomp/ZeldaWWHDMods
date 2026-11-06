@@ -87,7 +87,7 @@ These features are optional. Older ports keep the map above the compasses and
 follow eligible GamePad caption changes in one direction. The package still loads
 with older installers; it does not import mandatory new host functions.
 
-## Known limits (0.2.4)
+## Known limits (0.2.5)
 
 - Native localized chart names retain a numeric fallback if a message is missing.
 - Link and boat markers are never drawn on treasure charts.
@@ -97,8 +97,10 @@ with older installers; it does not import mandatory new host functions.
   still need gameplay validation. The
   unspecified Tower room omission is not confirmed resolved; a room/floor
   reproducer is still needed. Those limits are independent of the SDK integration.
-- The floor-change markers use a plain triangle instead of the game's own arrow.
-- The floor-change labels are in English in every language.
+- On ports before mod manager 1.9.0, the floor-change markers use a plain triangle
+  instead of the game's own arrow.
+- On ports before mod manager 1.9.0, the floor-change labels are in English in every language.
+- The floor-change labels use the port's overlay font, not the game's font.
 - This remains a bounded parity follow-up, not a full-playthrough equivalence claim.
 
 ## Checked in the game
@@ -128,6 +130,10 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
+- **0.2.5:**
+  - On ports with mod manager 1.9.0 or later, the floor-change markers use the game's own arrow, and
+    their labels are the game's own text in your game's language.
+  - The floor-change labels are centred on their arrow by the width of their letters.
 - **0.2.4:**
   - The treasure chart shows its whole art, as the game's chart screen does, with the X where the
     treasure is; before, the X stayed in the middle and the art was moved off the chart.
