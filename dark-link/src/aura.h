@@ -6,9 +6,10 @@ WWHD_GAME_FUNC(0x027DF40C, void, dl_animation_notify, (u32*));
 typedef struct { u32 brk, animation, channel; f32 frame, control, value, end; } DLAuraFrame;
 static DLAuraFrame dl_aura_update_frames[2], dl_aura_draw_frames[2];
 static u32 dl_aura_update_owner, dl_aura_draw_owner;
-typedef struct { u32 model, material, resource, state, before[3], ours[3]; } DLAuraBlend;
+/* users/serial: shape draws relying on this blend (see dl_draw_lock). */
+typedef struct { u32 model, material, resource, state, before[3], ours[3], users, serial; } DLAuraBlend;
 static DLAuraBlend dl_aura_blends[16];
-static u32 dl_aura_blend_count;
+static u32 dl_aura_blend_count, dl_aura_serial;
 static int dl_aura_active(daPy_lk_c* link) {
     return dl_enabled && dl_state.active && link == dl_owner && link == dl_player() &&
         dl_actor_id(link) == dl_owner_id && !(dl_word(link, 0x3bc) & 0x800);
@@ -48,52 +49,64 @@ static void dl_aura_frame_restore(DLAuraFrame* f) {
  * zero / inverse-source-alpha, preserving its authored alpha/depth.
  * FMAT+20 relative render state: flags, polygon, depth, alpha, ref, color,
  * target, blend, constant RGBA. BfresLibrary WiiU RenderState/BlendControl. */
-static void dl_aura_restore(void) {
+static const u32 dl_aura_offsets[3]={0,0x14,0x1c}, dl_aura_masks[3]={0x33,0x100,0x3fff1fff};
+/* Lock held. Restore one blend (only words still ours) and drop it. */
+static void dl_aura_remove(u32 i) {
+    DLAuraBlend* b=&dl_aura_blends[i];
+    int live=dl_game_span(b->model,0xb0) && dl_game_span(b->material,4) &&
+        *(u32*)b->material==b->resource && dl_relative(b->resource+0x20)==b->state;
+    u32 array=live?dl_word((void*)b->model,0x34):0, count=live?*(u16*)(b->model+0x2a):0;
+    if (live && count && count<=16 && dl_game_span(array,count*0x3c) &&
+        b->material>=array && !((b->material-array)%0x3c) && (b->material-array)/0x3c<count)
+        for (u32 k=0;k<3;++k) {
+            u32* word=(u32*)(b->state+dl_aura_offsets[k]);
+            if ((*word&dl_aura_masks[k])==(b->ours[k]&dl_aura_masks[k]))
+                *word=(*word&~dl_aura_masks[k])|(b->before[k]&dl_aura_masks[k]);
+        }
+    dl_aura_blends[i]=dl_aura_blends[--dl_aura_blend_count];
+}
+static void dl_aura_restore(void) { while (dl_aura_blend_count) dl_aura_remove(dl_aura_blend_count-1); }
+static void dl_aura_release(u32 serial) {
+    for (u32 i=0;i<dl_aura_blend_count;++i)
+        if (dl_aura_blends[i].serial==serial) { if (!--dl_aura_blends[i].users) dl_aura_remove(i); return; }
+}
+/* Lock held. Returns the handle of the blend this draw relies on, or 0. */
+static u32 dl_aura_blend(daPy_lk_c* link, u32 index) {
+    u32 model=dl_word(link,0x5700);
+    if (!dl_game_span(model,0xb0)) return 0;
+    u32 count=*(u16*)(model+0x2a), materials=dl_word((void*)model,0x34);
+    if (!count || count>16 || index>=count || !dl_game_span(materials,count*0x3c)) return 0;
+    u32 material=materials+index*0x3c, res=*(u32*)material;
+    if (!dl_game_span(res,0x24) || *(u32*)res!=0x464d4154) return 0;
+    u32 state=dl_relative(res+0x20);
+    if (!dl_game_span(state,0x30)) return 0;
     for (u32 i=0;i<dl_aura_blend_count;++i) {
         DLAuraBlend* b=&dl_aura_blends[i];
-        if (!dl_game_span(b->model,0xb0) ||
-            !dl_game_span(b->material,4) ||
-            *(u32*)b->material!=b->resource || dl_relative(b->resource+0x20)!=b->state) continue;
-        u32 array=dl_word((void*)b->model,0x34), count=*(u16*)(b->model+0x2a);
-        if (!count || count>16 || !dl_game_span(array,count*0x3c) ||
-            b->material<array || (b->material-array)%0x3c || (b->material-array)/0x3c>=count) continue;
-        const u32 offsets[3]={0,0x14,0x1c};
-        for (u32 k=0;k<3;++k) {
-            u32* word=(u32*)(b->state+offsets[k]);
-            const u32 masks[3]={0x33,0x100,0x3fff1fff};
-            if ((*word&masks[k])==(b->ours[k]&masks[k]))
-                *word=(*word&~masks[k])|(b->before[k]&masks[k]);
-        }
+        if (b->state!=state) continue;
+        int ours=b->material==material && b->resource==res;
+        for (u32 k=0;k<3;++k)
+            if ((*(u32*)(state+dl_aura_offsets[k])&dl_aura_masks[k])!=(b->ours[k]&dl_aura_masks[k])) ours=0;
+        if (ours) { ++b->users; return b->serial; } /* the other thread's draw of this shell */
+        dl_aura_remove(i);
+        break;
     }
-    dl_aura_blend_count=0;
-}
-static void dl_aura_blend(daPy_lk_c* link, u32 index) {
-    dl_aura_restore();
-    u32 model=dl_word(link,0x5700);
-    if (!dl_game_span(model,0xb0)) return;
-    u32 count=*(u16*)(model+0x2a), materials=dl_word((void*)model,0x34);
-    if (!count || count>16 || index>=count || !dl_game_span(materials,count*0x3c)) return;
-    for (u32 i=index;i<index+1;++i) {
-        u32 material=materials+i*0x3c, res=*(u32*)material;
-        if (!dl_game_span(res,0x24) || *(u32*)res!=0x464d4154) continue;
-        u32 state=dl_relative(res+0x20);
-        if (!dl_game_span(state,0x30)) continue;
-        DLAuraBlend* b=&dl_aura_blends[dl_aura_blend_count++];
-        *b=(DLAuraBlend){.model=model,.material=material,.resource=res,.state=state};
-        const u32 offsets[3]={0,0x14,0x1c};
-        for (u32 k=0;k<3;++k) b->before[k]=*(u32*)(state+offsets[k]);
-        b->ours[0]=(b->before[0]&~0x33u)|0x13u; /* translucent, color blending */
-        b->ours[1]=b->before[1]|0x100u;
-        /* Ignore shader RGB entirely. Animated BRK/custom shaders can still
-         * output violet after TEV overrides: 0*src + (1-srcAlpha)*dst is
-         * exactly a black veil with the native animated coverage. */
-        b->ours[2]=(b->before[2]&~0x1fffu)|(5u<<8);
-        /* Without separate alpha, changing RGB factors also changes the
-         * destination alpha. Retain the original alpha equation explicitly. */
-        if(!(b->before[2]&(1u<<29)))
-            b->ours[2]=(b->ours[2]&~0x1fff0000u)|((b->before[2]&0x1fff)<<16)|(1u<<29);
-        for (u32 k=0;k<3;++k) *(u32*)(state+offsets[k])=b->ours[k];
-    }
+    if (dl_aura_blend_count==16) return 0;
+    if (!++dl_aura_serial) ++dl_aura_serial;
+    DLAuraBlend* b=&dl_aura_blends[dl_aura_blend_count++];
+    *b=(DLAuraBlend){.model=model,.material=material,.resource=res,.state=state,.users=1,.serial=dl_aura_serial};
+    for (u32 k=0;k<3;++k) b->before[k]=*(u32*)(state+dl_aura_offsets[k]);
+    b->ours[0]=(b->before[0]&~0x33u)|0x13u; /* translucent, color blending */
+    b->ours[1]=b->before[1]|0x100u;
+    /* Ignore shader RGB entirely. Animated BRK/custom shaders can still
+     * output violet after TEV overrides: 0*src + (1-srcAlpha)*dst is
+     * exactly a black veil with the native animated coverage. */
+    b->ours[2]=(b->before[2]&~0x1fffu)|(5u<<8);
+    /* Without separate alpha, changing RGB factors also changes the
+     * destination alpha. Retain the original alpha equation explicitly. */
+    if(!(b->before[2]&(1u<<29)))
+        b->ours[2]=(b->ours[2]&~0x1fff0000u)|((b->before[2]&0x1fff)<<16)|(1u<<29);
+    for (u32 k=0;k<3;++k) *(u32*)(state+dl_aura_offsets[k])=b->ours[k];
+    return b->serial;
 }
 WWHD_HOOK(0x0240B7F4, dl_aura_update_before, (daPy_lk_c* link)) {
     dl_aura_update_owner=0;

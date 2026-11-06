@@ -2,7 +2,7 @@
 
 Sword hits charge a transformation with a dark charcoal body and equipment, red eyes,
 a translucent black native Magic Armor aura and boosted sword damage. A red native MagicBar
-appears below the normal magic gauge. Current version: **1.0.0**.
+appears below the normal magic gauge. Current version: **1.0.1**.
 
 ## Controls and settings
 
@@ -35,3 +35,10 @@ The transformation uses native rendering and Magic Armor animation; it grants
 no armor protection and consumes no rupees. The game keeps running while editing
 buttons.
 Artwork credits: [assets/ASSETS.md](assets/ASSETS.md).
+
+## Changes
+
+- **1.0.1:** fixes the crash on the first frame after transforming. The game draws Link on
+  two threads at once, and the mod's draw bookkeeping wasn't safe for that. The charcoal
+  body and the black aura now also show in the game's current drawing path; before, Link
+  could look white instead of dark while transformed.

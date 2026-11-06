@@ -17,6 +17,10 @@ typedef struct {
 static DLMaterialSave dl_materials[DL_SAVED_MATERIALS];
 static u32 dl_material_count, dl_draw_depth;
 static u32 dl_draw_marks[DL_DRAW_DEPTH];
+/* FMAT render-state edits held for one model window (see dl_view_patch). */
+static u32 dl_view_held[DL_DRAW_DEPTH][DL_MAX_MATERIALS], dl_view_held_count[DL_DRAW_DEPTH], dl_view_held_aura[DL_DRAW_DEPTH];
+static void dl_view_patch(u32 depth, void* model, int part, const u32* resources, u32 count);
+static void dl_view_unpatch(u32 depth);
 
 static void dl_restore_colors(u32 mark) {
     while (dl_material_count > mark) {
@@ -88,6 +92,7 @@ static void dl_visual_begin(void* model) {
     u32 depth = dl_draw_depth++;
     if (depth >= DL_DRAW_DEPTH) return;
     dl_draw_marks[depth] = dl_material_count;
+    dl_view_held_count[depth] = 0;
     if (!dl_state.active || !dl_enabled || !model) return;
     daPy_lk_c* link = dl_player();
     if (!link || link != dl_owner || (dl_word(link, 0x3bc) & 0x800)) return;
@@ -103,6 +108,7 @@ static void dl_visual_begin(void* model) {
     s32 eyes[DL_EYE_COUNT];
     for (u32 i = 0; i < DL_EYE_COUNT; ++i) eyes[i] = -1;
     if (address == link->mpCLModel) dl_find_eyes(data, count, eyes);
+    u32 body[DL_MAX_MATERIALS], bodies = 0;
     for (u32 i = 0; i < count; ++i) {
         u8* material = materials + i * 0x39c;
         u32 animation = dl_word(material, 0x24);
@@ -113,12 +119,14 @@ static void dl_visual_begin(void* model) {
             if (animation && (animation == link->m_tex_eye_scroll[0] || animation == link->m_tex_eye_scroll[1])) eye = 1;
         }
         dl_palette(material, part == 7 ? DL_SURFACE_AURA : eye ? DL_SURFACE_EYE : DL_SURFACE_BODY);
+        if (part != 7 && !eye) body[bodies++] = dl_word(material, 0);
     }
+    dl_view_patch(depth, model, part, body, bodies);
 }
 static void dl_visual_end(void) {
     if (!dl_draw_depth) return;
     u32 depth = --dl_draw_depth;
-    if (depth < DL_DRAW_DEPTH) dl_restore_colors(dl_draw_marks[depth]);
+    if (depth < DL_DRAW_DEPTH) { dl_restore_colors(dl_draw_marks[depth]); dl_view_unpatch(depth); }
 }
 /* Restore all four hook pairs from 0.1.0. The mDoExt wrappers encompass BOTH
  * model preparation and viewCalc/submission. Restoring at the inner native
