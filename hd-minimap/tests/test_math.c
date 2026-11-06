@@ -324,6 +324,21 @@ static void sdk_integration(void){
     }
 }
 
+static void chart_mark(void) {
+    /* the art stays centred; only the X moves by (spot - centre) * side / world, y down like the sea's z */
+    float dx, dy;
+    const short left_below[4] = {1000, -2000, -24000, 25000};
+    assert(hdm_chart_mark(left_below, 470, 100000, &dx, &dy));
+    assert(fabsf(dx - (-25000 * 470 / 100000.0f)) < 1e-3f && dx < 0);
+    assert(fabsf(dy - (27000 * 470 / 100000.0f)) < 1e-3f && dy > 0);
+    const short centred[4] = {-3000, 4000, -3000, 4000};
+    assert(hdm_chart_mark(centred, 470, 100000, &dx, &dy) && dx == 0 && dy == 0);
+    /* an untrusted world size leaves the X in the centre */
+    assert(!hdm_chart_mark(left_below, 470, 0, &dx, &dy) && dx == 0 && dy == 0);
+    assert(!hdm_chart_mark(left_below, 470, 2e6f, &dx, &dy) && dx == 0 && dy == 0);
+    assert(!hdm_chart_mark(left_below, 0, 100000, &dx, &dy) && dx == 0 && dy == 0);
+}
+
 static void hud_entry(void) {
     /* the D-pad's chain after a save load (log of 2026-11-02): State, InOut, N_All_00 (waiting at 0), parents */
     const unsigned char waiting_global[] = {255, 255, 0, 255, 255, 255, 255, 255};
@@ -341,10 +356,117 @@ static void hud_entry(void) {
     assert(!hdm_hud_waiting(1, 1, 0x1B / 255.0f));
     assert(!hdm_hud_waiting(1, 0, 0));
     assert(!hdm_hud_waiting(0, 1, 0));   /* once in, the HUD's later fades don't hold the map */
+    /* a D-pad that stays hidden (Medli or Makar controlled) holds the map only for a bounded wait */
+    int waiting = 1, steps = 0;
+    while (waiting && steps < 1000) { waiting = hdm_hud_waiting(waiting, 1, 0); ++steps; }
+    assert(!waiting && steps == HDM_HUD_WAIT_STEPS);
+    /* the HUD coming in on the last waiting step still ends the wait */
+    assert(hdm_hud_waiting(HDM_HUD_WAIT_STEPS - 1, 1, 0) == HDM_HUD_WAIT_STEPS);
+    assert(!hdm_hud_waiting(HDM_HUD_WAIT_STEPS - 1, 1, .5f));
+}
+static void sailing(void) {
+    float left, low;
+    /* replacing the compasses: the on-foot corner, whatever the compass rectangle does */
+    hdm_panel_corner(1, 1, 24, 30, &left, &low);
+    assert(left == 24 && low == 30);
+    /* aboard without the lease: above the native compasses; on foot: the corner */
+    hdm_panel_corner(0, 1, 24, 30, &left, &low);
+    assert(left == 24 && low == 140);
+    hdm_panel_corner(0, 0, 24, 30, &left, &low);
+    assert(left == 24 && low == 30);
+    /* the chart's title: centred over the chart, just above it, with the native proportions */
+    hdm_chart_title t = hdm_chart_title_box(100, 200, 200);
+    assert(fabsf(t.w - 188) < 1e-3f && fabsf(t.h - 188 * 47.0f / 312.0f) < 1e-3f);
+    assert(fabsf(t.x + t.w / 2 - 200) < 1e-3f);
+    assert(fabsf(t.y + t.h - (200 - 6)) < 1e-3f);
+    assert(t.shadow_y > t.y && t.shadow_y < t.y + t.h && fabsf(t.shadow_h / t.h - 25.0f / 47.0f) < 1e-5f);
+    /* a short name keeps 0.75 x the ribbon's height; a long one shrinks to fit the 296/312 box */
+    assert(fabsf(hdm_chart_title_size(&t, 2) - t.h * .75f) < 1e-4f);
+    float long_size = hdm_chart_title_size(&t, 60);
+    assert(long_size < t.h * .75f && fabsf(60 * long_size * HDM_TITLE_ADVANCE - t.w * 296.0f / 312.0f) < 1e-2f);
+    assert(fabsf(hdm_chart_title_size(&t, 0) - t.h * .75f) < 1e-4f);
+}
+static void stairs(void) {
+    char key[64];
+    hdm_stair_pane_key(key, 1, "2F", 1, 0);
+    assert(!strcmp(key, "layout-pane:DungeonMapFloor_01/N_2FUp_00"));
+    hdm_stair_pane_key(key, 4, "B1", 0, 1);
+    assert(!strcmp(key, "layout-pane:DungeonMapFloor_04/N_B1Down_01"));
+    assert(strlen(key) < 64);
+    /* the floor each marker leads to: the next one up or down; Forsaken Fortress's up leads outside */
+    int chars;
+    const char* label;
+    label = hdm_stair_label(4, 0x80, 0, &chars);
+    assert(label && chars == 2 && !strcmp(label, "B1"));
+    label = hdm_stair_label(4, 0x7f, 1, &chars);
+    assert(label && chars == 2 && !strcmp(label, "1F"));
+    label = hdm_stair_label(4, 0x7f, 0, &chars);
+    assert(label && chars == 2 && !strcmp(label, "B2"));
+    label = hdm_stair_label(1, 0x81, 1, &chars);
+    assert(label && chars == 2 && !strcmp(label, "3F"));
+    label = hdm_stair_label(0, 0x80, 1, &chars);
+    assert(label && chars == 4 && !strcmp(label, "Ext."));
+    /* past the last floor there is no label */
+    assert(!hdm_stair_label(4, 0x88, 1, &chars) && chars == 0);
+    assert(!hdm_stair_label(4, 0x78, 0, &chars) && chars == 0);
+    /* the constant labels are the floor tags of the art names, on every floor */
+    for (int floor = 0x77; floor <= 0x89; ++floor)
+        for (int up = 0; up < 2; ++up) {
+            char tag[3];
+            int has = hdm_floor_tag(floor + (up ? 1 : -1), tag);
+            label = hdm_stair_label(4, floor, up, &chars);
+            assert(has ? label && chars == 2 && !strcmp(label, tag) : !label && !chars);
+        }
+}
+static void retries(void) {
+    /* a failed picture is tried again a second later, a few times, then left alone until reset */
+    hdm_retry r = {0};
+    assert(hdm_retry_due(&r, 0));
+    unsigned long long step = 100;
+    int loads = 0;
+    for (int frame = 0; frame < 1000; ++frame, ++step)
+        if (hdm_retry_due(&r, step)) { ++loads; hdm_retry_failed(&r, step); }
+    assert(loads == HDM_RETRY_TRIES);
+    /* spaced out: not on the very next step */
+    hdm_retry s = {0};
+    hdm_retry_failed(&s, 10);
+    assert(!hdm_retry_due(&s, 11) && !hdm_retry_due(&s, 10 + HDM_RETRY_STEPS - 1) && hdm_retry_due(&s, 10 + HDM_RETRY_STEPS));
+    /* a reset (new chart, released images, state load) starts over */
+    r = (hdm_retry){0};
+    assert(hdm_retry_due(&r, step));
+}
+static void hud_follow(void) {
+    /* the HUD's hearts decide: aiming with the HUD up keeps the map; a hidden HUD hides it */
+    assert(hdm_pane_shown(1, 255) && !hdm_pane_shown(0, 255) && !hdm_pane_shown(1, 0) && hdm_pane_shown(3, 1));
+    assert(!hdm_hud_hides_map(1, 1) && !hdm_hud_hides_map(1, 0));
+    assert(hdm_hud_hides_map(0, 0) && hdm_hud_hides_map(0, 1));
+    /* without a readable HUD, Link's aiming / first-person / telescope flags */
+    assert(hdm_hud_hides_map(-1, 1) && !hdm_hud_hides_map(-1, 0));
+    /* aiming blocks the map's buttons */
+    assert(hdm_blocked_buttons(1, 0, 0) == HDM_ALL_BUTTONS);
+}
+static void hit_stop(void) {
+    /* shown: Link's step ran this step or the one before */
+    assert(!hdm_presentation_hidden(1, 0, 0, 10, 10));
+    assert(!hdm_presentation_hidden(1, 0, 0, 11, 10));
+    /* a menu or a missed step hides it */
+    assert(hdm_presentation_hidden(1, 1, 0, 10, 10));
+    assert(hdm_presentation_hidden(1, 0, 0, 12, 10));
+    assert(hdm_presentation_hidden(0, 0, 0, 10, 10));
+    /* hit-stop: paused, Link's step missed, but the last frame stays */
+    assert(!hdm_presentation_hidden(1, 1, 1, 14, 10));
+    /* nothing to keep when there was no frame */
+    assert(hdm_presentation_hidden(0, 1, 1, 14, 10));
 }
 
 int main(void) {
+    chart_mark();
     hud_entry();
+    hit_stop();
+    hud_follow();
+    retries();
+    stairs();
+    sailing();
     captions();
     animation();
     contexts();

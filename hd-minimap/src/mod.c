@@ -57,6 +57,7 @@ WWHD_GAME_FUNC(0x0273A2E8, u32, chart_msg_text, (u32 data, u32 index));
 #define STTS0_HIDE (0x1000u | 0x2000u | 0x4000u | 0x20000u | 0x80000u | 0x200000u) /* aiming, first person, telescope */
 #define STTS0_SHIP 0x10000u
 #define STTS1_CONDUCT 0x1u
+#define PAUSE_TIMER 0x101EACB6      /* dScnPly_ply_c::pauseTimer (s8), set by a landed blow's hit-stop; mapped for EU by WWHD_GAME_DATA */
 #define UI_SCENE 0x101F8344         /* the game's UI scene: +0x178 the TV HUD, +0x218 the map screens */
 
 enum { MODE_NONE, MODE_SEA, MODE_DUNGEON };
@@ -128,9 +129,11 @@ static int initialized;
 /* images */
 static unsigned long long image_epoch;
 static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img_medli, img_makar, img_ship, img_base, img_door, img_boss;
-static u32 img_island, img_chart, img_ribbon, img_chart_base, img_mark, img_mark_fill;
+static u32 img_stair;     /* the floor-change markers' arrow (assets/floor-arrow.png, from generate_art.py) */
+static hdm_retry stair_retry, chart_retry;  /* failed loads of the arrow and the chart picture */
+static u32 img_island, img_chart, img_ribbon, img_ribbon_shadow, img_chart_base, img_mark, img_mark_fill;
 static u32 img_searchlight[2];  /* searching, stopped */
-static int island_room = -1, island_full = -1, chart_key = -1;
+static int island_room = -1, chart_key = -1;
 typedef struct { int pane, room; float x, y, w, h; u32 image; char texture[96]; } hdm_room;
 static hdm_room rooms[MAX_ROOMS];
 /* the floor screens' room tables (DungeonMapFloor_00..05): (plan room, floor, room) per plan room; Forsaken
@@ -166,6 +169,30 @@ static void swap_room_cache(void) {
     SWAP_FIELD(floor_min_x, spare_rooms.min_x, float); SWAP_FIELD(floor_min_y, spare_rooms.min_y, float);
     SWAP_FIELD(floor_max_x, spare_rooms.max_x, float); SWAP_FIELD(floor_max_y, spare_rooms.max_y, float);
 #undef SWAP_FIELD
+}
+/* The floor-change markers of a floor (DungeonMapFloor_0N's N_<floor>Up_0n / N_<floor>Down_0n), as the GamePad
+ * draws them with DungeonMapUp_00 / DungeonMapDown_00: two floors cached, for the floor slide */
+typedef struct { float x, y, rotation; int up; } hdm_stair;
+static struct { int dungeon, floor, count; hdm_stair items[8]; } stair_cache[2] = {{-1, -1, 0, {{0}}}, {-1, -1, 0, {{0}}}};
+static const hdm_stair* floor_stairs(int dungeon, int floor, int* count) {
+    static wwhd_game_pane pane;
+    static char key[64];
+    char tag[3];
+    *count = 0;
+    if (!hdm_floor_tag(floor, tag)) return 0;
+    for (int s = 0; s < 2; ++s)
+        if (stair_cache[s].dungeon == dungeon && stair_cache[s].floor == floor) { *count = stair_cache[s].count; return stair_cache[s].items; }
+    stair_cache[1] = stair_cache[0];
+    stair_cache[0].dungeon = dungeon; stair_cache[0].floor = floor; stair_cache[0].count = 0;
+    for (int up = 0; up < 2; ++up)
+        for (int n = 0; n < 4 && stair_cache[0].count < 8; ++n) {
+            hdm_stair_pane_key(key, dungeon, tag, up, n);
+            if (!wwhd_game_pane_get(key, &pane)) continue;
+            hdm_stair* st = &stair_cache[0].items[stair_cache[0].count++];
+            st->x = pane.x; st->y = pane.y; st->rotation = pane.rotation; st->up = up;
+        }
+    *count = stair_cache[0].count;
+    return stair_cache[0].items;
 }
 /* the point Forsaken Fortress's later markers turn about (read with its plan) */
 static float forsaken_cx = HDM_FORSAKEN_CENTRE_X, forsaken_cy = HDM_FORSAKEN_CENTRE_Y;
@@ -250,8 +277,9 @@ static void forget_rooms(void) {
 static void forget_images(void) {
     /* after a state load the handles are gone: just forget them */
     img_frame = img_wind = img_unknown = img_face = img_arrow = img_chest = img_medli = img_makar = img_ship = img_base = img_door = img_boss = 0;
-    img_island = img_chart = img_ribbon = img_chart_base = img_mark = img_mark_fill = 0; island_room = island_full = chart_key = -1;
+    img_island = img_chart = img_ribbon = img_ribbon_shadow = img_chart_base = img_mark = img_mark_fill = 0; island_room = chart_key = -1;
     img_searchlight[0] = img_searchlight[1] = 0;
+    img_stair = 0; stair_retry = (hdm_retry){0}; chart_retry = (hdm_retry){0};
     for (int i = 0; i < 4; ++i) img_feedback[i] = 0;
     for (int i = 0; i < HDM_ICON_COUNT; ++i) img_icons[i] = 0;
     for (int i = 0; i < room_count; ++i) rooms[i].image = 0;
@@ -271,11 +299,12 @@ static void release_dungeon_images(void) {
     spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
     drop(&img_door); drop(&img_chest); drop(&img_boss); drop(&img_medli); drop(&img_makar);
     drop(&img_searchlight[0]); drop(&img_searchlight[1]);
+    drop(&img_stair); stair_retry = (hdm_retry){0};
 }
 static void release_sea_images(void) {
-    drop(&img_island); island_room = island_full = -1;
+    drop(&img_island); island_room = -1;
     drop(&img_chart); chart_key = -1;
-    drop(&img_ribbon); drop(&img_chart_base); drop(&img_mark); drop(&img_mark_fill);
+    drop(&img_ribbon); drop(&img_ribbon_shadow); drop(&img_chart_base); drop(&img_mark); drop(&img_mark_fill);
     drop(&img_base); drop(&img_wind); drop(&img_ship); drop(&img_unknown);
 }
 static void static_images(void) {
@@ -295,10 +324,11 @@ static void island_image(int room) {
     if (island_room == room) return;
     drop(&img_island);
     island_room = room;
-    hdm_sector_texture(name, room, 1);
-    island_full = texture_exists(name);
-    if (!island_full) hdm_sector_texture(name, room, 0);
-    if (island_full || texture_exists(name)) {
+    /* the GamePad balloon's plan (rXX_b, as its 200 x 200 view), never the zoomed view's rXX_Full: that
+     * one (9 sectors) carries the cloth weave and heavy dark blur meant for the full-screen view, which
+     * look dirty and black when shrunk to the minimap */
+    hdm_sector_texture(name, room, 0);
+    if (texture_exists(name)) {
         /* "Smooth island maps": the port enlarges the 100 x 100 art 3 times (Lanczos-3) on the player's
          * machine; the original art when the port can't */
         if (opt.smooth) {
@@ -311,13 +341,17 @@ static void island_image(int room) {
         if (!img_island) img_island = game_image(name);
     }
 }
+/* a chart picture that fails to load is tried again a few times (hdm_retry), afresh for another chart */
 static void chart_image(int sea) {
     int key = sea * 4 + snap.chart_set;
-    if (chart_key == key) return;
+    unsigned long long step = wwhd_logic_step();
+    if (chart_key == key && (img_chart || !hdm_retry_due(&chart_retry, step))) return;
+    if (chart_key != key) chart_retry = (hdm_retry){0};
     drop(&img_chart);
     chart_key = key;
     hdm_chart_texture(name, sea, snap.chart_set);
     img_chart = game_image(name);
+    if (!img_chart) hdm_retry_failed(&chart_retry, step);
 }
 /* the floor plan: the room panes of the dungeon's layout whose art is on the floor */
 static void floor_rooms(int dungeon, int floor) {
@@ -505,25 +539,6 @@ static void draw_sea(u32 list, float x, float y, float side, float a) {
         image(list, img_wind, x + side - s - inset * .5f, y + inset * .5f, s, s, yaw_rotation(toward), 0xffffff, a);
     }
 }
-/* a piece of the chart paper exactly where the paper under it is drawn (same texels, so an overlay of
- * rising opacity blends the art into the paper without seams) */
-static float paper_x, paper_y, paper_size;
-static void rect_image(u32 list, u32 handle, float x, float y, float w, float h, float alpha) {
-    if (!handle || alpha <= 0 || paper_size <= 0) return;
-    element = (wwhd_hud_element){0};
-    element.kind = WWHD_HUD_IMAGE; element.anchor = WWHD_HUD_TOP_LEFT;
-    element.x = x; element.y = y; element.w = w; element.h = h; element.thickness = 1;
-    element.u0 = (x - paper_x) / paper_size; element.u1 = (x + w - paper_x) / paper_size;
-    element.v0 = (y - paper_y) / paper_size; element.v1 = (y + h - paper_y) / paper_size;
-    if (element.u0 < 0) element.u0 = 0;
-    if (element.v0 < 0) element.v0 = 0;
-    if (element.u1 > 1) element.u1 = 1;
-    if (element.v1 > 1) element.v1 = 1;
-    if (element.u1 < element.u0 || element.v1 < element.v0) return;
-    element.image = handle;
-    element.rgba = 0xffffff00u | (u32)(alpha * 255.0f + .5f);
-    wwhd_hud_emit(list, &element);
-}
 static void draw_chart(u32 list, float x, float y, float side, float a) {
     if (!snap.chart_count) return;
     if (ui.chart >= snap.chart_count) ui.chart = 0;
@@ -531,45 +546,31 @@ static void draw_chart(u32 list, float x, float y, float side, float a) {
     float inset = side * 6.0f / 256.0f, inner = side - 2 * inset;
     /* the chart's own blue paper (TreMap_00's base) under the sector's chart art */
     if (!img_chart_base) img_chart_base = game_image("TreMap_00/MapArea_00^t#P_TreMapBase_00");
-    /* as the game's treasure chart screen does it (hdTreMapScreen_c::selectChart): the chart is centred on
-     * the treasure's spot, where the X is, and the sector's chart art is moved by the art centre's
-     * distance from it; the chart spans the game's cell world size */
-    const s16* r = snap.charts[ui.chart].rect;
+    /* as the game's treasure chart screen does it (hdTreMapScreen_c::selectChart): the sector's chart art
+     * fills the chart, centred on the chart's centre, and only the X (P_TreasureGetBig_00 and
+     * P_TreasureMark_00) moves by the treasure's distance from that centre; the chart spans the game's
+     * cell world size */
     f32 world = WWHD_GAME_DATA(0x1010855C, f32);
-    float k = hdm_finite(world) && world > 1000 && world < 1e6f ? inner / world : 0;
-    float ax = (float)(r[2] - r[0]) * k, ay = (float)(r[3] - r[1]) * k;
+    float mx, my;
+    hdm_chart_mark(snap.charts[ui.chart].rect, inner, hdm_finite(world) ? world : 0, &mx, &my);
     clip(list, 1, x + inset, y + inset, inner, inner);
-    paper_x = x + inset - inner * .1f; paper_y = y + inset - inner * .1f; paper_size = inner * 1.2f;
-    image(list, img_chart_base, paper_x, paper_y, paper_size, paper_size, 0, 0xffffff, a);
-    image(list, img_chart, x + inset + ax, y + inset + ay, inner, inner, 0, 0xffffff, a);
-    /* where the moved art ends inside the chart, it fades into the chart paper (paper strips of rising
-     * opacity over its last eighth), so no cut edge shows */
-    {
-        float left = x + inset, top = y + inset, f = inner * .14f;
-        float art_l = left + ax, art_t = top + ay, art_r = art_l + inner, art_b = art_t + inner;
-        /* nested strips, each from its step to the art's end: after n of N layers the paper covers n / N
-         * (layer n with opacity 1 / (N - n + 1)), with no seams between the strips */
-        const int steps = 16;
-        float w = f / steps;
-        for (int n = 1; n <= steps; ++n) {
-            float o = a / (float)(steps - n + 1 + 1), d = (n - 1) * w;
-            if (art_r < left + inner) rect_image(list, img_chart_base, art_r - f + d, top, f - d, inner, o);
-            if (art_l > left) rect_image(list, img_chart_base, art_l, top, f - d, inner, o);
-            if (art_b < top + inner) rect_image(list, img_chart_base, left, art_b - f + d, inner, f - d, o);
-            if (art_t > top) rect_image(list, img_chart_base, left, art_t, inner, f - d, o);
-        }
-    }
+    image(list, img_chart_base, x + inset - inner * .1f, y + inset - inner * .1f, inner * 1.2f, inner * 1.2f, 0, 0xffffff, a);
+    image(list, img_chart, x + inset, y + inset, inner, inner, 0, 0xffffff, a);
     if (!img_mark) img_mark = game_image("TreMap_00/MapTreasureMark_00^t#P_TreasureMark_00");
     if (!img_mark_fill) img_mark_fill = game_image("TreMap_00/MapTreasureMark_00^t#P_TreasureMarkColor_00");
-    float m = inner * .15f, cx = x + side / 2, cy = y + side / 2;
+    float m = inner * .15f, cx = x + side / 2 + mx, cy = y + side / 2 + my;
     image(list, img_mark, cx - m / 2, cy - m / 2, m, m, 0, 0xffffff, a);
     image(list, img_mark_fill, cx - m / 3, cy - m / 3, m * 2 / 3, m * 2 / 3, 0, 0xffffff, a);
     clip(list, 0, 0, 0, 0, 0);
     frame(list, x, y, side, a);
     /* the game's title ribbon with the chart's number (language-neutral; the chart names are game text) */
     if (!img_ribbon) img_ribbon = game_image("MenuMap_00/TitleBase_00^t#P_TitleTreBase_00");
-    /* the ribbon is drawn from two halves, the right one turned (the game mirrors it) */
-    float rw = side * .62f, rh = side * .16f, rx = x + (side - rw) / 2, ry = y - rh * .45f;
+    if (!img_ribbon_shadow) img_ribbon_shadow = game_image("MenuMap_00/TitleBaseShadow_00^t#P_TitleTreBaseSh_00");
+    /* MenuMap_00's chart title (hdm_chart_title_box): the ribbon of two 156-wide halves, the right one's
+     * UVs scaled by -1, -1 (turned), its shadow, and the text centred 23 above the ribbon's bottom */
+    hdm_chart_title title = hdm_chart_title_box(x, y, side);
+    float rw = title.w, rh = title.h, rx = title.x, ry = title.y;
+    image(list, img_ribbon_shadow, rx, title.shadow_y, rw, title.shadow_h, 0, 0xffffff, a);
     image(list, img_ribbon, rx, ry, rw / 2, rh, 0, 0xffffff, a);
     image(list, img_ribbon, rx + rw / 2, ry, rw / 2, rh, pi, 0xffffff, a);
     static char number[4];
@@ -579,12 +580,11 @@ static void draw_chart(u32 list, float x, float y, float side, float a) {
     element = (wwhd_hud_element){0};
     element.kind = WWHD_HUD_TEXT; element.anchor = WWHD_HUD_TOP_LEFT;
     u32 chars = snap.chart_name_bytes ? snap.chart_name_chars : n < 10 ? 1 : 2;
-    float text_size = rh * .7f;
-    if (chars && chars * text_size * .6f > rw * .92f) text_size = rw * .92f / (chars * .6f);
-    element.x = rx + (rw - chars * text_size * .5f) / 2;
-    element.y = ry + (rh - text_size) / 2; element.size = text_size;
+    float text_size = hdm_chart_title_size(&title, chars);
+    element.x = rx + (rw - chars * text_size * HDM_TITLE_ADVANCE) / 2;
+    element.y = ry + rh - rh * 23.0f / 47.0f - text_size / 2; element.size = text_size;
     element.thickness = 1; element.u1 = element.v1 = 1;
-    element.rgba = 0x1c4f8a00u | (u32)(a * 255.0f);
+    element.rgba = 0x011f6d00u | (u32)(a * 255.0f);  /* T_TitleTre_00 */
     element.text = snap.chart_name_bytes ? snap.chart_name : number;
     element.text_bytes = snap.chart_name_bytes ? snap.chart_name_bytes : n < 10 ? 1 : 2;
     wwhd_hud_emit(list, &element);
@@ -604,6 +604,23 @@ static void place(float lx, float ly, float* px, float* py) {
     float c = sin_approx(dturn + pi / 2), s = sin_approx(dturn), dx = *px - dlink_px, dy = *py - dlink_py;
     *px = dlink_px + dx * c - dy * s;
     *py = dlink_py + dx * s + dy * c + floor_shift;
+}
+/* text as the game's floor labels draw it: white letters with a thick edge of the label's colour (the font
+ * material's black colour), made of copies around it */
+static void outlined_text(u32 list, const char* text, u32 bytes, float x, float y, float size, u32 edge, float alpha) {
+    static const float around[12][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-.7f, -.7f}, {.7f, -.7f}, {-.7f, .7f}, {.7f, .7f},
+                                        {-.92f, -.38f}, {.92f, -.38f}, {-.92f, .38f}, {.92f, .38f}};
+    float d = size * .14f;
+    if (d < 1.5f) d = 1.5f;
+    for (int k = 0; k <= 12; ++k) {
+        element = (wwhd_hud_element){0};
+        element.kind = WWHD_HUD_TEXT; element.anchor = WWHD_HUD_TOP_LEFT;
+        element.x = x + (k < 12 ? around[k][0] * d : 0); element.y = y + (k < 12 ? around[k][1] * d : 0);
+        element.size = size; element.thickness = 1; element.u1 = element.v1 = 1;
+        element.rgba = ((k < 12 ? edge : 0xffffffu) << 8) | (u32)(alpha * 255.0f + .5f);
+        element.text = text; element.text_bytes = bytes;
+        wwhd_hud_emit(list, &element);
+    }
 }
 static void draw_dungeon(u32 list, float x, float y, float side, float a) {
     floor_rooms(snap.dungeon, snap.floor);
@@ -658,6 +675,43 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
         float px, py, w = rooms[i].w * dview.scale, h = rooms[i].h * dview.scale;
         place(rooms[i].x, rooms[i].y, &px, &py);
         image(list, rooms[i].image, ox + px - w / 2, oy + py - h / 2, w, h, dturn, rgb, current || visited ? a : a * .7f);
+    }
+    {
+        /* the floor-change markers as DungeonMapUp_00 / DungeonMapDown_00 draw them, in the plan's units at its
+         * whole-view scale (as doors): P_Up_00 (80 x 56 up, 100 x 56 down, at 0.6 x 0.8; the down one turned
+         * 180 degrees) at alpha 100; T_Floor_00 above it, the floor it leads to in blue (up) or pink (down),
+         * outlined in white. The game's MapFloorUpDown_00 is half an arrow that P_Up_00's UVs (0..2) mirror into
+         * a whole one; the HUD takes no reversed UVs (an element with u1 < u0 drops the whole list), so the
+         * arrow is the mod's own whole triangle */
+        int count = 0;
+        const hdm_stair* stairs = floor_stairs(snap.dungeon, snap.floor, &count);
+        /* sized as on the expanded panel whatever the panel's size, so they stay readable on the compact one */
+        float marker_side = opt.side_expanded > side ? opt.side_expanded : side;
+        float unit = hdm_plan_view(marker_side * (1 - 12.0f / 256.0f), .04f).scale;
+        if (count && !img_stair && hdm_retry_due(&stair_retry, wwhd_logic_step())) {
+            img_stair = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/floor-arrow.png");
+            if (!img_stair) hdm_retry_failed(&stair_retry, wwhd_logic_step());
+        }
+        for (int i = 0; i < count; ++i) {
+            int up = stairs[i].up;
+            /* the GamePad draws the marker layouts at half their size on the plan (as the doors' 64 x 20 at 0.5) */
+            float px, py, w = (up ? 24 : 30) * unit, h = 22.4f * unit;
+            /* the arrow and its label share the marker's centre: the label on top of the arrow */
+            place(stairs[i].x, stairs[i].y, &px, &py);
+            /* upright on screen like its label, also when the zoomed plan turns: up points up, down points down */
+            float r = up ? 0 : pi;
+            /* nudged 3 plan units left: the label's width is an estimate, and centred on the pane the arrow
+             * looked a little right of its text (user's capture, 2026-11-05) */
+            image(list, img_stair, ox + px - w / 2 - 3 * unit, oy + py - h / 2, w, h, r, 0xffffff, a * 100 / 255);
+            int chars;
+            const char* label = hdm_stair_label(snap.dungeon, snap.floor, up, &chars);
+            if (!label) continue;
+            /* centred on the arrow: the HUD draws text (ImGui, Arial) from its top-left; capitals and digits
+             * advance about 0.52 x size, and their visual middle is about half the size down */
+            float size = 20 * unit, tw = chars * size * HDM_LABEL_ADVANCE;
+            outlined_text(list, label, (u32)chars, ox + px - tw / 2, oy + py - size / 2, size,
+                          up ? 0x1e64b4u : 0xff0064u, a);
+        }
     }
     if (snap.outdoor) {
         /* the searchlights at their part panes, as the GamePad's Valid animation leaves them: searching, the
@@ -760,6 +814,14 @@ static void read_dpad(void) {
     }
     dpad.alpha = hdm_hud_alpha(global, flags, depth);
 }
+/* the HUD hearts' N_All_00 (Main_00's first layout, RootPane > N_All_00, as Minimap HD 1.3 reads it): 1 shown,
+ * 0 hidden or transparent, -1 when the HUD can't be read */
+static int hud_hearts(void) {
+    u32 hud = follow(*(u32*)&WWHD_GAME_DATA(UI_SCENE, u8), 0x178);
+    u32 pane = follow(follow(follow(follow(follow(follow(hud, 0x4C), 0), 0x44), 4), 0x0C), 0x14);
+    if (!heap_pointer(pane) || !hdm_same((const char*)(pane + 0x80), "N_All_00")) return -1;
+    return hdm_pane_shown(*(u8*)(pane + 0x44), *(u8*)(pane + 0x45));
+}
 /* an icon centred (ox, oy) layout units from the D-pad's pane, size units wide, with the shadow Minimap HD's
  * icons have in the game: black, offset (dx, dy) */
 static void dpad_icon(u32 list, int icon, float ox, float oy, float size, float dx, float dy, float shadow) {
@@ -803,7 +865,12 @@ static int map_requested(void){
 static void sdk_begin(void){
     unsigned long long epoch=wwhd_hud_epoch();
     if(epoch!=image_epoch||compass_recheck){
-        image_epoch=epoch;forget_images();compass_active=compass_recheck=0;sdk_capabilities();
+        /* Only a new HUD epoch (state load) invalidates the handles. A revoked
+         * compass lease keeps them: forgetting live handles would leak them
+         * against the SDK's 32-image budget. */
+        if(epoch!=image_epoch){image_epoch=epoch;forget_images();}
+        else{panel_slide=(hdm_tween){0};chart_slide=(hdm_tween){0};have_panel=have_chart=floor_direction=0;hud_waiting=1;}
+        compass_active=compass_recheck=0;sdk_capabilities();
         if(chart_api&&hdm_chart_cancel(&chart_sync))wwhd_map_chart_cancel();
         chart_sync.observed=-1;
     }
@@ -856,8 +923,12 @@ static void presentation_logic(void){
             have_panel=have_chart=0;compass_recheck=1;return;
         }
         if(compass_api&&was_active&&!want_compass)wwhd_hud_boat_compasses(0);
-        float left=compass_active?compass_rect.x+opt.x:opt.x;
-        float bottom=compass_active?720-compass_rect.y-compass_rect.h+opt.bottom:opt.bottom+(marine?110:0);
+        /* Replacing the compasses, the map keeps the on-foot corner: the reported
+         * rectangle's left/top edges follow the compass pieces' rotation (up to
+         * ~19 units), which made the map drift. Without the lease it stays above
+         * the native compasses. */
+        float left,bottom;
+        hdm_panel_corner(compass_active,marine,opt.x,opt.bottom,&left,&bottom);
         if(!was_visible){
             panel_left=(hdm_tween){left,left,left,0,0};
             panel_bottom=(hdm_tween){bottom,bottom,bottom,0,0};
@@ -913,7 +984,8 @@ static void draw(u32 list) {
         }
     }
     /* Link's step runs in the logic step before this callback; in menus or while paused it doesn't */
-    if (!snap.visible || game_paused() || wwhd_logic_step() > captured_step + 1) {
+    int hit_stop = WWHD_GAME_DATA(PAUSE_TIMER, s8) != 0;
+    if (hdm_presentation_hidden(snap.visible, game_paused(), hit_stop, wwhd_logic_step(), captured_step)) {
         panel_slide = (hdm_tween){0}; chart_slide = (hdm_tween){0};
         have_panel = have_chart = floor_direction = 0;
         presentation_dungeon = presentation_floor = -1;
@@ -1061,7 +1133,7 @@ static void read_charts(u32 save) {
         snap.charts[snap.chart_count].sea = sea; snap.charts[snap.chart_count].save = save_no;
         snap.charts[snap.chart_count].number = (s8)e[2];
         snap.charts[snap.chart_count].index = (s8)i;
-        /* the chart set's rectangle: the treasure's spot (the chart's centre) and the art's centre, sector-local */
+        /* the chart set's rectangle: the chart's centre (the art's centre) and the treasure's spot, sector-local */
         for (int k = 0; k < 4; ++k) {
             const u8* r = e + 6 + 2 * (4 * snap.chart_set + k);
             snap.charts[snap.chart_count].rect[k] = (s16)(((u16)r[0] << 8) | r[1]);
@@ -1238,7 +1310,12 @@ static void capture(fopAc_ac_c* actor) {
     if (snap.mode != MODE_DUNGEON || play[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET]) {
         floor_history = floor_dungeon = floor_role = -1;
     }
-    if (busy || (status0 & STTS0_HIDE) || (status1 & STTS1_CONDUCT)) {
+    /* The map shows while the game's HUD does (Minimap HD 1.3): hidden with the HUD hearts' N_All_00, so
+     * that aiming the bow, the hookshot or the boomerang keeps it as the HUD keeps its hearts. Without a
+     * readable HUD it falls back to Link's aiming, first-person and telescope flags. Aiming still blocks
+     * the map's buttons. */
+    int aiming = (status0 & STTS0_HIDE) != 0, hearts = hud_hearts();
+    if (busy || (status1 & STTS1_CONDUCT) || hdm_hud_hides_map(hearts, aiming)) {
         handle_input(HDM_ALL_BUTTONS, 0);
         return;
     }
@@ -1262,7 +1339,7 @@ static void capture(fopAc_ac_c* actor) {
     snap.room = role ? map_companion()->current.roomNo : actor->current.roomNo;
     if (!at_sea) {
         select_choice(snap.mode == MODE_DUNGEON);
-        handle_input(hdm_blocked_buttons(0, snap.on_ship, at_sea), 0);
+        handle_input(hdm_blocked_buttons(aiming, snap.on_ship, at_sea), 0);
     }
     if (at_sea) {
         snap.mode = MODE_SEA;
@@ -1280,7 +1357,7 @@ static void capture(fopAc_ac_c* actor) {
         if (opt.dungeons && hdm_forsaken_outside(snap.sector, snap.on_ship, snap.covered) && stage_map(2)) {
             snap.mode = MODE_DUNGEON;
             select_choice(1);
-            handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), 0);
+            handle_input(hdm_blocked_buttons(aiming, snap.on_ship, 1), 0);
             forsaken_outside(play, save);
             return;
         }
@@ -1292,7 +1369,7 @@ static void capture(fopAc_ac_c* actor) {
         snap.wind = wind_angle();
         snap.chart_set = *(u8*)(save + SAVE_CHART_SET) & 3;
         read_charts(save);
-        handle_input(hdm_blocked_buttons(0, snap.on_ship, 1), snap.on_ship);
+        handle_input(hdm_blocked_buttons(aiming, snap.on_ship, 1), snap.on_ship);
         read_chart_name();
         snap.visible = 1;
         return;

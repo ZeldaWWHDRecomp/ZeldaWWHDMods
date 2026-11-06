@@ -15,7 +15,7 @@ its own implementation for the port; it does not use the pack's patches.
 | Great Sea, discovered sector, near its island | The sector's island map on the see-through (lightly darkened) panel, with Link (or the boat) and the wind direction |
 | Undiscovered sector | No map; a faded map with a question mark |
 | Out at sea, away from the island | Nothing; the game's own compasses |
-| Sailing, with an owned treasure chart | Optionally the chart beside the minimap: the chart art centred on the treasure's X, as the game's chart screen shows it, with its name in the game's language (Triforce charts once deciphered) |
+| Sailing, with an owned treasure chart | Optionally the chart beside the minimap: the whole chart art with the treasure's X on its spot, as the game's chart screen shows it, with its name in the game's language (Triforce charts once deciphered) |
 | Dungeon with the Map | The plan of the controlled character's current floor with its doors; Link's room bright, unvisited rooms dimmed |
 | Dungeon with the Compass | Unopened chests on this floor and the boss icon at the boss door (until the boss is beaten) |
 | Earth / Wind Temple | The controlled character; the other character when on the same floor |
@@ -87,15 +87,18 @@ These features are optional. Older ports keep the map above the compasses and
 follow eligible GamePad caption changes in one direction. The package still loads
 with older installers; it does not import mandatory new host functions.
 
-## Known limits (0.2.2)
+## Known limits (0.2.4)
 
 - Native localized chart names retain a numeric fallback if a message is missing.
 - Link and boat markers are never drawn on treasure charts.
 - A missing native menu or another mod owning the feature can reject a chart
   request or compass lease; rejected leases keep the existing fallback position.
-- Command Melody and airborne companions still need gameplay validation. The
+- Medli under the Command Melody was checked in the Earth Temple; Makar and airborne companions
+  still need gameplay validation. The
   unspecified Tower room omission is not confirmed resolved; a room/floor
   reproducer is still needed. Those limits are independent of the SDK integration.
+- The floor-change markers use a plain triangle instead of the game's own arrow.
+- The floor-change labels are in English in every language.
 - This remains a bounded parity follow-up, not a full-playthrough equivalence claim.
 
 ## Checked in the game
@@ -111,7 +114,7 @@ the [parity report](PARITY.md) for the scenes checked and remaining gaps, and
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
 buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and framing,
-the Forsaken Fortress plan turn, its outside and searchlights, the dungeon zoom's turn, and the HUD's opacity the map and its icons follow when the HUD comes in. No game data is included.
+the Forsaken Fortress plan turn, its outside and searchlights, the dungeon zoom's turn, where a treasure chart's X goes and its title, the floor-change markers' panes and labels, hit-stop, following the HUD's visibility, bounded picture retries, and the HUD's opacity the map and its icons follow when the HUD comes in. No game data is included.
 
 ## Credits and licensing
 
@@ -125,6 +128,26 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
+- **0.2.4:**
+  - The treasure chart shows its whole art, as the game's chart screen does, with the X where the
+    treasure is; before, the X stayed in the middle and the art was moved off the chart.
+  - While sailing, the map that replaces the boat compasses stays in its on-foot corner instead of
+    drifting with the compass pieces, and the treasure chart's title is the game's own: its ribbon and
+    shadow just above the chart, the name in the native colour at full size and centred.
+  - A revoked compass lease no longer loses the map's images against the mod's image budget, and a
+    chart picture that fails to load is tried again a few times.
+  - A sword blow that lands no longer hides the minimap and its D-pad icons: during the game's
+    hit-stop (its play pause timer) the map keeps its last frame, as the HUD does.
+  - While Medli or Makar are controlled the HUD keeps its D-pad hidden; the map no longer waits
+    for it forever after the Command Melody, and comes in after a bounded wait.
+  - The map shows and hides with the game's HUD, as Minimap HD 1.3 does: aiming the bow, the
+    hookshot or the boomerang (first person or Z-targeting) keeps it while the HUD stays, and the map's
+    buttons wait until the aim ends. Without a readable HUD it still hides while aiming.
+  - Island plans use the GamePad balloon's art (`rXX_b`) everywhere; the nine sectors that also have the
+    zoomed view's art (`rXX_Full`, with its cloth weave and dark blur) no longer look dirty when shrunk.
+  - Dungeon plans show the floor-change markers the GamePad shows: an arrow where the plan's stairs and
+    ladders lead up or down, labelled with the floor they lead to (blue up, pink down). Their places,
+    sizes and colours are the game's; the arrow picture and the label text are not yet (see Known limits).
 - **0.2.2:**
   - After loading a save, the minimap and its D-pad icons wait for the game's HUD: the icons fade in
     with the HUD's own icons and the map slides in as the HUD comes in, instead of showing on the
