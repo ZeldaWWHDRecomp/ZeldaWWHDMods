@@ -9,6 +9,22 @@
 #include "wwhd/data.h"
 #include "hd_minimap.h"
 
+/* HUD v3 (port mod manager 1.9.0): mirrored images and the game's layout texts. The SDK pinned in sdk.json may
+ * predate them, so these are wwhd_guest.h's v3 definitions: settings queries that older ports answer with 0. */
+#if WWHD_HUD_API_VERSION < 3
+static inline u32 wwhd_hud_mirrored_images(void) {
+    static u32 version;
+    return wwhd_setting_get("hud.mirrored-images.version", WWHD_SETTING_U32, &version, 4) == 4 ? version : 0;
+}
+static inline u32 wwhd_game_message_get(const char* key, char* buffer, u32 capacity) {
+    return wwhd_setting_get(key, WWHD_SETTING_STRING, buffer, capacity);
+}
+static inline u32 wwhd_game_messages(void) {
+    static u32 version;
+    return wwhd_setting_get("layout-message.version", WWHD_SETTING_U32, &version, 4) == 4 ? version : 0;
+}
+#endif
+
 /* game functions (USA addresses; the port translates them for EU) */
 WWHD_GAME_FUNC(WWHD_ADDR_dScnPly_isPause, s32, game_paused, (void));
 WWHD_GAME_FUNC(0x025B8568, s32, sector_discovered, (u32 player_map, s32 cell));        /* dSv_player_map_c::isSaveArriveGrid */
@@ -129,7 +145,10 @@ static int initialized;
 /* images */
 static unsigned long long image_epoch;
 static u32 img_frame, img_wind, img_unknown, img_face, img_arrow, img_chest, img_medli, img_makar, img_ship, img_base, img_door, img_boss;
-static u32 img_stair;     /* the floor-change markers' arrow (assets/floor-arrow.png, from generate_art.py) */
+/* the floor-change markers' arrow: the game's half arrow on ports with mirrored images (stair_game), else the
+ * mod's own triangle (assets/floor-arrow.png, from generate_art.py) */
+static u32 img_stair;
+static int stair_game;
 static hdm_retry stair_retry, chart_retry;  /* failed loads of the arrow and the chart picture */
 static u32 img_island, img_chart, img_ribbon, img_ribbon_shadow, img_chart_base, img_mark, img_mark_fill;
 static u32 img_searchlight[2];  /* searching, stopped */
@@ -193,6 +212,36 @@ static const hdm_stair* floor_stairs(int dungeon, int floor, int* count) {
         }
     *count = stair_cache[0].count;
     return stair_cache[0].items;
+}
+/* HUD v3 mirrored images, read once: the port doesn't change while the game runs */
+static int mirrored_images(void) {
+    static int known = -1;
+    if (known < 0) known = wwhd_hud_mirrored_images() != 0;
+    return known;
+}
+/* The floor-change labels in the game's language (HUD v3 layout texts), each read once into the mod's memory.
+ * The English label stands in on older ports, and for a text that doesn't fit or still fails after
+ * HDM_RETRY_TRIES spaced reads (the game may not have opened its 2D pack yet). */
+static char stair_texts[HDM_STAIR_LABELS][24];
+static unsigned char stair_text_read[HDM_STAIR_LABELS];   /* 0 unread, 1 the game's text, 2 English */
+static hdm_retry stair_text_retry[HDM_STAIR_LABELS];
+static const char* stair_label(int dungeon, int floor, int up) {
+    static int messages = -1;
+    static char key[64];
+    int chars;
+    const char* english = hdm_stair_label(dungeon, floor, up, &chars);
+    if (!english) return 0;
+    if (messages < 0) messages = wwhd_game_messages() != 0;
+    int slot = hdm_stair_label_key(key, dungeon, floor, up);
+    if (!messages || slot < 0) return english;
+    if (!stair_text_read[slot] && hdm_retry_due(&stair_text_retry[slot], wwhd_logic_step())) {
+        if (wwhd_game_message_get(key, stair_texts[slot], sizeof stair_texts[slot])) stair_text_read[slot] = 1;
+        else {
+            hdm_retry_failed(&stair_text_retry[slot], wwhd_logic_step());
+            if (stair_text_retry[slot].tries >= HDM_RETRY_TRIES) stair_text_read[slot] = 2;
+        }
+    }
+    return stair_text_read[slot] == 1 && stair_texts[slot][0] ? stair_texts[slot] : english;
 }
 /* the point Forsaken Fortress's later markers turn about (read with its plan) */
 static float forsaken_cx = HDM_FORSAKEN_CENTRE_X, forsaken_cy = HDM_FORSAKEN_CENTRE_Y;
@@ -279,7 +328,7 @@ static void forget_images(void) {
     img_frame = img_wind = img_unknown = img_face = img_arrow = img_chest = img_medli = img_makar = img_ship = img_base = img_door = img_boss = 0;
     img_island = img_chart = img_ribbon = img_ribbon_shadow = img_chart_base = img_mark = img_mark_fill = 0; island_room = chart_key = -1;
     img_searchlight[0] = img_searchlight[1] = 0;
-    img_stair = 0; stair_retry = (hdm_retry){0}; chart_retry = (hdm_retry){0};
+    img_stair = 0; stair_game = 0; stair_retry = (hdm_retry){0}; chart_retry = (hdm_retry){0};
     for (int i = 0; i < 4; ++i) img_feedback[i] = 0;
     for (int i = 0; i < HDM_ICON_COUNT; ++i) img_icons[i] = 0;
     for (int i = 0; i < room_count; ++i) rooms[i].image = 0;
@@ -299,7 +348,7 @@ static void release_dungeon_images(void) {
     spare_rooms.count = 0; spare_rooms.dungeon = spare_rooms.floor = -1;
     drop(&img_door); drop(&img_chest); drop(&img_boss); drop(&img_medli); drop(&img_makar);
     drop(&img_searchlight[0]); drop(&img_searchlight[1]);
-    drop(&img_stair); stair_retry = (hdm_retry){0};
+    drop(&img_stair); stair_game = 0; stair_retry = (hdm_retry){0};
 }
 static void release_sea_images(void) {
     drop(&img_island); island_room = -1;
@@ -458,6 +507,17 @@ static void image(u32 list, u32 handle, float x, float y, float w, float h, floa
     element.kind = WWHD_HUD_IMAGE; element.anchor = WWHD_HUD_TOP_LEFT;
     element.x = x; element.y = y; element.w = w; element.h = h; element.rotation = rotation;
     element.thickness = 1; element.u1 = element.v1 = 1; element.image = handle;
+    element.rgba = (rgb << 8) | (u32)(alpha * 255.0f + .5f);
+    wwhd_hud_emit(list, &element);
+}
+/* an upright image with its own UVs; reversed UVs (u1 < u0 or v1 < v0) only when mirrored_images() */
+static void image_uv(u32 list, u32 handle, float x, float y, float w, float h, float u0, float v0, float u1, float v1,
+                     u32 rgb, float alpha) {
+    if (!handle || alpha <= 0) return;
+    element = (wwhd_hud_element){0};
+    element.kind = WWHD_HUD_IMAGE; element.anchor = WWHD_HUD_TOP_LEFT;
+    element.x = x; element.y = y; element.w = w; element.h = h;
+    element.thickness = 1; element.u0 = u0; element.v0 = v0; element.u1 = u1; element.v1 = v1; element.image = handle;
     element.rgba = (rgb << 8) | (u32)(alpha * 255.0f + .5f);
     wwhd_hud_emit(list, &element);
 }
@@ -678,39 +738,64 @@ static void draw_dungeon(u32 list, float x, float y, float side, float a) {
     }
     {
         /* the floor-change markers as DungeonMapUp_00 / DungeonMapDown_00 draw them, in the plan's units at its
-         * whole-view scale (as doors): P_Up_00 (80 x 56 up, 100 x 56 down, at 0.6 x 0.8; the down one turned
-         * 180 degrees) at alpha 100; T_Floor_00 above it, the floor it leads to in blue (up) or pink (down),
-         * outlined in white. The game's MapFloorUpDown_00 is half an arrow that P_Up_00's UVs (0..2) mirror into
-         * a whole one; the HUD takes no reversed UVs (an element with u1 < u0 drops the whole list), so the
-         * arrow is the mod's own whole triangle */
+         * whole-view scale: P_Up_00 (80 x 56 up, 100 x 56 down, at 0.6 x 0.8; the down one turned 180 degrees)
+         * at alpha 100; T_Floor_00 on top, the floor it leads to in white, edged in T_Floor_00's material colour
+         * (dark blue up, pink down). Ports with mirrored images draw the game's half arrow twice
+         * (hdm_arrow_halves); older ones would drop the whole list for a mirrored element, so they draw the
+         * mod's own whole triangle */
         int count = 0;
         const hdm_stair* stairs = floor_stairs(snap.dungeon, snap.floor, &count);
         /* sized as on the expanded panel whatever the panel's size, so they stay readable on the compact one */
         float marker_side = opt.side_expanded > side ? opt.side_expanded : side;
         float unit = hdm_plan_view(marker_side * (1 - 12.0f / 256.0f), .04f).scale;
         if (count && !img_stair && hdm_retry_due(&stair_retry, wwhd_logic_step())) {
-            img_stair = wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/floor-arrow.png");
+            stair_game = mirrored_images();
+            img_stair = stair_game ? game_image("DungeonMapUp_00/MapFloorUpDown_00^t#P_Up_00")
+                                   : wwhd_hud_texture(WWHD_HUD_PACKAGE, "assets/floor-arrow.png");
             if (!img_stair) hdm_retry_failed(&stair_retry, wwhd_logic_step());
         }
         for (int i = 0; i < count; ++i) {
             int up = stairs[i].up;
-            /* the GamePad draws the marker layouts at half their size on the plan (as the doors' 64 x 20 at 0.5) */
-            float px, py, w = (up ? 24 : 30) * unit, h = 22.4f * unit;
+            float px, py;
             /* the arrow and its label share the marker's centre: the label on top of the arrow */
             place(stairs[i].x, stairs[i].y, &px, &py);
-            /* upright on screen like its label, also when the zoomed plan turns: up points up, down points down */
-            float r = up ? 0 : pi;
-            /* nudged 3 plan units left: the label's width is an estimate, and centred on the pane the arrow
-             * looked a little right of its text (user's capture, 2026-11-05) */
-            image(list, img_stair, ox + px - w / 2 - 3 * unit, oy + py - h / 2, w, h, r, 0xffffff, a * 100 / 255);
-            int chars;
-            const char* label = hdm_stair_label(snap.dungeon, snap.floor, up, &chars);
+            /* upright on screen like its label, also when the zoomed plan turns: up points up, down points down.
+             * The label's size and its offset right (HUD units) go with the arrow it sits on. */
+            float label_size, label_right;
+            if (stair_game) {
+                /* the marker layouts at their own size on the plan (unlike the doors' 0.5): P_Up_00 is 48 x 44.8
+                 * up, 60 x 44.8 down, around T_Floor_00's 23 x 27 text; 3 HUD units more, so the arrow shows
+                 * around the Arial label as it does around the game's (compared with the GamePad in game) */
+                float w = (up ? 48 : 60) * unit + 3, h = 44.8f * unit + 3;
+                /* P_Up_00 sits 2 layout units above the marker's centre (up), 1 below (down); 2 HUD units further
+                 * out, the up arrow higher and the down one lower, match the GamePad around the Arial label */
+                float top = oy + py - h / 2 + (up ? -2.0f : 1.0f) * unit + (up ? -2.0f : 2.0f);
+                hdm_half halves[2];
+                hdm_arrow_halves(ox + px - w / 2, w, !up, halves);
+                for (int k = 0; k < 2; ++k)
+                    image_uv(list, img_stair, halves[k].x, top, w / 2, h, halves[k].u0, halves[k].v0, halves[k].u1,
+                             halves[k].v1, 0xffffff, a * 100 / 255);
+                /* size 25 reads like the GamePad's label (20 and 30 were compared in game); 2 HUD units right
+                 * centre it on the game's arrow */
+                label_size = 25 * unit; label_right = 2;
+            } else {
+                /* the triangle as released in 0.2.4: half the marker layouts' size, nudged 3 plan units left
+                 * (centred on the pane it looked a little right of its label), with a size 20 label. The label
+                 * is now centred by hdm_label_width rather than 0.2.4's fixed advance per character */
+                float w = (up ? 24 : 30) * unit, h = 22.4f * unit;
+                image(list, img_stair, ox + px - w / 2 - 3 * unit, oy + py - h / 2, w, h, up ? 0 : pi, 0xffffff,
+                      a * 100 / 255);
+                label_size = 20 * unit; label_right = 0;
+            }
+            const char* label = stair_label(snap.dungeon, snap.floor, up);
             if (!label) continue;
-            /* centred on the arrow: the HUD draws text (ImGui, Arial) from its top-left; capitals and digits
-             * advance about 0.52 x size, and their visual middle is about half the size down */
-            float size = 20 * unit, tw = chars * size * HDM_LABEL_ADVANCE;
-            outlined_text(list, label, (u32)chars, ox + px - tw / 2, oy + py - size / 2, size,
-                          up ? 0x1e64b4u : 0xff0064u, a);
+            /* centred on the marker: the HUD draws text (ImGui, Arial) from its top-left and the label's visual
+             * middle is about half the size down */
+            u32 bytes = 0;
+            while (label[bytes]) ++bytes;
+            float tw = hdm_label_width(label, bytes) * label_size;
+            outlined_text(list, label, bytes, ox + px - tw / 2 + label_right, oy + py - label_size / 2, label_size,
+                          up ? 0x003c64u : 0xff0064u, a);
         }
     }
     if (snap.outdoor) {

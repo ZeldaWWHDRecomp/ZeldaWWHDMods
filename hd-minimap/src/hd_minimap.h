@@ -96,12 +96,12 @@ static inline int hdm_floor_tag(int floor, char* tag) {
     tag[0] = 0;
     return 0;
 }
-/* the HUD font's advance for the floor labels' capitals and digits, in text sizes (Arial: 0.6 / 1.117) */
+/* the HUD font's advance for a digit, in text sizes (Arial: 0.6 / 1.117); hdm_label_width scales other characters from it */
 #define HDM_LABEL_ADVANCE .52f
 /* The floor a marker leads to, as the GamePad labels it (DungeonMapUp_00 / DungeonMapDown_00's T_Floor_00,
  * English messages T_FloorU_00_* / T_FloorD_00_*): the next floor up or down; Forsaken Fortress's only
- * floor leads outside ("Ext."). The text is a constant (the HUD reads it after the draw callback returns),
- * the same tags as hdm_floor_tag; 0 with no chars when there is none. */
+ * floor leads outside ("Ext."). The English fallback when the port has no layout texts: the same tags as
+ * hdm_floor_tag; 0 with no chars when there is none. */
 static inline const char* hdm_stair_label(int dungeon, int floor, int up, int* chars) {
     static const char tags[17][3] = {"B8", "B7", "B6", "B5", "B4", "B3", "B2", "B1",
                                      "1F", "2F", "3F", "4F", "5F", "6F", "7F", "8F", "9F"};
@@ -111,6 +111,58 @@ static inline const char* hdm_stair_label(int dungeon, int floor, int up, int* c
     if (to < 0x78 || to > 0x88) return 0;
     *chars = 2;
     return tags[to - 0x78];
+}
+#define HDM_STAIR_LABELS 18
+/* The game's text of the same label (HUD v3 layout texts), in the language the game runs in:
+ * "layout-message:DungeonMapUp_00/T_FloorU_00_2F", ".../DungeonMapDown_00/T_FloorD_00_B1", Forsaken Fortress's
+ * "..._outdoor". Returns its cache slot (0..16 the floor it leads to, B8..9F; 17 outside), -1 with no label.
+ * Up and down share a slot: both layouts give a floor the same text in every EU language (checked in the game's
+ * 2D packs). The packs only have 1F..4F, B1, B2 and outdoor; other floors fall back to English. */
+static inline int hdm_stair_label_key(char* out, int dungeon, int floor, int up) {
+    int i = hdm_put(out, 0, up ? "layout-message:DungeonMapUp_00/T_FloorU_00_" : "layout-message:DungeonMapDown_00/T_FloorD_00_");
+    if (dungeon == 0 && up) { hdm_put(out, i, "outdoor"); return 17; }
+    char tag[3];
+    int to = floor + (up ? 1 : -1);
+    if (!hdm_floor_tag(to, tag)) { out[0] = 0; return -1; }
+    hdm_put(out, i, tag);
+    return to - 0x78;
+}
+/* The width of a UTF-8 label in text sizes, to centre it: Arial's advances (thousandths of its em) for the
+ * characters of the game's floor labels in every language ("Außen", "1º P", "1ÉT", "PS 1"), scaled so a digit
+ * keeps the measured HDM_LABEL_ADVANCE. Any other character counts as a digit. */
+static inline float hdm_label_width(const char* s, unsigned bytes) {
+    static const unsigned short upper[26] = {667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833,
+                                             722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611};
+    static const unsigned short lower[26] = {556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833,
+                                             556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500};
+    unsigned total = 0;
+    for (unsigned i = 0; i < bytes && s[i];) {
+        unsigned c = (unsigned char)s[i], n = 1;
+        if (c >= 0xC0 && c < 0xE0 && i + 1 < bytes) { c = (c & 0x1F) << 6 | ((unsigned char)s[i + 1] & 0x3F); n = 2; }
+        else if (c >= 0xE0) { n = c >= 0xF0 ? 4 : 3; c = 0x30; }
+        i += n;
+        if (c >= 'A' && c <= 'Z') total += upper[c - 'A'];
+        else if (c >= 'a' && c <= 'z') total += lower[c - 'a'];
+        else if (c == ' ' || c == '.') total += 278;
+        else if (c == 0xBA) total += 365;   /* º */
+        else if (c == 0xC9) total += 667;   /* É */
+        else if (c == 0xDF) total += 611;   /* ß */
+        else total += 556;
+    }
+    return total * HDM_LABEL_ADVANCE / 556.0f;
+}
+/* The game's floor-change arrow texture (DungeonMapUp_00's MapFloorUpDown_00^t) is the arrow's left half: P_Up_00
+ * samples it with u 0..2 on a mirrored wrap, so the right half is the same picture mirrored. With mirrored images
+ * (HUD v3) that is two images of half the width, the second with u0 = 1, u1 = 0. The down marker is the same pane
+ * turned 180 degrees; the whole arrow is symmetric left to right, so that is the same halves with v0 = 1, v1 = 0.
+ * out[k].x is each half's left edge. */
+typedef struct { float x, u0, u1, v0, v1; } hdm_half;
+static inline void hdm_arrow_halves(float left, float w, int down, hdm_half out[2]) {
+    for (int k = 0; k < 2; ++k) {
+        out[k].x = left + k * w / 2;
+        out[k].u0 = (float)k; out[k].u1 = (float)(1 - k);
+        out[k].v0 = down ? 1.0f : 0.0f; out[k].v1 = down ? 0.0f : 1.0f;
+    }
 }
 /* Does a room texture ("MapKaze1F_05^t", "MapKami1F_03_2F_04^t") belong to the floor tag? */
 static inline int hdm_texture_on_floor(const char* texture, const char* tag) {

@@ -97,8 +97,10 @@ with older installers; it does not import mandatory new host functions.
   still need gameplay validation. The
   unspecified Tower room omission is not confirmed resolved; a room/floor
   reproducer is still needed. Those limits are independent of the SDK integration.
-- The floor-change markers use a plain triangle instead of the game's own arrow.
-- The floor-change labels are in English in every language.
+- On ports before mod manager 1.9.0, the floor-change markers use a plain triangle
+  instead of the game's own arrow.
+- On ports before mod manager 1.9.0, the floor-change labels are in English in every language.
+- The floor-change labels use the port's overlay font, not the game's font.
 - This remains a bounded parity follow-up, not a full-playthrough equivalence claim.
 
 ## Checked in the game

@@ -418,6 +418,45 @@ static void stairs(void) {
             assert(has ? label && chars == 2 && !strcmp(label, tag) : !label && !chars);
         }
 }
+static void game_labels(void) {
+    /* the game's label of each marker (HUD v3 layout texts): the floor it leads to, in the layout of its direction */
+    char key[64];
+    assert(hdm_stair_label_key(key, 4, 0x80, 0) == 0x7f - 0x78 && !strcmp(key, "layout-message:DungeonMapDown_00/T_FloorD_00_B1"));
+    assert(hdm_stair_label_key(key, 4, 0x7f, 1) == 0x80 - 0x78 && !strcmp(key, "layout-message:DungeonMapUp_00/T_FloorU_00_1F"));
+    assert(hdm_stair_label_key(key, 4, 0x7f, 0) == 0x7e - 0x78 && !strcmp(key, "layout-message:DungeonMapDown_00/T_FloorD_00_B2"));
+    assert(hdm_stair_label_key(key, 1, 0x82, 1) == 0x83 - 0x78 && !strcmp(key, "layout-message:DungeonMapUp_00/T_FloorU_00_4F"));
+    assert(hdm_stair_label_key(key, 0, 0x80, 1) == 17 && !strcmp(key, "layout-message:DungeonMapUp_00/T_FloorU_00_outdoor"));
+    assert(hdm_stair_label_key(key, 4, 0x88, 1) == -1 && !key[0]);
+    assert(hdm_stair_label_key(key, 4, 0x78, 0) == -1 && !key[0]);
+    /* a key for every English label, in its own slot, under the port's 63-byte limit */
+    for (int floor = 0x77; floor <= 0x89; ++floor)
+        for (int dungeon = 0; dungeon < 6; ++dungeon)
+            for (int up = 0; up < 2; ++up) {
+                int chars;
+                int slot = hdm_stair_label_key(key, dungeon, floor, up);
+                assert((slot >= 0) == (hdm_stair_label(dungeon, floor, up, &chars) != 0));
+                assert(slot < HDM_STAIR_LABELS && strlen(key) <= 63);
+            }
+    /* widths in text sizes: digits keep the measured advance; the languages' longer labels are wider */
+    assert(fabsf(hdm_label_width("11", 2) - 2 * HDM_LABEL_ADVANCE) < 1e-5f);
+    float b1 = hdm_label_width("B1", 2), ext = hdm_label_width("Ext.", 4);
+    assert(b1 > 2 * HDM_LABEL_ADVANCE && ext > b1);
+    assert(hdm_label_width("Au\xc3\x9f" "en", 6) > hdm_label_width("Auen", 4));         /* ß: two bytes, one letter */
+    assert(fabsf(hdm_label_width("1\xc2\xba P", 5) - (556 + 365 + 278 + 667) * HDM_LABEL_ADVANCE / 556) < 1e-4f);
+    assert(fabsf(hdm_label_width("1\xc3\x89T", 4) - (556 + 667 + 611) * HDM_LABEL_ADVANCE / 556) < 1e-4f);
+    assert(hdm_label_width("2F", 1) == hdm_label_width("2", 1) && hdm_label_width("", 0) == 0);  /* bytes bounds the read */
+    assert(hdm_label_width("\xc3", 1) > 0);                                                  /* a cut sequence */
+    /* the game's arrow: its left half as it is, then mirrored; the down one upside down */
+    hdm_half h[2];
+    hdm_arrow_halves(10, 24, 0, h);
+    assert(h[0].x == 10 && h[1].x == 22);
+    assert(h[0].u0 == 0 && h[0].u1 == 1 && h[1].u0 == 1 && h[1].u1 == 0);
+    assert(h[0].v0 == 0 && h[0].v1 == 1 && h[1].v0 == 0 && h[1].v1 == 1);
+    hdm_arrow_halves(-5, 30, 1, h);
+    assert(h[0].x == -5 && h[1].x == 10);
+    assert(h[0].u0 == 0 && h[0].u1 == 1 && h[1].u0 == 1 && h[1].u1 == 0);
+    assert(h[0].v0 == 1 && h[0].v1 == 0 && h[1].v0 == 1 && h[1].v1 == 0);
+}
 static void retries(void) {
     /* a failed picture is tried again a second later, a few times, then left alone until reset */
     hdm_retry r = {0};
@@ -466,6 +505,7 @@ int main(void) {
     hud_follow();
     retries();
     stairs();
+    game_labels();
     sailing();
     captions();
     animation();
