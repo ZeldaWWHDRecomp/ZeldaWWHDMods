@@ -210,7 +210,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.2.4",
+      "version": "0.2.5",
       "kind": "guest",
       "licences": [
         "MPL-2.0",
@@ -382,7 +382,7 @@
       "id": "dark-link",
       "name": "Dark Link",
       "description": "Dark Link with matte charcoal body/equipment, red eyes, a black native Magic Armor aura and a red MagicBar gauge below the normal magic gauge.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "kind": "guest",
       "setup": [
         {

@@ -4,8 +4,8 @@ import zlib
 
 ARROW_WIDTH, ARROW_HEIGHT = 128, 112
 # The floor-change arrow: a white triangle pointing up, its tip at the top centre and its base near
-# the bottom (the HUD turns it 180 degrees for the down markers). It stands in for the game's
-# half-arrow art, which needs mirrored UVs.
+# the bottom (the HUD turns it 180 degrees for the down markers). Ports without mirrored images draw it
+# instead of the game's half-arrow art, which needs them.
 ARROW_TIP_Y, ARROW_BASE_Y, ARROW_HALF_BASE = 4.0, 107.5, 58.5
 
 

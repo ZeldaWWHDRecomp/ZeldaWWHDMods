@@ -1,11 +1,15 @@
 /* Execute the translated guest module against synthetic memory and host services.
- * Linux-only integration driver; no game code/data or renderer is involved. */
+ * Linux/macOS integration driver; no game code/data or renderer is involved. */
 #include "wwhd_guest_abi.h"
 #include <assert.h>
 #include <dlfcn.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#ifndef MAP_FIXED_NOREPLACE /* macOS: the fixed 4 GiB guest window is unused at start */
+#define MAP_FIXED_NOREPLACE MAP_FIXED
+#endif
 
 enum { PLAY=0x11000000, LINK=0x11010000, SAVE=0x11020000, ENEMY=0x11030000,
        HIT=0x11040000, INPUT=0x11050000, MODEL=0x11060000, DATA=0x11070000,
@@ -33,8 +37,10 @@ static void magic_emit(uint32_t);
 static uint32_t magic_archive;
 static int aura_notifications;
 
+/* Each host thread that runs guest code models one guest thread: own stack. */
+static _Thread_local uint32_t guest_stack = 0x1201fff0;
 static void execute(uint32_t fn, uint32_t a, uint32_t b) {
-    Cpu c = {0}; c.r[1] = 0x1201fff0; c.r[3] = a; c.r[4] = b;
+    Cpu c = {0}; c.r[1] = guest_stack; c.r[3] = a; c.r[4] = b;
     for (uint32_t i=0; i<module->func_count; ++i) if (module->funcs[i].addr == fn) {
         module->funcs[i].fn(&c); return;
     }

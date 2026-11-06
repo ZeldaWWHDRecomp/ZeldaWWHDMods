@@ -12,13 +12,27 @@ typedef struct {
     u32 view[DL_TEXTURE_BYTES / 4];
     u32 surface;
 } DLTextureView;
+/* users: shape draws currently relying on this binding; serial: their handle. */
 typedef struct {
     u32 model, materials, index, resource, refs, slot, original, view, surface;
-    u32 state, before[6], ours[6];
+    u32 state, users, serial; /* state: the FMAT body blend this binding holds, or 0 */
 } DLTextureBinding;
 static DLTextureView dl_texture_cache[DL_TEXTURE_CACHE];
-static u32 dl_texture_count, dl_binding_count;
+static u32 dl_texture_count, dl_binding_count, dl_binding_serial;
 static DLTextureBinding dl_bindings[DL_TEXTURE_BINDINGS];
+/* The game submits Link's shapes from TWO guest threads at once: the main
+ * thread and a sead worker thread (ThreadManager::threadEntry 02760ACC) both
+ * run J3DDrawBuffer::drawHead (027F10CC) -> submitShape. Every draw-time
+ * structure (bindings, body/aura blend edits, view cache, shape scopes) is shared
+ * between them, so it is only read or changed under this lock. 1.0.0 had none:
+ * two threads decremented dl_binding_count at once, it wrapped below zero and
+ * the duplicate scan walked off the end of guest memory (crash at 00000018).
+ * The lock is never held across a native call or the native draw itself. */
+static u32 dl_draw_lock;
+static void dl_lock(void) {
+    while (__atomic_exchange_n(&dl_draw_lock, 1u, __ATOMIC_ACQUIRE)) {}
+}
+static void dl_unlock(void) { __atomic_store_n(&dl_draw_lock, 0u, __ATOMIC_RELEASE); }
 
 static int dl_game_span(u32 p, u32 size) {
     return !(p & 3u) && p >= 0x10000000u && p < 0x50000000u && size <= 0x50000000u - p;
@@ -35,64 +49,98 @@ static int dl_texture_model(u32 model) {
     return link && link == dl_owner && dl_actor_id(link) == dl_owner_id &&
         dl_model_part(link, model) >= 0;
 }
-static int dl_binding_material_live(const DLTextureBinding* b) {
-    if (!dl_game_span(b->model, 0xb0) ||
-        dl_word((void*)b->model, 0x34) != b->materials) return 0;
-    u32 count = *(u16*)(b->model + 0x2a);
-    if (b->index >= count || count > DL_MAX_MATERIALS ||
-        !dl_game_span(b->materials, count * 0x3c)) return 0;
-    return dl_word((void*)(b->materials + b->index * 0x3c), 0) == b->resource;
+static int dl_material_live(u32 model, u32 materials, u32 index, u32 resource) {
+    if (!dl_game_span(model, 0xb0) || dl_word((void*)model, 0x34) != materials) return 0;
+    u32 count = *(u16*)(model + 0x2a);
+    if (index >= count || count > DL_MAX_MATERIALS || !dl_game_span(materials, count * 0x3c)) return 0;
+    return dl_word((void*)(materials + index * 0x3c), 0) == resource;
 }
 /* Attenuate the final shader RGB, including contributions that bypass TEV.
  * RenderPipelineState::bind (027E220C) binds the FMAT blend constant too.
  * Only ordinary opaque/cutout materials on target 0 are eligible: keep their
  * draw bucket, depth and alpha test. RGB = src * 0.0125 + dst * 0; alpha = src.
  * Thus no scene colour leaks through the body. Unsupported states use black
- * albedo instead of allowing an unattenuated white input. */
+ * albedo instead of allowing an unattenuated white input.
+ * One edit per FMAT state, shared by every holder (draws on either thread and
+ * the main thread's model windows, see dl_view_patch); the last one restores. */
+typedef struct { u32 model, materials, index, resource, state, before[6], ours[6], users; } DLBodyPatch;
+#define DL_BODY_PATCHES (DL_MAX_MATERIALS * DL_MODEL_PARTS)
+static DLBodyPatch dl_body_patches[DL_BODY_PATCHES];
+static u32 dl_body_patch_count;
 static const u32 dl_body_offsets[6] = {0, 0x14, 0x1c, 0x20, 0x24, 0x28};
 static const u32 dl_body_masks[6] = {0x30, 0x100, 0x3fff1fff, ~0u, ~0u, ~0u};
-static int dl_body_blend(DLTextureBinding* b) {
-    u32 state = dl_relative(b->resource + 0x20);
+/* Lock held. Restore the words that are still ours, then drop the edit. */
+static void dl_body_remove(u32 i) {
+    DLBodyPatch* p = &dl_body_patches[i];
+    /* Replaced texture-reference storage does not invalidate the still-live
+     * FMAT state; a replaced model/material array or resource does. */
+    if (dl_material_live(p->model, p->materials, p->index, p->resource) &&
+        dl_relative(p->resource + 0x20) == p->state)
+        for (u32 k=0;k<6;++k) {
+            u32* word = (u32*)(p->state + dl_body_offsets[k]), mask = dl_body_masks[k];
+            if ((*word & mask) == (p->ours[k] & mask))
+                *word = (*word & ~mask) | (p->before[k] & mask);
+        }
+    dl_body_patches[i] = dl_body_patches[--dl_body_patch_count];
+}
+static void dl_body_release(u32 state) {
+    for (u32 i = 0; i < dl_body_patch_count; ++i)
+        if (dl_body_patches[i].state == state) { if (!--dl_body_patches[i].users) dl_body_remove(i); return; }
+}
+/* Lock held. Native material `index` of `model` (FMAT `resource`). Returns the
+ * FMAT state when our blend is in place for this holder, 0 if unsupported. */
+static u32 dl_body_acquire(u32 model, u32 materials, u32 index, u32 resource) {
+    u32 state = dl_relative(resource + 0x20);
     if (!dl_game_span(state, 0x30)) return 0;
+    for (u32 i = 0; i < dl_body_patch_count; ++i) {
+        DLBodyPatch* p = &dl_body_patches[i];
+        if (p->state != state) continue;
+        int ours = p->resource == resource;
+        for (u32 k=0;k<6;++k)
+            if ((*(u32*)(state + dl_body_offsets[k]) & dl_body_masks[k]) != (p->ours[k] & dl_body_masks[k])) ours = 0;
+        if (ours) { ++p->users; return state; }
+        dl_body_remove(i); /* native code rewrote the state since */
+        break;
+    }
     u32 flags = *(u32*)state, color = *(u32*)(state + 0x14);
     if ((flags & 3) < 1 || (flags & 3) > 2 || (flags & 0x30) ||
         (color & 0xff00) || ((color >> 16) & 0xff) != 0xcc ||
-        *(u32*)(state + 0x18) != 0) return 0;
-    b->state = state;
-    for (u32 k=0;k<6;++k) b->ours[k] = b->before[k] = *(u32*)(state + dl_body_offsets[k]);
-    b->ours[0] |= 0x10;
-    b->ours[1] |= 0x100;
+        *(u32*)(state + 0x18) != 0 || dl_body_patch_count == DL_BODY_PATCHES) return 0;
+    DLBodyPatch* p = &dl_body_patches[dl_body_patch_count++];
+    *p = (DLBodyPatch){.model=model, .materials=materials, .index=index, .resource=resource, .state=state, .users=1};
+    for (u32 k=0;k<6;++k) p->ours[k] = p->before[k] = *(u32*)(state + dl_body_offsets[k]);
+    p->ours[0] |= 0x10;
+    p->ours[1] |= 0x100;
     /* CONST_COLOR=13, ZERO=0, ADD=0; separate alpha ONE/ZERO/ADD.
      * Blending was disabled, so retain source alpha, not dormant factors. */
-    b->ours[2] = (b->before[2] & ~0x3fff1fffu) | 13u | (1u << 16) | (1u << 29);
+    p->ours[2] = (p->before[2] & ~0x3fff1fffu) | 13u | (1u << 16) | (1u << 29);
     union { f32 f; u32 u; } scale = {.f = 0.0125f};
-    for (u32 k=3;k<6;++k) b->ours[k] = scale.u;
-    for (u32 k=0;k<6;++k) *(u32*)(state + dl_body_offsets[k]) = b->ours[k];
-    return 1;
+    for (u32 k=3;k<6;++k) p->ours[k] = scale.u;
+    for (u32 k=0;k<6;++k) *(u32*)(state + dl_body_offsets[k]) = p->ours[k];
+    return state;
 }
-static void dl_body_restore(const DLTextureBinding* b) {
-    if (!b->state || dl_relative(b->resource + 0x20) != b->state) return;
-    for (u32 k=0;k<6;++k) {
-        u32* word = (u32*)(b->state + dl_body_offsets[k]), mask = dl_body_masks[k];
-        if ((*word & mask) == (b->ours[k] & mask))
-            *word = (*word & ~mask) | (b->before[k] & mask);
-    }
+/* Lock held. Restore one binding and drop it from the table. */
+static void dl_binding_remove(u32 i) {
+    DLTextureBinding* b = &dl_bindings[i];
+    /* Native animation or another mod may already have changed this slot.
+     * A replaced model/material array must not strand a pointer to mod memory.
+     * Restore any addressable slot that still contains OUR exact view. */
+    if (dl_game_span(b->slot,4) && *(u32*)b->slot == b->view) *(u32*)b->slot = b->original;
+    if (b->state) dl_body_release(b->state);
+    dl_bindings[i] = dl_bindings[--dl_binding_count];
 }
-static void dl_texture_restore_model(u32 model) {
-    for (u32 i = 0; i < dl_binding_count;) {
-        DLTextureBinding* b = &dl_bindings[i];
-        if (model && b->model != model) { ++i; continue; }
-        /* Native animation or another mod may already have changed this slot.
-         * A replaced model/material array must not strand a pointer to mod memory.
-         * Restore any addressable slot that still contains OUR exact view. */
-        if (dl_game_span(b->slot,4) && *(u32*)b->slot == b->view) *(u32*)b->slot = b->original;
-        /* Replaced texture-reference storage does not invalidate the still-live
-         * FMAT state: restore it even when the old texture slots are stale. */
-        if (dl_binding_material_live(b)) dl_body_restore(b);
-        dl_bindings[i] = dl_bindings[--dl_binding_count];
-    }
+/* Lock held. The last draw that used a binding restores it. */
+static void dl_binding_release(u32 serial) {
+    for (u32 i = 0; i < dl_binding_count; ++i)
+        if (dl_bindings[i].serial == serial) {
+            if (!--dl_bindings[i].users) dl_binding_remove(i);
+            return;
+        }
 }
-static void dl_texture_restore_all(void) { dl_texture_restore_model(0); dl_aura_restore(); }
+static void dl_texture_restore_locked(void) {
+    while (dl_binding_count) dl_binding_remove(dl_binding_count - 1);
+    while (dl_body_patch_count) dl_body_remove(dl_body_patch_count - 1);
+}
 
 static u32 dl_texture_view(u32 texture, u32 surface) {
     /* Never guess descriptor layouts or dereference an unrecognized mod view. */
@@ -167,8 +215,20 @@ static void dl_probe_samplers(u32 resource, char out[48]) {
     if (count > 3) out[n++] = '+';
     out[n] = 0;
 }
-/* Called only for an owner-validated model; native_index is this shape's binding. */
-static void dl_texture_apply(void* model, u32 native_index) {
+/* Eye materials of Link's body model, found by name. Calls the game, so it
+ * runs before the draw lock is taken. Model resources are immutable. */
+static void dl_texture_eyes(void* model, s32 eyes[DL_EYE_COUNT]) {
+    for (u32 e = 0; e < DL_EYE_COUNT; ++e) eyes[e] = -1;
+    if (!dl_owner || (u32)model != dl_owner->mpCLModel) return;
+    u8* data = (u8*)dl_word(model, 0xac);
+    if (!dl_game_span((u32)data, 0x14)) return;
+    u32 count = dl_word(data, 0xc);
+    if (count && count <= DL_MAX_MATERIALS) dl_find_eyes(data, count, eyes);
+}
+/* Lock held. Called only for an owner-validated model; native_index is this
+ * shape's binding. Each binding this draw relies on is added to held[]
+ * (capacity *room); a binding another thread's draw already applied is shared. */
+static void dl_texture_apply(void* model, u32 native_index, const s32 eyes[DL_EYE_COUNT], u32* held, u32* used, u32 room) {
     int body = (u32)model == dl_owner->mpCLModel;
     int probe = dl_diagnostics && body;
     int part = dl_model_part(dl_owner, (u32)model);
@@ -189,11 +249,8 @@ static void dl_texture_apply(void* model, u32 native_index) {
         if (probe) dl_probe_skip(DL_PROBE_MATERIALS);
         return;
     }
-    s32 eyes[DL_EYE_COUNT];
-    for (u32 e = 0; e < DL_EYE_COUNT; ++e) eyes[e] = -1;
-    if (body) dl_find_eyes(data, count, eyes);
     for (u32 i = 0; i < count; ++i) {
-        if (dl_binding_count == DL_TEXTURE_BINDINGS) { if (probe) dl_probe_skip(DL_PROBE_CAPACITY); break; }
+        if (dl_binding_count == DL_TEXTURE_BINDINGS || *used == room) { if (probe) dl_probe_skip(DL_PROBE_CAPACITY); break; }
         u8* material = (u8*)(materials + i * 0x39c);
         u32 resource = dl_word(material, 0);
         if (!dl_game_span(resource,0x10) || *(u16*)(resource+0xc)!=native_index) continue;
@@ -218,21 +275,35 @@ static void dl_texture_apply(void* model, u32 native_index) {
         if (!dl_game_span(refs, slots * 4)) { if (probe) dl_probe_skip(DL_PROBE_REFS); continue; }
         u32 slot = refs + (u32)sampler * 4;
         int duplicate = 0;
-        for (u32 n = 0; n < dl_binding_count; ++n) if (dl_bindings[n].slot == slot) duplicate = 1;
-        if (duplicate) { if (probe) dl_probe_skip(DL_PROBE_DUPLICATE); continue; }
+        for (u32 n = 0; n < dl_binding_count; ++n) {
+            DLTextureBinding* other = &dl_bindings[n];
+            if (other->slot != slot) continue;
+            for (u32 h = 0; h < *used; ++h) if (held[h] == other->serial) duplicate = 1;
+            if (duplicate) break;
+            if (*(u32*)slot == other->view && other->model == (u32)model) {
+                /* Same material drawn by the other thread right now: share it. */
+                ++other->users; held[(*used)++] = other->serial; duplicate = 2;
+            } else dl_binding_remove(n); /* native code rebound the slot since */
+            break;
+        }
+        if (duplicate == 1) { if (probe) dl_probe_skip(DL_PROBE_DUPLICATE); continue; }
+        if (duplicate == 2) { if (probe) { ++dl_probe.views; dl_probe.eyes += (u32)eye; } continue; }
         u32 surface = dl_model_part(dl_owner, (u32)model) == 7 ? DL_SURFACE_AURA :
             eye ? DL_SURFACE_EYE : DL_SURFACE_BODY;
         u32 original = *(u32*)slot, view = dl_texture_view(original, surface);
         if (!view) { if (probe) dl_probe_skip(dl_texture_count == DL_TEXTURE_CACHE ? DL_PROBE_CAPACITY : DL_PROBE_TEXTURE); continue; }
+        if (!++dl_binding_serial) ++dl_binding_serial;
         DLTextureBinding binding = {.model=(u32)model, .materials=native_materials,
             .index=index, .resource=resource, .refs=refs, .slot=slot,
-            .original=original, .view=view, .surface=surface};
-        if (surface == DL_SURFACE_BODY && !dl_body_blend(&binding)) {
+            .original=original, .view=view, .surface=surface, .users=1, .serial=dl_binding_serial};
+        if (surface == DL_SURFACE_BODY &&
+            !(binding.state = dl_body_acquire((u32)model, native_materials, index, resource))) {
             binding.surface = DL_SURFACE_BODY_BLACK;
             binding.view = dl_texture_view(original, binding.surface);
             if (!binding.view) continue;
         }
         dl_bindings[dl_binding_count++] = binding;
+        held[(*used)++] = binding.serial;
         *(u32*)slot = binding.view;
         if (probe) { ++dl_probe.views; dl_probe.eyes += (u32)eye; }
     }
@@ -244,7 +315,7 @@ static void dl_diag_hud(u32 list) {
 #define DL_S(s) n = dl_probe_append(line, n, s)
 #define DL_N(v) n = dl_probe_number(line, n, v)
     char* line = dl_probe_lines[0];
-    DL_S("DL 1.0.0 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
+    DL_S("DL 1.0.1 "); DL_S(dl_state.active ? "ON" : "OFF (last sample)");
     DL_S("  Draw="); DL_N(dl_probe.draws); DL_S("  Shape B/H/Hair/Gear=");
     DL_N(dl_probe.shapes[0]); DL_S("/"); DL_N(dl_probe.shapes[1]); DL_S("/"); DL_N(dl_probe.shapes[2]); DL_S("/"); DL_N(dl_probe.shapes[3]);
     DL_S(" Magic="); DL_N((dl_magic_images[0][0]!=0)+(dl_magic_images[0][1]!=0)+(dl_magic_images[1][0]!=0)+(dl_magic_images[1][1]!=0));
