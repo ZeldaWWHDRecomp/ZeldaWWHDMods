@@ -61,16 +61,60 @@ static void texture_view_check(uint32_t view, uint32_t original, int surface) {
         assert(samples[p][selector]==expected);
     }
 }
-static void texture_tinted(int selected) {
+static void texture_tinted_set(unsigned selected) {
     for (int m=0;m<MATERIAL_COUNT;++m) {
         uint32_t slot=texture_slot(m);
         assert(ld32(slot-4)==TEX_ORIGINAL);
-        if(m==selected) {
+        if(selected&(1u<<m)) {
             texture_view_check(ld32(slot),TEX_ORIGINAL,m>=1 && m<=6);
             if(m==0 || m==7) {body_state_tinted(m);continue;}
         } else assert(ld32(slot)==TEX_ORIGINAL); /* no other material rebound */
         for(int k=0;k<12;++k) assert(ld32(body_state(m)+4*k)==body_native[m][k]);
     }
+}
+static void texture_tinted(int selected) { texture_tinted_set(1u<<selected); }
+/* Shape draws of modelled guest thread t: own packet and own input argument. */
+enum { THREAD_PACKET=0x11160000 };
+static void thread_shape_begin(int t,int material) {
+    uint32_t packet=THREAD_PACKET+t*0x400;
+    st32(packet+0x9c,MODEL);st32(packet+0x98,packet+0x200);
+    st32(packet+0x200,packet+0x220);st16(packet+0x22e,MATERIAL_COUNT-1-material);
+    hook(0x027f16e8,2,packet,0x100+t);
+}
+static void thread_shape_end(int t) { hook(0x027f16e8,3,THREAD_PACKET+t*0x400,0x100+t); }
+/* Two host threads drawing Link's shapes at once, as the game's main thread and
+ * sead worker do. While a draw is in flight its own material stays dark. */
+static volatile int stress_failed;
+static void* stress_thread(void* argument) {
+    int t=(int)(intptr_t)argument;
+    guest_stack=0x1205fff0+t*0x40000;
+    for(int i=0;i<20000 && !stress_failed;++i) {
+        int m=(i*3+t*5)%MATERIAL_COUNT;
+        thread_shape_begin(t,m);
+        if(ld32(texture_slot(m))==TEX_ORIGINAL) stress_failed=1;
+        thread_shape_end(t);
+    }
+    return 0;
+}
+static void test_concurrent_draws(void) {
+    /* Same material on both threads: the first end must not restore it. */
+    thread_shape_begin(0,0);thread_shape_begin(1,0);texture_tinted(0);
+    thread_shape_end(0);texture_tinted(0);thread_shape_end(1);texture_originals();
+    thread_shape_begin(0,1);thread_shape_begin(1,1);texture_tinted(1);
+    thread_shape_end(1);texture_tinted(1);thread_shape_end(0);texture_originals();
+    /* Different materials: each end restores just its own draw's binding. */
+    thread_shape_begin(0,0);thread_shape_begin(1,1);texture_tinted_set(3);
+    thread_shape_end(0);texture_tinted(1);thread_shape_end(1);texture_originals();
+    thread_shape_begin(0,7);thread_shape_begin(1,0);texture_tinted_set(0x81);
+    thread_shape_end(1);texture_tinted(7);thread_shape_end(0);texture_originals();
+    /* An unmatched return (another call's arguments) changes nothing. */
+    thread_shape_begin(0,0);thread_shape_end(1);texture_tinted(0);thread_shape_end(0);texture_originals();
+    /* Real concurrency through the translated module (1.0.0 crashed here). */
+    pthread_t threads[2];
+    for(int t=0;t<2;++t) assert(!pthread_create(&threads[t],0,stress_thread,(void*)(intptr_t)t));
+    for(int t=0;t<2;++t) assert(!pthread_join(threads[t],0));
+    assert(!stress_failed);
+    texture_originals();
 }
 static void test_textures(void) {
     uint8_t asset[0xa0], old_view[0xa0];
@@ -114,6 +158,20 @@ static void test_textures(void) {
     for(int frame=0;frame<3;++frame) for(int m=0;m<MATERIAL_COUNT;++m) {
         shape_material_begin(MODEL,m);texture_tinted(m);shape_end();texture_originals();
     }
+    /* 027F55FC copies FMAT render state into the model's packet words, which
+     * the draws bind later: the body blend (not the eyes) is in place for the
+     * main thread's model windows, including nested ones, and restored after. */
+    hook(0x025e2e5c,2,MODEL,0);hook(0x027f55fc,2,MODEL,0);
+    for(int m=0;m<MATERIAL_COUNT;++m) {
+        assert(ld32(texture_slot(m))==TEX_ORIGINAL);
+        if(m==0 || m==7) body_state_tinted(m);
+        else for(int k=0;k<12;++k) assert(ld32(body_state(m)+4*k)==body_native[m][k]);
+    }
+    thread_shape_begin(1,0);texture_view_check(ld32(texture_slot(0)),TEX_ORIGINAL,0);
+    body_state_tinted(0);thread_shape_end(1); /* a worker draw meanwhile shares it */
+    assert(ld32(texture_slot(0))==TEX_ORIGINAL);body_state_tinted(0);body_state_tinted(7);
+    hook(0x027f55fc,3,MODEL,0);body_state_tinted(0);
+    hook(0x025e2e5c,3,MODEL,0);texture_originals();
     shape_material_begin(MODEL,1);uint32_t eye_view=ld32(texture_slot(1));
     memcpy(old_view,ppc_ptr(eye_view),sizeof old_view);shape_end();
     shape_begin(MODEL);uint32_t body_view=ld32(texture_slot(0));shape_end();
@@ -125,14 +183,14 @@ static void test_textures(void) {
         shape_end();assert(ld32(texture_slot(m))==TEX_NEXT);st32(texture_slot(m),TEX_ORIGINAL);
     }
     assert(!memcmp(old_view,ppc_ptr(eye_view),sizeof old_view));
-    /* An unrelated nested draw sharing FMAT sees native state. */
+    /* Shape draws never nest within one thread (both natives are leaves), but
+     * another thread's unrelated draw can overlap: it neither applies nor
+     * removes Link's binding, and its return does not end Link's draw. */
     shape_begin(MODEL);texture_tinted(0);
     st32(OTHER_PACKET+0x9c,MODEL+0x3000);
-    hook(0x027f16e8,2,OTHER_PACKET,0);texture_originals();
+    hook(0x027f16e8,2,OTHER_PACKET,0);texture_tinted(0);
     hook(0x027f16e8,3,OTHER_PACKET,0);texture_tinted(0);shape_end();texture_originals();
-    /* Nested shapes of this same model switch just their selected binding. */
-    shape_begin(MODEL);texture_tinted(0);shape_material_begin(MODEL,1);texture_tinted(1);
-    shape_end();texture_tinted(0);shape_end();texture_originals();
+    test_concurrent_draws();
     shape_begin(MODEL);shape_end(); /* restore packet selector to body */
     hook(0x027f1fa8,2,SHAPE_PACKET,0);texture_tinted(0);
     hook(0x027f1fa8,3,SHAPE_PACKET,0);texture_originals();

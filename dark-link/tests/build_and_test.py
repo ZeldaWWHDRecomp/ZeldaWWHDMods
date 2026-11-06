@@ -97,16 +97,16 @@ def main():
         if unexpected:
             raise RuntimeError(f"Unsupported imports (check hard-float ABI): {sorted(unexpected)}")
         print(json.dumps({"region": region, **result}), flush=True)
-        if sys.platform.startswith("linux") and region == "USA":
+        if sys.platform.startswith(("linux", "darwin")) and region == "USA":
             driver = out / "test-hooks"
-            subprocess.run(host + ["-std=c11", "-D_GNU_SOURCE", "-O2", "-UNDEBUG", "-I" + str(ROOT / "runtime/include"),
+            subprocess.run(host + ["-std=c11", "-D_GNU_SOURCE", "-O2", "-UNDEBUG", "-pthread", "-I" + str(ROOT / "runtime/include"),
                 str(TESTS / "test_hooks.c"), "-ldl", "-o", str(driver)], check=True)
             trace = out / "hud-trace.bin"
             subprocess.run([str(driver), result["module"], str(trace)], check=True)
             # Replay the emitted guest ABI records with the real runtime validator.
             # C++ is a separate executable: no C driver ABI/linker assumptions.
             validator = out / "test-hud"
-            stdlib = "-lc++" if any("zig" in part for part in host) else "-lstdc++"
+            stdlib = "-lc++" if any("zig" in part for part in host) or sys.platform == "darwin" else "-lstdc++"
             subprocess.run(host + ["-I" + str(ROOT / "runtime/src"), "-x", "c++", "-std=c++20", "-O2", "-UNDEBUG",
                 "-Wall", "-Wextra", "-Werror", "-Wno-missing-field-initializers", str(TESTS / "test_hud.cpp"), stdlib,
                 "-o", str(validator)], check=True)
