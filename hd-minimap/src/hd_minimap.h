@@ -69,6 +69,16 @@ static inline void hdm_room_pane_key(char* out, int dungeon, int pane) {
     i = hdm_put(out, i, "/P_Room_");
     hdm_put2(out, i, pane);
 }
+/* a floor-change marker's place on its floor plan: "layout-pane:DungeonMapFloor_01/N_2FUp_00" (up) or
+ * ".../N_3FDown_01" (down); the plans have at most two of each per floor */
+static inline void hdm_stair_pane_key(char* out, int dungeon, const char* tag, int up, int index) {
+    int i = hdm_put(out, 0, "layout-pane:DungeonMapFloor_");
+    i = hdm_put2(out, i, dungeon);
+    i = hdm_put(out, i, "/N_");
+    i = hdm_put(out, i, tag);
+    i = hdm_put(out, i, up ? "Up_" : "Down_");
+    hdm_put2(out, i, index);
+}
 /* "DungeonMapFloor_05/MapKaze1F_05^t#P_Room_07": a room's art with its own material */
 static inline void hdm_room_texture(char* out, int dungeon, const char* texture, int pane) {
     int i = hdm_put(out, 0, "DungeonMapFloor_");
@@ -85,6 +95,22 @@ static inline int hdm_floor_tag(int floor, char* tag) {
     if (floor >= 0x78 && floor < 0x80) { tag[0] = 'B'; tag[1] = (char)('0' + 0x80 - floor); tag[2] = 0; return 1; }
     tag[0] = 0;
     return 0;
+}
+/* the HUD font's advance for the floor labels' capitals and digits, in text sizes (Arial: 0.6 / 1.117) */
+#define HDM_LABEL_ADVANCE .52f
+/* The floor a marker leads to, as the GamePad labels it (DungeonMapUp_00 / DungeonMapDown_00's T_Floor_00,
+ * English messages T_FloorU_00_* / T_FloorD_00_*): the next floor up or down; Forsaken Fortress's only
+ * floor leads outside ("Ext."). The text is a constant (the HUD reads it after the draw callback returns),
+ * the same tags as hdm_floor_tag; 0 with no chars when there is none. */
+static inline const char* hdm_stair_label(int dungeon, int floor, int up, int* chars) {
+    static const char tags[17][3] = {"B8", "B7", "B6", "B5", "B4", "B3", "B2", "B1",
+                                     "1F", "2F", "3F", "4F", "5F", "6F", "7F", "8F", "9F"};
+    *chars = 0;
+    if (dungeon == 0 && up) { *chars = 4; return "Ext."; }
+    int to = floor + (up ? 1 : -1);
+    if (to < 0x78 || to > 0x88) return 0;
+    *chars = 2;
+    return tags[to - 0x78];
 }
 /* Does a room texture ("MapKaze1F_05^t", "MapKami1F_03_2F_04^t") belong to the floor tag? */
 static inline int hdm_texture_on_floor(const char* texture, const char* tag) {
@@ -223,6 +249,14 @@ static inline unsigned int hdm_button_bit(const char* s) {
 /* Buttons left to the game: all during events/loading; aboard, left/right remain
  * cannon/crane in both marine and dungeon-map contexts. */
 #define HDM_ALL_BUTTONS 0xffffffffu
+/* a layout pane is drawn when its visible flag (+0x44 bit 0) is set and its alpha (+0x45) is not 0 */
+static inline int hdm_pane_shown(unsigned char flags, unsigned char alpha) {
+    return (flags & 1) && alpha != 0;
+}
+/* hidden with the HUD's hearts (1 shown, 0 hidden, -1 unreadable); unreadable falls back to aiming */
+static inline int hdm_hud_hides_map(int hearts, int aiming) {
+    return hearts < 0 ? aiming : !hearts;
+}
 static inline unsigned int hdm_blocked_buttons(int busy, int on_ship, int at_sea) {
     (void)at_sea;
     if (busy) return HDM_ALL_BUTTONS;
@@ -402,6 +436,19 @@ static inline int hdm_compass_wanted(int boat,int visible,float panel,float char
 static inline int hdm_map_requested(int dungeon,int sea,int covered,int marine,int view,int hidden){
     return (dungeon||(sea&&covered))&&(marine?view!=0:!hidden);
 }
+/* Where a treasure chart's X goes, from the chart's centre, as hdTreMapScreen_c::selectChart places
+ * P_TreasureMark_00: the chart set's rectangle is the chart's centre (where its art is centred) then the
+ * treasure's spot, sector-local; the art stays put and only the X moves, by the spot's distance from the
+ * centre at the chart's scale (side / the game's cell world size). Screen y grows down like the sea's z.
+ * Returns 0, with no offset, when the world size can't be trusted. */
+static inline int hdm_chart_mark(const short rect[4], float side, float world, float* dx, float* dy) {
+    *dx = *dy = 0;
+    if (!(world > 1000 && world < 1e6f) || !(side > 0)) return 0;
+    float k = side / world;
+    *dx = (float)(rect[2] - rect[0]) * k;
+    *dy = (float)(rect[3] - rect[1]) * k;
+    return 1;
+}
 /* The HUD's opacity at a pane, from the pane up to the root (global alpha and flags of each, the pane first):
  * the lowest global alpha, 0 if one is hidden. After a save load the HUD waits with N_All_00 at 0 and its
  * children keep a stale 255 until it comes in, so the pane's own global alpha is not enough. */
@@ -414,8 +461,59 @@ static inline float hdm_hud_alpha(const unsigned char* global, const unsigned ch
     return count > 0 ? lowest / 255.0f : 0;
 }
 /* After the map's panel restarts (a load, a menu, an event), its entrance waits for the HUD's: still waiting
- * while the HUD's D-pad is found and not shown yet; never held when the HUD can't be read. */
+ * while the HUD's D-pad is found and not shown yet; never held when the HUD can't be read. The wait counts
+ * logic steps and gives up after HDM_HUD_WAIT_STEPS: while Medli or Makar are controlled the HUD keeps its
+ * D-pad hidden, and the map must not wait for it forever. A load's HUD comes in about 30 steps after Link's
+ * first capture (log of 2026-11-02). */
+#define HDM_HUD_WAIT_STEPS 45
 static inline int hdm_hud_waiting(int waiting, int found, float hud_alpha) {
-    return waiting && found && !(hud_alpha > 0);
+    if (!waiting || !found || hud_alpha > 0 || waiting >= HDM_HUD_WAIT_STEPS) return 0;
+    return waiting + 1;
+}
+/* A landed blow sets the play scene's pause timer (dScnPly_ply_c::pauseTimer) for a few steps of hit-stop:
+ * actors don't run, Link's capture among them, and dScnPly_isPause is true, but the HUD stays. The map keeps
+ * its last frame then. Otherwise it hides while paused (menus) or when Link's step didn't run this step. */
+static inline int hdm_presentation_hidden(int visible, int paused, int hit_stop, unsigned long long step,
+                                          unsigned long long captured) {
+    if (!visible) return 1;
+    if (hit_stop) return 0;
+    return paused || step > captured + 1;
+}
+/* The map's corner: the on-foot options while it replaces the boat compasses (the port reports their
+ * rectangle, but its left/top edges follow the compass pieces' rotation by up to ~19 units, so anchoring
+ * to it made the map drift); without that lease, aboard it stays 110 above the native compasses. */
+static inline void hdm_panel_corner(int compass_lease, int marine, float x, float bottom, float* left, float* low) {
+    *left = x;
+    *low = compass_lease ? bottom : bottom + (marine ? 110 : 0);
+}
+/* MenuMap_00's chart title: a 312 x 47 ribbon, a 312 x 25 shadow whose top is 2 above the ribbon's bottom,
+ * and a 296-wide text box. As in Minimap HD 1.3 it is 0.94 x the chart's side, 0.03 x side above it. */
+/* A picture that fails to load (image budget full, art not ready) is tried again a few times, a second
+ * apart, then left alone until its cache is reset: each failure leaves a note in the port's Mods tab. */
+#define HDM_RETRY_TRIES 3
+#define HDM_RETRY_STEPS 30
+typedef struct { int tries; unsigned long long next; } hdm_retry;
+static inline int hdm_retry_due(const hdm_retry* r, unsigned long long step) {
+    return r->tries < HDM_RETRY_TRIES && step >= r->next;
+}
+static inline void hdm_retry_failed(hdm_retry* r, unsigned long long step) {
+    ++r->tries;
+    r->next = step + HDM_RETRY_STEPS;
+}
+typedef struct { float x, y, w, h, shadow_y, shadow_h; } hdm_chart_title;
+static inline hdm_chart_title hdm_chart_title_box(float x, float y, float side) {
+    hdm_chart_title t;
+    t.w = side * .94f; t.h = t.w * 47.0f / 312.0f;
+    t.x = x + (side - t.w) / 2; t.y = y - side * .03f - t.h;
+    t.shadow_y = t.y + t.h - t.h * 2.0f / 47.0f; t.shadow_h = t.h * 25.0f / 47.0f;
+    return t;
+}
+/* the HUD font's average advance is about 0.37 x its size (measured in game): one estimate both limits the
+ * text to the title's box and centres it; the text is 0.75 x the ribbon's height */
+#define HDM_TITLE_ADVANCE .37f
+static inline float hdm_chart_title_size(const hdm_chart_title* t, unsigned chars) {
+    float size = t->h * .75f, box = t->w * 296.0f / 312.0f;
+    if (chars && chars * size * HDM_TITLE_ADVANCE > box) size = box / (chars * HDM_TITLE_ADVANCE);
+    return size;
 }
 #endif

@@ -210,7 +210,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.2.3",
+      "version": "0.2.4",
       "kind": "guest",
       "licences": [
         "MPL-2.0",
@@ -230,7 +230,8 @@
       ],
       "port_versions": {
         "minimum": "0.4.1"
-      }
+      },
+      "art_generator": "generate_art.py"
     },
     {
       "id": "qol",
