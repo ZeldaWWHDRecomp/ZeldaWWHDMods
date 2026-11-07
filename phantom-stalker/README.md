@@ -4,11 +4,11 @@ Now and then, at night on an island of the Great Sea, fog closes in and Phantom 
 behind Link. He hunts Link around the island for two minutes with his energy balls and dark shots, in his Ganon's
 Tower form.
 
-- **Escape him** by getting back in the boat, or wait him out until the fog lifts. Driving him off ends it too.
+- **Escape him** by getting back in the boat, or wait him out until the fog lifts. He can't be beaten: the sword
+  only knocks him down for a while.
 - Windfall and Outset stay safe.
 - It only comes once Link has the sail and the Wind Waker, never in a file's first four minutes, and not again for
   twelve minutes after one ends. There are no warning signs.
-- There is no reward for driving him off.
 
 Phantom Ganon and his effects are the game's own. Nothing from the game is included in this package.
 
@@ -25,7 +25,8 @@ During a spell it blends in fog (`dKy_fog_startendz_set`), makes one Phantom Gan
 up and comes down when Link is near) with `fopAcM_create` in Link's room and process layer, 1500-2000 units behind him,
 and each step keeps his home point on Link, his room Link's and his size 1. When he waits more than 8 seconds for a
 missed energy ball to die, the ball is ended as if it had flown too far. The spell ends after 120 seconds, when Link
-rides the boat or leaves the island, or when Phantom Ganon is gone; then he is deleted and the fog lifts. No new one
+rides the boat or leaves the island, or when the stage removes Phantom Ganon (as when it restarts after Link is
+knocked into the sea); then he is deleted and the fog lifts. No new one
 comes in a spell's last 20 seconds. An end waits while an event runs, while he is in a cutscene of his own, and while
 he is in his copy attack (its copies find him through a pointer the game never clears), so deleting him never leaves
 the game stuck or a copy behind.
