@@ -247,6 +247,11 @@ static int fogged;
 
 WWHD_HOOK_RETURN(WWHD_ADDR_fpcEx_Handler_025DE788, phantom_stalker_step, (u32 queue)) {
     (void)queue;
+    /* once per logic step: in true 60 the executor also runs between steps, and the clock would run twice as fast */
+    static unsigned long long last_step;
+    const unsigned long long step = wwhd_logic_step();
+    if (step == last_step) return;
+    last_step = step;
     const double dt = wwhd_logic_dt();
     now += dt > 0 && dt < 0.2 ? dt : 1.0 / 30;
     u8* play = wwhd_play_get();
