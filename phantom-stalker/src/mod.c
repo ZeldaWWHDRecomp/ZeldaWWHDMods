@@ -21,6 +21,8 @@ WWHD_GAME_FUNC(0x025D57E4, s32, ps_delete, (u32 id));          /* fopAcM_delete 
 WWHD_GAME_FUNC(0x025DED64, u32, ps_current_layer, (void));      /* fpcLy_CurrentLayer */
 WWHD_GAME_FUNC(0x025DEAB4, void, ps_set_layer, (u32 layer));     /* fpcLy_SetCurrentLayer */
 WWHD_GAME_FUNC(0x0255671C, void, ps_fog, (f32 start, f32 end, f32 ratio));  /* dKy_fog_startendz_set */
+WWHD_GAME_FUNC(WWHD_ADDR_dSv_event_c_isEventBit, s32, ps_event_is, (u32 event, u32 bit));
+WWHD_GAME_FUNC(WWHD_ADDR_dSv_event_c_offEventBit, void, ps_event_off, (u32 event, u32 bit));
 /* his particle bank (below) */
 WWHD_GAME_FUNC(0x026124B0, u8*, ps_archive_file, (u32 archive, u32 archive_name, u32 file_name, u32 zero));  /* getArchiveFile */
 WWHD_GAME_FUNC(0x027DFA24, u8*, ps_embedded_file, (u8* dictionary, const char* name));
@@ -39,6 +41,8 @@ WWHD_GAME_ORIGINAL(0x028249B0, void, ps_rt_matrix_original, (u32 a, u32 b, u32 c
 #define ITEM_WIND_WAKER 0x22
 #define ITEM_SAIL 0x78
 #define PLAY_LINK 0x5B34    /* dComIfG_play_c: Link */
+#define SAVE_EVENT 0x644    /* the save's dSv_event_c */
+#define EVENT_HINT 0x3F20   /* set by him when his ball is reflected (or he is beaten); it turns one of the game's hints off */
 /* Phantom Ganon (daFganon): type 3, the one that waits 10000 up, unseen, until Link is within 2550, then comes down */
 #define FGANON_PROC 0xF1
 #define FGANON_PARAM 0x00FFFF03u
@@ -72,6 +76,8 @@ static double ps_sin(double x) {
 static double ps_cos(double x) { return ps_sin(x + PI / 2); }
 static s32 round_(double x) { return x < 0 ? -(s32)(-x + 0.5) : (s32)(x + 0.5); }  /* (|x| < 2^31 here) */
 static s32 sea_room(cXyz at) { return (round_(at.z / 1e5) + 3) * 7 + round_(at.x / 1e5) + 3 + 1; }
+
+static u32 events(void) { return WWHD_GAME_DATA(WWHD_ADDR_save_info_pointer, u32) + SAVE_EVENT; }
 
 static u32 rng;
 static u32 rnd(void) {
@@ -173,6 +179,7 @@ static double now;                  /* game seconds */
 static u32 phantom = NONE;          /* his process id */
 static double next;                 /* no new one before this */
 static double waiting;              /* since when he has waited on his energy ball */
+static int hint_was = -1;           /* EVENT_HINT before he came (-1: he has not): kept so while he is here */
 
 /* behind Link, 1500-2000 out, at his height, facing him; made in Link's room and in his process layer (base_process_class
  * +0x2C), as an actor's own spawns are: after the executor the current layer is the root one */
@@ -184,6 +191,7 @@ static void spawn(u8* link) {
     const cXyz at = pos_of(link);
     spawn_pos.x = (f32)(at.x + ps_sin(a) * dist), spawn_pos.y = at.y, spawn_pos.z = (f32)(at.z + ps_cos(a) * dist);
     spawn_angle.x = 0, spawn_angle.y = (s16)(s32)(wrap(a + PI) * 32768 / PI), spawn_angle.z = 0;
+    if (hint_was < 0) hint_was = ps_event_is(events(), EVENT_HINT) != 0;
     const u32 layer = ps_current_layer();
     ps_set_layer(word(link, 0x2C));
     phantom = ps_create(FGANON_PROC, FGANON_PARAM, &spawn_pos, ((fopAc_ac_c*)link)->current.roomNo, &spawn_angle, 0, -1, 0);
@@ -260,8 +268,12 @@ WWHD_HOOK_RETURN(WWHD_ADDR_fpcEx_Handler_025DE788, phantom_stalker_step, (u32 qu
     if (link != last_link) {  /* a file loaded, a stage entered: Phantom Ganon went with the old one */
         last_link = link;
         settle = now + 2;
-        phantom = NONE, next = 0, until = 0;
+        phantom = NONE, next = 0, until = 0, hint_was = -1;
     }
+    /* reflecting his ball sets EVENT_HINT, which only the game's own Phantom Ganon should: it is cleared again each step
+     * while he is here and once after, so no save (a mid-hunt one included) keeps it from him */
+    if (hint_was == 0) ps_event_off(events(), EVENT_HINT);
+    if (phantom == NONE) hint_was = -1;
     if (file_at < 0) file_at = now, cool = cool > now + 240 ? cool : now + 240;  /* none in a file's first 4 minutes */
     /* nor while a stage settles or the next one is asked for, nor in a cutscene */
     const int settled = now >= settle && !play[WWHD_PLAY_ENABLE_NEXT_STAGE_OFFSET];
