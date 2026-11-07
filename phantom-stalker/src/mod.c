@@ -147,6 +147,7 @@ static void load_bank(u8* play) {
     *(volatile u32*)(mgr + MANAGER_BANKS + 4 * BANK) = res;
     bank_heap = heap;
     wwhd_log("phantom-stalker: Phantom Ganon's particles loaded");
+    wwhd_log_int("phantom-stalker: their heap's bytes", (int)word((u8*)heap, 0x20));  /* (the solid heap's size) */
 }
 static int bank_has(u32 bank, u32 id) { return bank && ps_bank_has(word((u8*)bank, 4), id & 0xFFFF); }
 /* a scene effect (bank 1) the stage's bank lacks is made from ours when ours has it; everything else as it was */

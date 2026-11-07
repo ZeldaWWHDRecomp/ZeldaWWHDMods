@@ -1,8 +1,8 @@
 # Phantom stalker
 
 Now and then, at night on an island of the Great Sea, fog closes in and Phantom Ganon comes down out of the dark
-behind Link. He hunts Link around the island for two minutes with his energy balls and dark shots, as he fights
-in the Forsaken Fortress.
+behind Link. He hunts Link around the island for two minutes with his energy balls and dark shots, in his Ganon's
+Tower form.
 
 - **Escape him** by getting back in the boat, or wait him out until the fog lifts. Driving him off ends it too.
 - Windfall and Outset stay safe.
@@ -25,11 +25,18 @@ During a spell it blends in fog (`dKy_fog_startendz_set`), makes one Phantom Gan
 up and comes down when Link is near) with `fopAcM_create` in Link's room and process layer, 1500-2000 units behind him,
 and each step keeps his home point on Link, his room Link's and his size 1. When he waits more than 8 seconds for a
 missed energy ball to die, the ball is ended as if it had flown too far. The spell ends after 120 seconds, when Link
-rides the boat or leaves the island, or when Phantom Ganon is gone; then he is deleted and the fog lifts.
+rides the boat or leaves the island, or when Phantom Ganon is gone; then he is deleted and the fog lifts. No new one
+comes in a spell's last 20 seconds. An end waits while an event runs, while he is in a cutscene of his own, and while
+he is in his copy attack (its copies find him through a pointer the game never clears), so deleting him never leaves
+the game stuck or a copy behind.
+
+Reflecting his energy ball sets an event flag in the save (0x3F20) that turns off one of the game's hints. The mod puts
+it back as it was each step while he is here, so no save keeps it.
 
 His effects live in Ganon's Tower's scene particle bank, Pscene080, which the sea does not load. The mod loads it into
 the emitter manager's free slot 2 the way the game loads a stage's bank (`getArchiveFile`, a solid heap from the game
-heap, a `JPAResourceManager` over the bank) and frees it when the stage goes (`dPa_control_c::removeScene`).
+heap, a `JPAResourceManager` over the bank) and frees it when the stage goes (`dPa_control_c::removeScene`). The log
+gives the bank heap's size.
 
 Hooks and replacements:
 
