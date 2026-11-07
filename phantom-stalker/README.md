@@ -37,9 +37,10 @@ Hooks and replacements:
 - `dPa_control_c::removeScene` (entry): frees the bank with the stage.
 - `JPAEmitterManager::createSimpleEmitterID` (0x02821448, **replaced**): a scene effect the stage's own bank lacks is
   made from slot 2 when the mod's bank has it; every other call goes to the game's function unchanged.
-- `JPABaseEmitter::setGlobalRTMatrix` (0x028249B0, **replaced**): skips a missing emitter. Phantom Ganon's energy ball
-  sets the matrix of its hit effect's emitters without checking them, which halts the game when they could not be made.
-  Every other call goes to the game's function unchanged.
+- `JPASetRMtxTVecfromMtx` (0x028249B0, **replaced**), the helper every inlined `JPABaseEmitter::setGlobalRTMatrix`
+  calls, so it covers all particle matrix updates: skips a missing emitter (a pointer below 0x1000). Phantom Ganon's
+  energy ball sets the matrix of its hit effect's emitters without checking them, which halts the game when they could
+  not be made. Every other call goes to the game's function unchanged.
 
 Only one mod can replace a function, so this mod can't be on together with another mod that replaces either of these
 two.

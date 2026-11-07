@@ -157,9 +157,10 @@ WWHD_REPLACE(0x02821448, u32, emitter, (u32 mgr, u32 pos, u32 id, u32 group, u32
     }
     return ps_emitter_original(mgr, pos, id, group, bank, callback, callback2);
 }
-/* JPABaseEmitter::setGlobalRTMatrix: his energy ball calls it on its hit effect's emitters without checking them
- * (daFgmahou_Execute); with the bank loaded they exist, and without it (it could not be loaded, or went with the
- * stage) there is nothing to set */
+/* JPASetRMtxTVecfromMtx(src, R, T), the helper every inlined JPABaseEmitter::setGlobalRTMatrix calls (R and T are the
+ * emitter's +0x1F0 and +0x22C): his energy ball sets its hit effect's emitters without checking them
+ * (daFgmahou_Execute); with the bank loaded they exist, and without it (it could not be loaded, or went with the stage)
+ * there is nothing to set. No real pointer is below 0x1000, so every other call goes on unchanged */
 WWHD_REPLACE(0x028249B0, void, rt_matrix, (u32 a, u32 b, u32 c)) {
     if (a < 0x1000 || b < 0x1000) return;
     ps_rt_matrix_original(a, b, c);
