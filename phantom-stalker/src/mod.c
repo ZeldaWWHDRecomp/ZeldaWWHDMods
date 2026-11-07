@@ -45,6 +45,7 @@ WWHD_GAME_ORIGINAL(0x028249B0, void, ps_rt_matrix_original, (u32 a, u32 b, u32 c
 #define FG_ACTION 0x5BA     /* s16: 6 after a volley */
 #define FG_MODE 0x5BC       /* s16: 3 while he waits for his energy ball to die */
 #define FG_BALL 0x63C       /* u8: his energy ball's state; 35 ends it, as when it flies too far */
+#define FG_DEMO 0xD88       /* s16 (the decomp's mB54): his cutscene's step, 0 when none */
 /* sea rooms that stay safe: the towns. The sea is a 7x7 grid of 100000-unit squares, room 1 at the north-west; the
  * room is found from Link's place (his room byte is not yet his while a stage loads) */
 #define ROOM_WINDFALL 11
@@ -205,6 +206,10 @@ static void keep(u8* pg, u8* link) {
     else if (now - waiting > 8) pg[FG_BALL] = 35, waiting = now;
 }
 
+/* deleting him in a cutscene of his (it stops the camera, shows the black bars and puts Link in a demo, which only his
+ * own code undoes) could leave the game stuck: an end waits until it is over */
+static int busy(u8* pg) { return pg && *(volatile s16*)(pg + FG_DEMO) != 0; }
+
 /* ---- the spell ---- */
 static double until;                /* its end (0: none) */
 static double cool;                 /* none before this */
@@ -270,10 +275,13 @@ WWHD_HOOK_RETURN(WWHD_ADDR_fpcEx_Handler_025DE788, phantom_stalker_step, (u32 qu
     const double hour = time / 15;  /* degrees, 15 an hour from midnight */
     const int night = hour >= 19 || hour < 5;
 
-    if (until > 0) {
+    u8* pg = phantom != NONE ? ps_search(phantom) : 0;
+    const int hold = cutscene || busy(pg);  /* any end waits for that */
+    if (until > 0 && !hold) {
         if (!island) finish("phantom-stalker: ends, Link left the island");
         else if (now >= until) finish("phantom-stalker: ends");
-        else if (phantom != NONE && now >= next && !ps_search(phantom)) finish("phantom-stalker: ends, Phantom Ganon is gone");
+        else if (phantom != NONE && now >= next && !pg) finish("phantom-stalker: ends, Phantom Ganon is gone");
+        if (until == 0) pg = 0;
     }
     if (!always() && until == 0 && settled && !cutscene && now - last_roll >= 60) {  /* one roll a minute */
         last_roll = now;
@@ -294,13 +302,14 @@ WWHD_HOOK_RETURN(WWHD_ADDR_fpcEx_Handler_025DE788, phantom_stalker_step, (u32 qu
     }
 
     if (!on) {
-        if (phantom != NONE && ps_search(phantom)) ps_delete(phantom);  /* (Always: Link left the island) */
+        if (pg && hold) return;  /* (Always: Link left the island) */
+        if (pg) ps_delete(phantom);
         phantom = NONE;
         return;
     }
     if (!settled) return;
     load_bank(play);
-    u8* pg = phantom != NONE ? ps_search(phantom) : 0;
-    if (!pg && now >= next) spawn(link);
+    /* none comes in a spell's last 20 s (nor once Link has left while an end waits) */
+    if (!pg && now >= next && island && (always() || until - now > 20)) spawn(link);
     else if (pg) keep(pg, link);
 }
