@@ -2,6 +2,42 @@
   "format_version": 1,
   "mods": [
     {
+      "id": "dark-link",
+      "name": "Dark Link",
+      "description": "Dark Link with matte charcoal body/equipment, red eyes, a black native Magic Armor aura and a red MagicBar gauge below the normal magic gauge.",
+      "version": "1.0.1",
+      "kind": "guest",
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Dark Link for this installation"
+        }
+      ],
+      "authors": [
+        "BeZide93"
+      ],
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true,
+      "downloads": {
+        "all": {
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/dark-link.zip",
+          "size": 233764,
+          "sha256": "f384a5c26689fd1d7c155d5c7bdf6be68bab7b2fc47e8042dc7cec4120558f68"
+        }
+      }
+    },
+    {
       "id": "dragon",
       "name": "Call of the Sky",
       "description": "SDK v2 example prototype: an optional Dragon Roost song quest and Valoo ride across the Great Sea.",
@@ -9,7 +45,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -33,9 +69,81 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6659ac470383ee522f2b360f5563aaa8c3219949/dragon.zip",
-          "size": 54766,
-          "sha256": "bb09e5ffc98b1661495cab058cd90232f1b53dbeb350c77c4b8e95f2216446ac"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/dragon.zip",
+          "size": 54768,
+          "sha256": "bfcc6b071f7e304780bb59aaaf0dac6d4dc313dd01e01df80abfb9ff44a22b31"
+        }
+      }
+    },
+    {
+      "id": "enemy-hp-bars",
+      "name": "Enemy HP Bars",
+      "description": "Floating enemy health bars and fading damage numbers for supported native enemies. Live size, distance and visibility settings. Bosses and Stalfos split health are not supported in this version.",
+      "version": "1.0.0",
+      "kind": "guest",
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Enemy HP Bars for this installation"
+        }
+      ],
+      "authors": [
+        "BeZide93"
+      ],
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true,
+      "downloads": {
+        "all": {
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/enemy-hp-bars.zip",
+          "size": 25228,
+          "sha256": "a71ac97c0d466e90eee13c008454f761b8098029da37d56683c4315262ca42a2"
+        }
+      }
+    },
+    {
+      "id": "enhanced-controls",
+      "name": "Enhanced Controls",
+      "description": "Four optional combat buttons with their own touch layout editor.",
+      "version": "1.0.0",
+      "kind": "guest",
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Enhanced Controls for this installation"
+        }
+      ],
+      "authors": [
+        "BeZide93"
+      ],
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true,
+      "downloads": {
+        "all": {
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/enhanced-controls.zip",
+          "size": 442437,
+          "sha256": "84ce65de86451c49abd547dd0c34c4c360b84689dda882588c91f7803e69552c"
         }
       }
     },
@@ -46,7 +154,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -92,9 +200,45 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6659ac470383ee522f2b360f5563aaa8c3219949/gc-minimap.zip",
-          "size": 40747,
-          "sha256": "2e22666579fd723f24f9505bd5772e39adb4715197c76d54372d1d614ee8c4d8"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/gc-minimap.zip",
+          "size": 40791,
+          "sha256": "2607f33f6ead7b622fde244b28245921ab54a8dff8f8ab6039faf4d0b03cf071"
+        }
+      }
+    },
+    {
+      "id": "haunted-sea",
+      "name": "Haunted sea",
+      "description": "Now and then, at night far out at sea, the wind dies, fog rolls in and the sea turns on Link: Gyorgs, Seahats, Kargarocs, cannon boats, Poes and the Ghost Ship.",
+      "authors": [
+        "asadsi"
+      ],
+      "version": "0.1.1",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Haunted sea for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true,
+      "downloads": {
+        "all": {
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/haunted-sea.zip",
+          "size": 25081,
+          "sha256": "32a4602557d493377f2484548ac3f081f664eb26a44be916e44f7925eb73315b"
         }
       }
     },
@@ -105,7 +249,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.1.1",
+      "version": "0.2.5",
       "kind": "guest",
       "licences": [
         "MPL-2.0",
@@ -128,9 +272,9 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6659ac470383ee522f2b360f5563aaa8c3219949/hd-minimap.zip",
-          "size": 111273,
-          "sha256": "5abdf57271a5a285c89cb95d3a1fb1a4e97425cb70731393f3628cc34ad420a1"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/hd-minimap.zip",
+          "size": 156114,
+          "sha256": "ebd1f13565d305e3fc3b73a3e2e2695602ce603bb00da945cbe4e70e1e465e01"
         }
       }
     },
@@ -141,7 +285,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.1.0",
+      "version": "0.1.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -163,20 +307,20 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6659ac470383ee522f2b360f5563aaa8c3219949/heart-ticker.zip",
-          "size": 8503,
-          "sha256": "1bb7b1c5f55901c1f15c8c1b3c3c5b13bd6b969d55c3bce8fa26ca9a65faf0f6"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/heart-ticker.zip",
+          "size": 8557,
+          "sha256": "498e2c64b51d07e0146970e7d2e9a591d57d1e9c2c17c9059e80568e89d9e48b"
         }
       }
     },
     {
       "id": "qol",
       "name": "QoL extras",
-      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch.",
+      "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch. Optional faster block pushing and pulling.",
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.5.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -199,9 +343,9 @@
       "experimental": true,
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6659ac470383ee522f2b360f5563aaa8c3219949/qol.zip",
-          "size": 81324,
-          "sha256": "20f3de64b390c792ab6da1ab6898006f92d01429dad1173a21967d094997c8f5"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/qol.zip",
+          "size": 89613,
+          "sha256": "fd597954b0bd7efa4ebfd723ca33f95b8cd86b765eee06fed00d5f775af590bd"
         }
       }
     },
@@ -213,7 +357,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.1.1",
+      "version": "0.1.2",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -237,9 +381,9 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6659ac470383ee522f2b360f5563aaa8c3219949/rito-letter.zip",
-          "size": 8045,
-          "sha256": "d26415a3f447865fb5be0866d325d9fbd60b683c7174a030eaeaf6b8ce680d17"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/rito-letter.zip",
+          "size": 8088,
+          "sha256": "91450d99198b042c865e383c226859eb33116b7b53e257ea903a6528a882ce7c"
         }
       }
     },
@@ -251,7 +395,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.3.0",
+      "version": "0.3.1",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -275,9 +419,9 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6659ac470383ee522f2b360f5563aaa8c3219949/story-chart.zip",
-          "size": 8582,
-          "sha256": "99364951e1e652e468162898e63a382bc8e16d38d8d15a39beb1060f43196f22"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/story-chart.zip",
+          "size": 8627,
+          "sha256": "1bbebf9ebea5ea6a4ff14637e2d2561d0a5ce425716a0d626bc8c05946502b0f"
         }
       }
     },
@@ -288,7 +432,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.6.1",
+      "version": "0.6.2",
       "kind": "guest",
       "licences": [
         "MPL-2.0"
@@ -310,9 +454,45 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6659ac470383ee522f2b360f5563aaa8c3219949/story-notebook.zip",
-          "size": 5425719,
-          "sha256": "f570840df62a1982c9782def3d7e57fa0e207cdb0393482cf988f5fddaaf4b93"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/story-notebook.zip",
+          "size": 5425764,
+          "sha256": "c3d31ad7be43725b7c21f65dbbb4970abd1cc9765a7bf0865a301c2e013ba967"
+        }
+      }
+    },
+    {
+      "id": "sword-wave",
+      "name": "Sword Wave",
+      "description": "At full hearts, sword Spin Attacks launch a forward wave using native Spin Attack particles and sword collision. Inspired by Dawnlight's Great Spin projectile.",
+      "version": "1.0.0",
+      "kind": "guest",
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Sword Wave for this installation"
+        }
+      ],
+      "authors": [
+        "BeZide93"
+      ],
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true,
+      "downloads": {
+        "all": {
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/sword-wave.zip",
+          "size": 20492,
+          "sha256": "c4e05566417d0d29901e48ff74b1647bc918afe86b0652e4e472e6dbca63a380"
         }
       }
     }
