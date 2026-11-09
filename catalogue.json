@@ -173,6 +173,37 @@
       }
     },
     {
+      "id": "link-appearance",
+      "name": "Link's look",
+      "description": "A dyer in Windfall's town square changes the colours of Link's hair, skin, eyes, tunic and its details, shown on Link as you choose.",
+      "experimental": true,
+      "authors": [
+        "ZeldaWWHDRecomp contributors"
+      ],
+      "version": "0.1.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [
+        "story-notebook"
+      ],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Link's look for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.5.2"
+      }
+    },
+    {
       "id": "rito-letter",
       "name": "Letter from a storyteller",
       "description": "Example: a story mod's letter that waits in the Rito postbox and arrives once per save file.",
