@@ -36,20 +36,20 @@
       "stage": "sea",
       "room": 11,
       "position": {
-        "x": 300,
-        "y": 1040,
-        "z": -201800
+        "x": 650,
+        "y": 1030,
+        "z": -201150
       },
       "rotation": {
         "x": 0,
-        "y": 0,
+        "y": 90,
         "z": 0
       },
       "talks": [
         {
           "lines": [
             "I dye clothes and hair for travellers.",
-            "Pick new colours and see them on you at once.",
+            "Pick new colours and see them at once.",
             "Let's have a look at you!"
           ],
           "then": [
