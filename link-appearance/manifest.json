@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "id": "link-appearance",
+  "name": "Link's look",
+  "version": "0.1.0",
+  "game_id": "wwhd",
+  "minimum_manager_version": "1.11.0",
+  "kind": "guest",
+  "guest": {
+    "api_version": 1,
+    "elf": "mod.elf"
+  },
+  "author": "ZeldaWWHDRecomp contributors",
+  "description": "A dyer in Windfall's town square changes the colours of Link's hair, skin, eyes, tunic and its details, shown on Link as you choose.",
+  "experimental": true,
+  "setup": [
+    {
+      "id": "build",
+      "type": "build_guest_mod",
+      "title": "Build Link's look for this installation"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "story-notebook",
+      "minimum_version": "0.6.0"
+    }
+  ],
+  "actors": [
+    {
+      "id": "dyer",
+      "actor": "resident",
+      "parameters": {
+        "resident": "ub3"
+      },
+      "stage": "sea",
+      "room": 11,
+      "position": {
+        "x": 650,
+        "y": 1030,
+        "z": -201150
+      },
+      "rotation": {
+        "x": 0,
+        "y": 90,
+        "z": 0
+      },
+      "talks": [
+        {
+          "lines": [
+            "I dye clothes and hair for travellers.",
+            "Pick new colours and see them at once.",
+            "Let's have a look at you!"
+          ],
+          "then": [
+            {
+              "action": "appearance"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
