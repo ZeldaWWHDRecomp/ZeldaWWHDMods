@@ -31,7 +31,7 @@
       "experimental": true,
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/dark-link.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/dark-link.zip",
           "size": 233764,
           "sha256": "f384a5c26689fd1d7c155d5c7bdf6be68bab7b2fc47e8042dc7cec4120558f68"
         }
@@ -69,7 +69,7 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/dragon.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/dragon.zip",
           "size": 54768,
           "sha256": "bfcc6b071f7e304780bb59aaaf0dac6d4dc313dd01e01df80abfb9ff44a22b31"
         }
@@ -105,7 +105,7 @@
       "experimental": true,
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/enemy-hp-bars.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/enemy-hp-bars.zip",
           "size": 25228,
           "sha256": "a71ac97c0d466e90eee13c008454f761b8098029da37d56683c4315262ca42a2"
         }
@@ -141,7 +141,7 @@
       "experimental": true,
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/enhanced-controls.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/enhanced-controls.zip",
           "size": 442437,
           "sha256": "84ce65de86451c49abd547dd0c34c4c360b84689dda882588c91f7803e69552c"
         }
@@ -200,7 +200,7 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/gc-minimap.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/gc-minimap.zip",
           "size": 40791,
           "sha256": "2607f33f6ead7b622fde244b28245921ab54a8dff8f8ab6039faf4d0b03cf071"
         }
@@ -236,7 +236,7 @@
       "experimental": true,
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/haunted-sea.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/haunted-sea.zip",
           "size": 25081,
           "sha256": "32a4602557d493377f2484548ac3f081f664eb26a44be916e44f7925eb73315b"
         }
@@ -249,7 +249,7 @@
       "authors": [
         "ZeldaWWHDRecomp contributors"
       ],
-      "version": "0.2.5",
+      "version": "0.2.6",
       "kind": "guest",
       "licences": [
         "MPL-2.0",
@@ -272,9 +272,9 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/hd-minimap.zip",
-          "size": 156114,
-          "sha256": "ebd1f13565d305e3fc3b73a3e2e2695602ce603bb00da945cbe4e70e1e465e01"
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/hd-minimap.zip",
+          "size": 157400,
+          "sha256": "5618feda2dd9bd5e97ac236671b6cbc224a84751316d0ec3d230bbce532ee65d"
         }
       }
     },
@@ -307,7 +307,7 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/heart-ticker.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/heart-ticker.zip",
           "size": 8557,
           "sha256": "498e2c64b51d07e0146970e7d2e9a591d57d1e9c2c17c9059e80568e89d9e48b"
         }
@@ -343,7 +343,7 @@
       "experimental": true,
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/qol.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/qol.zip",
           "size": 89613,
           "sha256": "fd597954b0bd7efa4ebfd723ca33f95b8cd86b765eee06fed00d5f775af590bd"
         }
@@ -381,7 +381,7 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/rito-letter.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/rito-letter.zip",
           "size": 8088,
           "sha256": "91450d99198b042c865e383c226859eb33116b7b53e257ea903a6528a882ce7c"
         }
@@ -419,7 +419,7 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/story-chart.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/story-chart.zip",
           "size": 8627,
           "sha256": "1bbebf9ebea5ea6a4ff14637e2d2561d0a5ce425716a0d626bc8c05946502b0f"
         }
@@ -454,7 +454,7 @@
       },
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/story-notebook.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/story-notebook.zip",
           "size": 5425764,
           "sha256": "c3d31ad7be43725b7c21f65dbbb4970abd1cc9765a7bf0865a301c2e013ba967"
         }
@@ -490,7 +490,7 @@
       "experimental": true,
       "downloads": {
         "all": {
-          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-6f67da2b1e446c981d3fa7c0c66d7ddb0e1fc462/sword-wave.zip",
+          "url": "https://github.com/ZeldaWWHDRecomp/ZeldaWWHDMods/releases/download/main-4bedc5fc29891d4fc78cfe682edb0847bb317a20/sword-wave.zip",
           "size": 20492,
           "sha256": "c4e05566417d0d29901e48ff74b1647bc918afe86b0652e4e472e6dbca63a380"
         }
