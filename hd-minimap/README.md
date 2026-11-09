@@ -132,8 +132,9 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 - **0.2.6:**
   - The icons beside the HUD's D-pad sit on the D-pad at every screen shape (Settings > Graphics >
-    Aspect ratio): at 4:3 and 16:10 they were above it, at 4:3 partly off the top of the screen, and
-    at 21:9 and 32:9 to the left of it. They follow a change of shape while you play. 16:9 is unchanged.
+    Aspect ratio): at 4:3 and 16:10 they were above it (at 4:3 over the hearts and partly off the top of
+    the screen), and at 21:9 and 32:9 off the left edge. They follow a change of shape while you play.
+    16:9 is unchanged.
 - **0.2.5:**
   - On ports with mod manager 1.9.0 or later, the floor-change markers use the game's own arrow, and
     their labels are the game's own text in your game's language.
