@@ -87,7 +87,7 @@ These features are optional. Older ports keep the map above the compasses and
 follow eligible GamePad caption changes in one direction. The package still loads
 with older installers; it does not import mandatory new host functions.
 
-## Known limits (0.2.5)
+## Known limits (0.2.6)
 
 - Native localized chart names retain a numeric fallback if a message is missing.
 - Link and boat markers are never drawn on treasure charts.
@@ -115,7 +115,7 @@ the [parity report](PARITY.md) for the scenes checked and remaining gaps, and
 
 `python3 -m unittest discover -s hd-minimap/tests` compiles and runs the host tests of the rules in
 `src/hd_minimap.h`. They cover sectors and island coverage, art and pane names, floors, fading,
-buttons (including those left to the game aboard), the D-pad icons, sailing views, plan fitting and framing,
+buttons (including those left to the game aboard), the D-pad icons and where they go at every screen shape, sailing views, plan fitting and framing,
 the Forsaken Fortress plan turn, its outside and searchlights, the dungeon zoom's turn, where a treasure chart's X goes and its title, the floor-change markers' panes and labels, hit-stop, following the HUD's visibility, bounded picture retries, and the HUD's opacity the map and its icons follow when the HUD comes in. No game data is included.
 
 ## Credits and licensing
@@ -130,6 +130,10 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
+- **0.2.6:**
+  - The icons beside the HUD's D-pad sit on the D-pad at every screen shape (Settings > Graphics >
+    Aspect ratio): at 4:3 and 16:10 they were above it, at 4:3 partly off the top of the screen, and
+    at 21:9 and 32:9 to the left of it. They follow a change of shape while you play. 16:9 is unchanged.
 - **0.2.5:**
   - On ports with mod manager 1.9.0 or later, the floor-change markers use the game's own arrow, and
     their labels are the game's own text in your game's language.

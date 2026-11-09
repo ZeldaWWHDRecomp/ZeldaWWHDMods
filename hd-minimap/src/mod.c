@@ -877,6 +877,13 @@ static void feedback(u32 list, float side) {
 
 /* ---- the map's icons beside the HUD's D-pad, read from the game's HUD (never written) so that they
  * move and fade with it ---- */
+/* the TV picture's width / height as the game draws this frame (Settings > Graphics > Aspect ratio, or the
+ * window's shape); 0 on ports without the setting (hdm_aspect_factors keeps 16:9 then) */
+static double screen_aspect(void) {
+    static double a;  /* the port writes settings only into the mod's own memory, not onto the stack */
+    if (wwhd_setting_get("display.aspect", WWHD_SETTING_F64, &a, 8) != 8) a = 0;
+    return a;
+}
 static int heap_pointer(u32 p) { return p >= 0x10000000u && p < 0x50000000u && !(p & 3); }
 static u32 follow(u32 p, u32 offset) { return heap_pointer(p) ? *(u32*)(p + offset) : 0; }
 static void read_dpad(void) {
@@ -886,11 +893,14 @@ static void read_dpad(void) {
     u32 pane = follow(follow(follow(follow(follow(hud, 0x4C), 0x30), 0x44), 4), 0x0C);
     for (int i = 0; i < 4; ++i) pane = follow(pane, 0x14);
     if (!heap_pointer(pane) || !hdm_same((const char*)(pane + 0x80), "N_ShortcutState_00")) return;
-    /* the pane's global matrix in Main_00's 1280 x 720 root (+y up), its global alpha */
+    /* the pane's global matrix in Main_00's root (+y up; 1280 x 720 at 16:9, kx times wider or ky times
+     * taller at other shapes), its global alpha. The shape is read each frame: players change it while playing. */
+    hdm_aspect k = hdm_aspect_factors(screen_aspect());
     f32 scale = *(f32*)(pane + 0x48), tx = *(f32*)(pane + 0x54), ty = *(f32*)(pane + 0x64);
-    if (!hdm_finite(scale) || !hdm_finite(tx) || !hdm_finite(ty) || scale < .05f || scale > 8 || tx < -1280 || tx > 1280 || ty < -720 || ty > 720) return;
+    if (!hdm_finite(scale) || !hdm_finite(tx) || !hdm_finite(ty) || scale < .05f || scale > 8 ||
+        tx < -1280 * k.kx || tx > 1280 * k.kx || ty < -720 * k.ky || ty > 720 * k.ky) return;
     dpad.found = 1;
-    dpad.x = 640 + tx; dpad.y = 360 - ty; dpad.scale = scale;
+    hdm_layout_to_hud(k, tx, ty, scale, &dpad.x, &dpad.y, &dpad.scale);
     /* the global alpha and flags of the pane and its parents: a hidden or transparent parent hides the D-pad */
     u8 global[16], flags[16];
     int depth = 0;

@@ -375,6 +375,30 @@ static inline hdm_icons hdm_dpad_icons(int sea, int dungeon, int on_ship, int hi
     if (dungeon) d.down = HDM_ICON_COMPASS;
     return d;
 }
+/* ---- the TV's shape: the game's HUD at other aspect ratios than 16:9. The port lays the game's layouts out
+ * in a space kx times wider or ky times taller than 1280 x 720 (one of them is 1), fitted to the screen, and
+ * moves the HUD's edge panes out to the new edges. The mod HUD's canvas is 720 units tall at every shape
+ * (TOP_LEFT: x from the left edge, y from the top). So a layout point (gx, gy) (+y up, from the centre) is
+ * drawn at ((640 kx + gx) / ky, 360 - gy / ky) on the canvas, and a layout unit is 1 / ky canvas units.
+ * aspect: the port's display.aspect (width / height of the game's picture); 16:9 when unknown. ---- */
+#define HDM_ASPECT_16_9 (16.0 / 9.0)
+typedef struct { float kx, ky; } hdm_aspect;
+static inline hdm_aspect hdm_aspect_factors(double aspect) {
+    hdm_aspect k = {1, 1};
+    /* a bad reading (old port, nothing yet) keeps 16:9 */
+    if (!(aspect >= .5 && aspect <= 8)) return k;
+    /* the port keeps the shape as a float: 16:9 within its rounding stays exactly 1, 1 */
+    double r = aspect / HDM_ASPECT_16_9;
+    if (r > 1.0001) k.kx = (float)r;
+    else if (r < .9999) k.ky = (float)(1 / r);
+    return k;
+}
+/* a pane's global translation (gx, gy) and scale in the game's layout space, on the canvas */
+static inline void hdm_layout_to_hud(hdm_aspect k, float gx, float gy, float scale, float* x, float* y, float* s) {
+    *x = (640 * k.kx + gx) / k.ky;
+    *y = 360 - gy / k.ky;
+    *s = scale / k.ky;
+}
 
 /* ---- the dungeon zoom's turn: the plan turns about Link so that a heading (game angle, 0x10000 a turn)
  * faces up: Link's, or with the camera option the camera's when the game has one ---- */
