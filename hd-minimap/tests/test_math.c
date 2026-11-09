@@ -498,6 +498,38 @@ static void hit_stop(void) {
     assert(hdm_presentation_hidden(0, 1, 1, 14, 10));
 }
 
+/* the HUD's D-pad on the canvas at every TV shape: the port moves the top-left HUD by -640 (kx - 1), +360 (ky - 1)
+ * and fits the taller layout space to the screen's height (aspect.cpp, aspect_panes.h) */
+static int near(float a, float b) { return fabsf(a - b) < 1e-3f; }
+static void aspects(void) {
+    float x, y, s;
+    hdm_aspect k = hdm_aspect_factors(16.0 / 9.0);
+    assert(k.kx == 1 && k.ky == 1);
+    hdm_layout_to_hud(k, -480, 270, .9f, &x, &y, &s);              /* 16:9: as before */
+    assert(x == 160 && y == 90 && s == .9f);
+    k = hdm_aspect_factors((double)(16.0f / 9.0f));                 /* the port's float 16:9 */
+    assert(k.kx == 1 && k.ky == 1);
+    k = hdm_aspect_factors(0);                                      /* unknown (old port): 16:9 */
+    assert(k.kx == 1 && k.ky == 1);
+    k = hdm_aspect_factors(NAN);
+    assert(k.kx == 1 && k.ky == 1);
+    /* 4:3: the pane sits 120 layout units higher; the HUD is 3/4 the size, its distances from the
+     * top-left corner too */
+    k = hdm_aspect_factors(4.0 / 3.0);
+    assert(k.kx == 1 && near(k.ky, 4.0f / 3));
+    hdm_layout_to_hud(k, -480, 270 + 120, .9f, &x, &y, &s);
+    assert(near(x, 160 * .75f) && near(y, 90 * .75f) && near(s, .9f * .75f));
+    /* 16:10: 40 higher, 0.9 the size */
+    k = hdm_aspect_factors(16.0 / 10.0);
+    hdm_layout_to_hud(k, -480, 270 + 40, 1, &x, &y, &s);
+    assert(near(x, 160 * .9f) && near(y, 90 * .9f) && near(s, .9f));
+    /* 21:9: 200 to the left, the same size and distance from the left edge as at 16:9 */
+    k = hdm_aspect_factors(21.0 / 9.0);
+    assert(near(k.kx, 21.0f / 16) && k.ky == 1);
+    hdm_layout_to_hud(k, -480 - 200, 270, 1, &x, &y, &s);
+    assert(near(x, 160) && y == 90 && s == 1);
+}
+
 int main(void) {
     chart_mark();
     hud_entry();
@@ -531,6 +563,7 @@ int main(void) {
     fading();
     controls();
     dpad_icons();
+    aspects();
     turning();
     fitting();
     puts("hd-minimap math: ok");
