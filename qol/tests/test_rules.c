@@ -216,6 +216,29 @@ int main(void) {
         assert(qol_gameover_tap_step(&t, 0, 1, 0.35f, 0.69f) == 0 && qol_gameover_tap_step(&t, 0, 0, 0, 0) == 0);
         assert(qol_gameover_tap_step(&t, 1, 0, 0, 0) == 0);
         #undef GO_TAP
+        /* from a GamePad claim's events: down and up within one read still make the tap */
+        memset(&t, 0, sizeof t);
+        qol_gameover_tap_event(&t, 0, 0.35f, 0.69f);
+        qol_gameover_tap_event(&t, 2, 0.36f, 0.70f);
+        assert(qol_gameover_tap_step(&t, 1, t.down, t.x, t.y) == QOL_GO_LEFT);
+        for (int i = 1; i < 3 * QOL_GO_HOLD; i++) (void)qol_gameover_tap_step(&t, 1, t.down, t.x, t.y);
+        assert(qol_gameover_tap_step(&t, 1, t.down, t.x, t.y) == 0);
+        /* held across reads, then lifted on Save */
+        qol_gameover_tap_event(&t, 0, 0.65f, 0.69f);
+        assert(qol_gameover_tap_step(&t, 1, t.down, t.x, t.y) == 0);
+        qol_gameover_tap_event(&t, 1, 0.66f, 0.70f);
+        assert(qol_gameover_tap_step(&t, 1, t.down, t.x, t.y) == 0);
+        qol_gameover_tap_event(&t, 2, 0.66f, 0.70f);
+        assert(qol_gameover_tap_step(&t, 1, t.down, t.x, t.y) == QOL_GO_RIGHT);
+        /* slid off the button, or cancelled: nothing */
+        memset(&t, 0, sizeof t);
+        qol_gameover_tap_event(&t, 0, 0.35f, 0.69f);
+        qol_gameover_tap_event(&t, 2, 0.35f, 0.20f);
+        assert(qol_gameover_tap_step(&t, 1, t.down, t.x, t.y) == 0);
+        qol_gameover_tap_event(&t, 0, 0.35f, 0.69f);
+        qol_gameover_tap_event(&t, 3, 0.35f, 0.69f);
+        qol_gameover_tap_event(&t, 2, 0.35f, 0.69f);
+        assert(qol_gameover_tap_step(&t, 1, t.down, t.x, t.y) == 0);
     }
     return 0;
 }

@@ -376,10 +376,12 @@ static unsigned qol_fo_take(qol_fo_list* w, const unsigned char* queued, unsigne
 /* the Game Over save window on the GamePad (gameover.c): its Cancel and Save buttons, in the GamePad picture's
  * 0..1 touch coordinates from the top left (measured on the drawn window, with a margin); -1 elsewhere */
 enum { QOL_GO_NONE = -1, QOL_GO_CANCEL = 0, QOL_GO_SAVE = 1 };
+static const float qol_gameover_buttons[2][4] = {{0.22f, 0.62f, 0.48f, 0.77f}, {0.50f, 0.62f, 0.80f, 0.77f}};  /* x0 y0 x1 y1 */
 static int qol_gameover_button_at(float x, float y) {
-    if (y < 0.62f || y > 0.77f) return QOL_GO_NONE;
-    if (x >= 0.22f && x <= 0.48f) return QOL_GO_CANCEL;
-    if (x >= 0.50f && x <= 0.80f) return QOL_GO_SAVE;
+    for (int b = QOL_GO_CANCEL; b <= QOL_GO_SAVE; b++) {
+        const float* r = qol_gameover_buttons[b];
+        if (x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3]) return b;
+    }
     return QOL_GO_NONE;
 }
 /* A tap that starts and ends on one button becomes the input the prompt reads: that button's direction (Left for
@@ -408,4 +410,16 @@ static unsigned qol_gameover_tap_step(qol_gameover_tap* t, int prompt, int touch
     if (left > 2 * QOL_GO_HOLD) return t->choice == QOL_GO_CANCEL ? QOL_GO_LEFT : QOL_GO_RIGHT;
     if (left > QOL_GO_HOLD) return 0;
     return QOL_GO_A;
+}
+/* The same tap from the events of a GamePad claim on the buttons (newer ports; the finger doesn't reach the game):
+ * kind 0 down, 1 move, 2 up, 3 cancel, at x, y (0..1). qol_gameover_tap_step then runs with t's own finger. */
+static void qol_gameover_tap_event(qol_gameover_tap* t, int kind, float x, float y) {
+    if (kind == 0) t->pressed = qol_gameover_button_at(x, y), t->down = 1;
+    if (kind <= 1 && t->down) t->x = x, t->y = y;
+    if (kind == 2 && t->down) {
+        t->down = 0;
+        if (t->pressed != QOL_GO_NONE && qol_gameover_button_at(x, y) == t->pressed && !t->reads)
+            t->choice = t->pressed, t->reads = 3 * QOL_GO_HOLD;
+    }
+    if (kind == 3) t->down = 0, t->pressed = QOL_GO_NONE;
 }

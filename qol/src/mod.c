@@ -71,7 +71,8 @@ static void hud(u32 list) {
     sing_draw(list);
 }
 static void touch(const wwhd_touch_event* e) {
-    if (!kaboom_touch(e) && !mg_touch(e) && !pg_touch(e)) songs_touch(e);
+    if (e->kind & WWHD_TOUCH_GAMEPAD) gameover_touch(e);  /* (the GamePad picture: only the Game Over buttons claim it) */
+    else if (!kaboom_touch(e) && !mg_touch(e) && !pg_touch(e)) songs_touch(e);
 }
 static void filter(wwhd_input_state* s) {
     options();  /* (also while Link doesn't step: a minigame's own camera) */
