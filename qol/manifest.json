@@ -2,7 +2,7 @@
   "format_version": 1,
   "id": "qol",
   "name": "QoL extras",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "game_id": "wwhd",
   "minimum_manager_version": "1.6.0",
   "kind": "guest",
@@ -13,7 +13,7 @@
     "heap_size": 1048576
   },
   "author": "ZeldaWWHDRecomp contributors",
-  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch. Optional faster block pushing and pulling.",
+  "description": "Small gameplay extras, each switched on its own while you play: Link's clothes, replayed songs, picto subjects, album pages, pictos mailed at postboxes, more figurine orders, songs by touch, singing the songs, one-hit kills, minigames by touch, the Game Over prompt on the GamePad. Optional faster block pushing and pulling.",
   "options": [
     {
       "id": "clothes",
@@ -200,6 +200,16 @@
       "live": true,
       "section": "Combat",
       "description": "Enemy hit freeze changes the short pause when Link cuts a signpost."
+    },
+    {
+      "id": "gameover_gamepad",
+      "type": "bool",
+      "name": "Game Over prompt on the GamePad",
+      "default": true,
+      "menu": true,
+      "live": true,
+      "section": "GamePad",
+      "description": "At Game Over, the GamePad (or the phone showing it) shows the \"Would you like to save?\" window instead of a black screen, and a tap on Cancel or Save answers it."
     }
   ],
   "setup": [

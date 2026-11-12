@@ -188,5 +188,34 @@ int main(void) {
         assert(qol_fo_take(&t, queued, 0, made, out) == 7 && t.count == 0 && out[6] == 39);
         assert(qol_fo_take(&t, queued, 0, made, out) == 0);
     }
+    /* the Game Over save window on the GamePad: a tap on Cancel / Save becomes its direction, a gap, then A */
+    {
+        unsigned out[2 + 3 * QOL_GO_HOLD + 2];
+        /* touched at (x, y), then still touching at (ux, uy), then let go, then the reads after */
+        #define GO_TAP(t, x, y, ux, uy) do { \
+            int k = 0; \
+            out[k++] = qol_gameover_tap_step(&(t), 1, 1, x, y); \
+            assert(qol_gameover_tap_step(&(t), 1, 1, ux, uy) == 0); \
+            while (k < (int)(sizeof out / sizeof *out)) out[k++] = qol_gameover_tap_step(&(t), 1, 0, 0, 0); \
+        } while (0)
+        qol_gameover_tap t;
+        memset(&t, 0, sizeof t);
+        GO_TAP(t, 0.35f, 0.69f, 0.35f, 0.69f);  /* Cancel */
+        assert(out[0] == 0);
+        for (int i = 0; i < QOL_GO_HOLD; i++) assert(out[1 + i] == QOL_GO_LEFT);
+        for (int i = 0; i < QOL_GO_HOLD; i++) assert(out[1 + QOL_GO_HOLD + i] == 0);
+        for (int i = 0; i < QOL_GO_HOLD; i++) assert(out[1 + 2 * QOL_GO_HOLD + i] == QOL_GO_A);
+        assert(out[1 + 3 * QOL_GO_HOLD] == 0);
+        GO_TAP(t, 0.65f, 0.69f, 0.65f, 0.69f);  /* Save */
+        assert(out[1] == QOL_GO_RIGHT && out[1 + 2 * QOL_GO_HOLD] == QOL_GO_A);
+        GO_TAP(t, 0.35f, 0.69f, 0.65f, 0.69f);  /* pressed on Cancel, let go on Save: nothing */
+        for (unsigned i = 0; i < sizeof out / sizeof *out; i++) assert(out[i] == 0);
+        GO_TAP(t, 0.5f, 0.3f, 0.5f, 0.3f);      /* the window's text: nothing */
+        for (unsigned i = 0; i < sizeof out / sizeof *out; i++) assert(out[i] == 0);
+        /* not at the prompt: nothing, and a tap begun there doesn't carry over */
+        assert(qol_gameover_tap_step(&t, 0, 1, 0.35f, 0.69f) == 0 && qol_gameover_tap_step(&t, 0, 0, 0, 0) == 0);
+        assert(qol_gameover_tap_step(&t, 1, 0, 0, 0) == 0);
+        #undef GO_TAP
+    }
     return 0;
 }

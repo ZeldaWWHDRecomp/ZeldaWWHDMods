@@ -11,6 +11,7 @@
  *   orders.c          more figurine orders: beyond Carlov's 12 they wait in this package's files
  *   postbox.c         pictos mailed to Carlov at the postboxes (his own figurine order)
  *   sing.c            sing the songs into the microphone (experimental)
+ *   gameover.c        the Game Over save prompt on the GamePad, answered by touch (on by default)
  * Adding a feature: its file (an <name>_option_changed and its step or hooks), its option in manifest.json and
  * one line in the table below.
  * Ideas from the GreenNaugahyde Android fork (MPL-2.0), reimplemented as a guest mod. */
@@ -28,6 +29,7 @@
 #include "orders.c"
 #include "postbox.c"
 #include "sing.c"
+#include "gameover.c"
 
 static qol_feature features[] = {
     {"block_push_speed", block_push_option_changed, 0},
@@ -48,6 +50,7 @@ static qol_feature features[] = {
     {"postbox_pictos", pb_option_changed, 0},
     {"more_figurine_orders", fo_option_changed, 0},
     {"sing_songs", sing_option_changed, 0},
+    {"gameover_gamepad", gameover_option_changed, 0},
 };
 
 /* the live options: a feature reads its option again when its revision changed (also once at start) */
@@ -78,6 +81,7 @@ static void filter(wwhd_input_state* s) {
     kaboom_filter(s);
     mg_filter(s);
     pg_filter(s);
+    gameover_filter(s);
 }
 
 /* Link's step (daPy_Execute), at its start */

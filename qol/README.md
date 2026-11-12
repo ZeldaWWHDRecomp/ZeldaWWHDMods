@@ -1,7 +1,7 @@
 # QoL extras
 
-Small gameplay extras in one package. Each has its own switch, all **off** by default, and each follows a
-change at once while you play: in **Settings → Mods → QoL extras**, or on the item menu's **Settings** page
+Small gameplay extras in one package. Each has its own switch, all **off** by default except **Game Over prompt
+on the GamePad**, and each follows a change at once while you play: in **Settings → Mods → QoL extras**, or on the item menu's **Settings** page
 (press + and go left of the items), Mods tab.
 
 | Extra | Section | What it does |
@@ -19,6 +19,7 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
 | **Album pages** | Picto Box | More pages of 12 pictos in the Picto Box album. In the album, **L** turns to the next page and **ZL** back (or tap the arrows at the top of the album). Turning past the last page starts a new, empty page; an empty page at the end goes again when you leave it. |
 | **Mail pictos at postboxes** | Picto Box | Stand in front of a postbox of the Island Postal Service and use the Picto Box (its item button): choose a picto, and the postbox takes the figurine order Carlov would take at the Nintendo Gallery (the same checks: a colour picto of a gallery subject not made or ordered yet, face and body seen; up to 12 orders). The picto leaves your album, as when you give it to Carlov. The figurine is ready the next day: Carlov hands it over at the gallery as usual. While this is on, the Picto Box can't take pictures while you face a postbox. |
 | **More figurine orders** | Picto Box | Carlov takes more than 12 figurine orders at a time. Orders beyond his 12 wait in a list of this package and go to him when a day passes and he has room again; they are ready that day. Works at the Nintendo Gallery and, with **Mail pictos at postboxes**, at the postboxes. |
+| **Game Over prompt on the GamePad** | GamePad | **On** by default. At Game Over the game shows "Would you like to save?" on the TV and leaves the GamePad black: it draws the window on the GamePad too, then covers it. With this on, the GamePad (or a phone showing it) shows the window, and a tap on Cancel or Save answers it, as Left or Right then A. The TV is unchanged. |
 
 
 ## Needs
@@ -61,6 +62,7 @@ change at once while you play: in **Settings → Mods → QoL extras**, or on th
   without waiting orders. Turning the option off keeps the waiting orders in the list (and in the file): they go on
   when you turn it on again. While it is off, Carlov takes 12 orders as in the game, and a waiting figurine you
   order from him directly leaves the list.
+- Game Over prompt on the GamePad: the window is the one the game draws on the GamePad itself; this extra only keeps the game's black cover off it while the prompt is up (the GamePad's item screen shows behind it). The game reads only the controller there, so a tap is turned into the buttons; the game still answers the touch itself with its "not here" mark. The tap areas are measured on the window as the USA game draws it (checked in English and French; not yet on the European game). The follow-up "Would you like to continue playing?" uses the same window, so it shows on the GamePad too and its buttons answer by touch as well.
 - Nothing here changes your save file on its own: the clothes change Link's model while you play; the story
   keeps its own choice.
 - Ideas from the GreenNaugahyde Android fork of the port (MPL-2.0), reimplemented as a guest mod. The figurine's
