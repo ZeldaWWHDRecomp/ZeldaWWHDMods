@@ -43,6 +43,8 @@ static void go_claims(int up) {
             const float* r = qol_gameover_buttons[b];
             ok &= wwhd_touch_claim(WWHD_TOUCH_GAMEPAD | b, r[0] * 854.0f, r[1] * 480.0f, r[2] * 854.0f, r[3] * 480.0f);
         }
+        if (!ok)
+            for (u32 b = 0; b < 2; b++) wwhd_touch_claim(WWHD_TOUCH_GAMEPAD | b, 0, 0, 0, 0);
         go_claim = ok ? 1 : -1;
     } else if (!up && go_claim) {
         if (go_claim > 0)
