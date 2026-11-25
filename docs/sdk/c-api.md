@@ -204,7 +204,8 @@ once per logic step.
 | `game.language` | U32 | Wii U language code 0–11 in use (set at startup) |
 | `game.build` | STRING | `USA`, `EU` |
 | `display.drc_mode` | STRING | `window`, `pip`, `auto`, `off`, `gamepad` |
-| `display.aspect` | F64 | aspect ratio of the current frame |
+| `display.aspect` | F64 | aspect ratio of the current frame (the game's picture) |
+| `display.hud_aspect` | F64 | aspect ratio the game's HUD is laid out in: equal to `display.aspect`, or narrower when Settings > Graphics > Constrain HUD to aspect ratio constrains the HUD. Missing on older ports: fall back to `display.aspect` |
 | `render.interp_fps` | U32 | frame rate shown: 30, the interpolation rate, or 60 in true 60 mode |
 | `render.true60` | BOOL | 0 or 1 |
 

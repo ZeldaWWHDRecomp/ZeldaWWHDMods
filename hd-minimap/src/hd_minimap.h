@@ -380,7 +380,8 @@ static inline hdm_icons hdm_dpad_icons(int sea, int dungeon, int on_ship, int hi
  * moves the HUD's edge panes out to the new edges. The mod HUD's canvas is 720 units tall at every shape
  * (TOP_LEFT: x from the left edge, y from the top). So a layout point (gx, gy) (+y up, from the centre) is
  * drawn at ((640 kx + gx) / ky, 360 - gy / ky) on the canvas, and a layout unit is 1 / ky canvas units.
- * aspect: the port's display.aspect (width / height of the game's picture); 16:9 when unknown. ---- */
+ * aspect: the port's display.hud_aspect (width / height of the game's HUD layout), or display.aspect on
+ * older ports; 16:9 when unknown. ---- */
 #define HDM_ASPECT_16_9 (16.0 / 9.0)
 typedef struct { float kx, ky; } hdm_aspect;
 static inline hdm_aspect hdm_aspect_factors(double aspect) {
