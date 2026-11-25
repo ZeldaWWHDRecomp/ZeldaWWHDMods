@@ -87,7 +87,7 @@ These features are optional. Older ports keep the map above the compasses and
 follow eligible GamePad caption changes in one direction. The package still loads
 with older installers; it does not import mandatory new host functions.
 
-## Known limits (0.2.6)
+## Known limits (0.2.7)
 
 - Native localized chart names retain a numeric fallback if a message is missing.
 - Link and boat markers are never drawn on treasure charts.
@@ -130,6 +130,10 @@ MPL-2.0; adapted portions retain that MIT notice.
 
 ## Changes
 
+- **0.2.7:**
+  - The icons beside the HUD's D-pad stay on the D-pad when Settings > Graphics > Constrain HUD to aspect ratio keeps
+    the HUD narrower than the picture (the mod reads the port's new display.hud_aspect, and display.aspect
+    on older ports, so nothing changes there).
 - **0.2.6:**
   - The icons beside the HUD's D-pad sit on the D-pad at every screen shape (Settings > Graphics >
     Aspect ratio): at 4:3 and 16:10 they were above it (at 4:3 over the hearts and partly off the top of

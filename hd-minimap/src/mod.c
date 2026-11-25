@@ -877,11 +877,14 @@ static void feedback(u32 list, float side) {
 
 /* ---- the map's icons beside the HUD's D-pad, read from the game's HUD (never written) so that they
  * move and fade with it ---- */
-/* the TV picture's width / height as the game draws this frame (Settings > Graphics > Aspect ratio, or the
- * window's shape); 0 on ports without the setting (hdm_aspect_factors keeps 16:9 then) */
+/* the shape the game's HUD is laid out in this frame (width / height): display.hud_aspect, which differs
+ * from the picture's display.aspect when Settings > Graphics > Constrain HUD to aspect ratio keeps the HUD narrower than
+ * the picture; ports without that key fall back to display.aspect (the HUD then always fills the picture);
+ * 0 on ports without either (hdm_aspect_factors keeps 16:9 then) */
 static double screen_aspect(void) {
     static double a;  /* the port writes settings only into the mod's own memory, not onto the stack */
-    if (wwhd_setting_get("display.aspect", WWHD_SETTING_F64, &a, 8) != 8) a = 0;
+    if (wwhd_setting_get("display.hud_aspect", WWHD_SETTING_F64, &a, 8) != 8 &&
+        wwhd_setting_get("display.aspect", WWHD_SETTING_F64, &a, 8) != 8) a = 0;
     return a;
 }
 static int heap_pointer(u32 p) { return p >= 0x10000000u && p < 0x50000000u && !(p & 3); }
