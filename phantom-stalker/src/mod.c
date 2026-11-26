@@ -180,6 +180,7 @@ WWHD_HOOK(WWHD_ADDR_dPa_removeScene_025A809C, scene_removed, (void* control)) {
 static double now;                  /* game seconds */
 static u32 phantom = NONE;          /* his process id */
 static double next;                 /* no new one before this */
+static double born;                 /* when he was made */
 static double waiting;              /* since when he has waited on his energy ball */
 static int hint_was = -1;           /* EVENT_HINT before he came (-1: he has not): kept so while he is here */
 
@@ -199,7 +200,7 @@ static void spawn(u8* link) {
     phantom = ps_create(FGANON_PROC, FGANON_PARAM, &spawn_pos, ((fopAc_ac_c*)link)->current.roomNo, &spawn_angle, 0, -1, 0);
     ps_set_layer(layer);
     next = now + 20;
-    waiting = now;
+    born = waiting = now;
     wwhd_log("phantom-stalker: Phantom Ganon comes");
 }
 
@@ -228,6 +229,7 @@ static int busy(u8* pg) {
 static double until;                /* its end (0: none) */
 static double cool;                 /* none before this */
 static double file_at = -1, last_roll, wet;
+static double dry = -1e9;           /* when Link last stood (not swimming, not on the boat) */
 #define LENGTH 120.0                /* seconds a spell lasts */
 #define QUIET 720.0                 /* seconds of quiet after one */
 
@@ -241,6 +243,7 @@ static void finish(const char* why) {
 
 /* ---- the step ---- */
 static u8* last_link;
+static char last_stage[8];
 static double settle;
 static f32 fog;
 static int fogged;
@@ -255,14 +258,18 @@ WWHD_HOOK_RETURN(WWHD_ADDR_fpcEx_Handler_025DE788, phantom_stalker_step, (u32 qu
     const double dt = wwhd_logic_dt();
     now += dt > 0 && dt < 0.2 ? dt : 1.0 / 30;
     u8* play = wwhd_play_get();
-    if (!play) return;
+    if (!play) {
+        last_link = 0;  /* (the next play scene is a new stage, wherever its Link lands) */
+        return;
+    }
     u8* link = (u8*)word(play, PLAY_LINK);
     const char* stage = (const char*)play + WWHD_PLAY_START_STAGE_NAME_OFFSET;
     const int title = !stage[0] || (stage[0] == 's' && stage[1] == 'e' && stage[2] == 'a' && stage[3] == '_' && stage[4] == 'T') ||
                       (stage[0] == 'N' && stage[1] == 'a' && stage[2] == 'm' && stage[3] == 'e' && !stage[4]) ||
                       (stage[0] == 'E' && stage[1] == 'N' && stage[2] == 'D' && stage[3] == 'u' && stage[4] == 'm' && stage[5] == 'i');
     if (!link || title) {
-        file_at = -1;
+        /* the fog is dropped now and handed back with one call at 0 in the next file's first step (fogged stays set) */
+        file_at = -1, last_link = 0, fog = 0;
         return;
     }
     if (!rng) {  /* seeded once, from the step count and where Link stands */
@@ -272,10 +279,20 @@ WWHD_HOOK_RETURN(WWHD_ADDR_fpcEx_Handler_025DE788, phantom_stalker_step, (u32 qu
         static const char* const kOften[] = {"Rare", "Now and then", "Often", "Always"};
         often = choice("how_often", kOften, 4, 1);
     }
-    if (link != last_link) {  /* a file loaded, a stage entered: Phantom Ganon went with the old one */
+    /* a file loaded, a stage entered: Phantom Ganon went with the old one. Found by Link, the stage's name, or a step with
+     * no play scene, Link or a stage (the title) between: a reload can put the new Link where the old one was */
+    int same_stage = 1;
+    for (int i = 0; i < 8 && same_stage && (i == 0 || stage[i - 1]); i++) same_stage = stage[i] == last_stage[i];
+    if (link != last_link || !same_stage) {
+        if (until > 0) {  /* a spell cut short this way ends as any other: the quiet after it too */
+            wwhd_log("phantom-stalker: ends, the stage changed");
+            if (!always()) cool = now + QUIET;
+        }
         last_link = link;
+        for (int i = 0; i < 8; i++) last_stage[i] = stage[i];
         settle = now + 2;
-        phantom = NONE, next = 0, until = 0, hint_was = -1;
+        phantom = NONE, next = 0, until = 0, hint_was = -1, dry = -1e9;
+        fog = 0;  /* no island fog indoors: the fog step below hands the game its own back at once */
     }
     /* reflecting his ball sets EVENT_HINT, which only the game's own Phantom Ganon should: it is cleared again each step
      * while he is here and once after, so no save (a mid-hunt one included) keeps it from him */
@@ -290,10 +307,13 @@ WWHD_HOOK_RETURN(WWHD_ADDR_fpcEx_Handler_025DE788, phantom_stalker_step, (u32 qu
     const s32 proc = player->mCurProc;  /* riding the boat: SHIP_READY..SHIP_RESTART, not SHIP_GET_OFF */
     const int riding = proc >= 0x86 && proc <= 0x91 && proc != 0x90, swimming = (player->mModeFlg & 0x40000) != 0;
     if (riding || swimming) wet = now;
+    else dry = now;
     const s32 room = sea_room(pos_of(link));
     const int at_sea = stage[0] == 's' && stage[1] == 'e' && stage[2] == 'a' && !stage[3];
-    const int island = at_sea && room != ROOM_WINDFALL && room != ROOM_OUTSET && !riding;
-    const int ashore = island && now - wet > 3;  /* (knocked into the water he is not off the island) */
+    /* on an island: not riding, and stood within the last 5 s, so swimming away (or off the boat) is not, and being
+     * knocked into the water is not leaving it */
+    const int island = at_sea && room != ROOM_WINDFALL && room != ROOM_OUTSET && !riding && now - dry < 5;
+    const int ashore = island && now - wet > 3;  /* (a roll only once he has been dry a while) */
     const f32 time = *(volatile f32*)(WWHD_GAME_DATA(WWHD_ADDR_save_info_pointer, u32) + WWHD_OFFSET_save_info + 0x24);
     const double hour = time / 15;  /* degrees, 15 an hour from midnight */
     const int night = hour >= 19 || hour < 5;
@@ -303,7 +323,8 @@ WWHD_HOOK_RETURN(WWHD_ADDR_fpcEx_Handler_025DE788, phantom_stalker_step, (u32 qu
     if (until > 0 && !hold) {
         if (!island) finish("phantom-stalker: ends, Link left the island");
         else if (now >= until) finish("phantom-stalker: ends");
-        else if (phantom != NONE && now >= next && !pg) finish("phantom-stalker: ends, Phantom Ganon is gone");
+        /* (2 s after he is made: he can take a few steps to be found) */
+        else if (phantom != NONE && now - born > 2 && !pg) finish("phantom-stalker: ends, Phantom Ganon is gone");
         if (until == 0) pg = 0;
     }
     if (!always() && until == 0 && settled && !cutscene && now - last_roll >= 60) {  /* one roll a minute */
