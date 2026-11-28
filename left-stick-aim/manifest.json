@@ -1,0 +1,23 @@
+{
+  "format_version": 1,
+  "id": "left-stick-aim",
+  "name": "Left Stick Aim",
+  "version": "0.1.0",
+  "game_id": "wwhd",
+  "minimum_manager_version": "1.6.0",
+  "kind": "guest",
+  "experimental": true,
+  "guest": {
+    "api_version": 1,
+    "elf": "mod.elf"
+  },
+  "author": "mobby45",
+  "description": "Aim in first person with the left stick, like on GameCube. L3 switches back to the normal controls.",
+  "setup": [
+    {
+      "id": "build",
+      "type": "build_guest_mod",
+      "title": "Build Left Stick Aim for this installation"
+    }
+  ]
+}

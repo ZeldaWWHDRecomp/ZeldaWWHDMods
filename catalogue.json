@@ -466,6 +466,35 @@
         "minimum": "0.5.0"
       },
       "experimental": true
+    },
+    {
+      "id": "left-stick-aim",
+      "name": "Left Stick Aim",
+      "description": "Aim in first person with the left stick, like on GameCube. L3 switches back to the normal controls.",
+      "authors": [
+        "mobby45"
+      ],
+      "version": "0.1.0",
+      "kind": "guest",
+      "licences": [
+        "MPL-2.0"
+      ],
+      "builds": [
+        "USA",
+        "EU"
+      ],
+      "requires": [],
+      "setup": [
+        {
+          "id": "build",
+          "type": "build_guest_mod",
+          "title": "Build Left Stick Aim for this installation"
+        }
+      ],
+      "port_versions": {
+        "minimum": "0.5.0"
+      },
+      "experimental": true
     }
   ]
 }
